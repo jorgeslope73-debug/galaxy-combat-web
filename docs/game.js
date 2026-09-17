@@ -233,13 +233,9 @@
   function drawShip(p){
     const local=p.i===myIndex;
     if(p.dead){
-      // La explosion original tiene 18 fotogramas y dura lo mismo que el
-      // tiempo de reaparicion del servidor (0.7 s).
-      const total=0.7;
-      const restante=Number.isFinite(p.respawn)?p.respawn:0;
-      const progreso=clamp(1-restante/total,0,0.9999);
-      const frame=1+Math.min(17,Math.floor(progreso*18));
-      const boom=images[`boom${frame}`];
+      // Explosion fija: usamos el fotograma 8 durante todo el tiempo de
+      // reaparicion. Es mas robusto que depender de una animacion temporal.
+      const boom=images.boom8;
       if(boom&&boom.complete) drawImageCentered(boom,p.x,p.y,null,0,1);
       return;
     }
