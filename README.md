@@ -43,3 +43,9 @@ Durante la partida:
 - el botón **RECALIBRAR GIRO** toma la posición actual como centro.
 
 Se recomienda jugar con el teléfono en horizontal.
+
+
+## Corrección de orientación
+Se ha corregido el sentido visual de las naves en navegador: la rotación del sprite usa el signo equivalente a Pygame, de modo que al acelerar la nave avanza hacia su morro.
+
+- Corregida la orientación visual de los PNG de las naves: ahora el morro coincide con la dirección real de avance.
