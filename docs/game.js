@@ -238,9 +238,11 @@
     if(p.prot>0)alpha*=.75;
     if(p.shield>0){ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='rgba(130,245,255,.95)';ctx.fillStyle='rgba(80,220,255,.12)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(p.x,p.y,39,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();}
     const im=images[`ship${p.i+1}${Math.hypot(p.vx,p.vy)>40?'a':''}`]||images[`ship${p.i+1}`];
-    // Los PNG originales están orientados 180° respecto al vector de avance del juego.
-    // Compensamos solo al dibujar: la física, disparos y red no cambian.
-    drawImageCentered(im,p.x,p.y,null,180-p.r,alpha);
+    // Los PNG originales de las naves apuntan hacia ARRIBA.
+    // La física usa rot=0 arriba, 90 izquierda, 180 abajo y 270 derecha.
+    // Canvas gira en el sentido visual contrario a esa convención, por eso
+    // dibujamos con -rot. Así el morro coincide exactamente con el avance.
+    drawImageCentered(im,p.x,p.y,null,-p.r,alpha);
   }
   function drawHud(){
     if(!state)return;const max=Math.max(0,...state.players.map(p=>p.k));const leaders=state.players.filter(p=>p.k===max&&max>0);const leader=leaders.length===1?leaders[0].i:null;
