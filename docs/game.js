@@ -27,6 +27,7 @@
     assetList[`ship${i}a`]=`assets/sprites/coete${i}a.png`;
     assetList[`ship${i}f`]=`assets/sprites/coete${i}f.png`;
   }
+  for(let i=1;i<=18;i++) assetList[`boom${i}`]=`assets/sprites/boom/_${i}.png`;
   for(const [k,url] of Object.entries(assetList)){const im=new Image();im.src=url;images[k]=im;}
   sounds.laser=new Audio('assets/sonido/laser_1.mp3');sounds.impact=new Audio('assets/sonido/impacto1.mp3');sounds.pickup=new Audio('assets/sonido/carga3.wav');sounds.start=new Audio('assets/sonido/inicio.wav');sounds.music=new Audio('assets/sonido/musica.mp3');sounds.music.loop=true;sounds.music.volume=.35;
   function playSound(k){const a=sounds[k];if(!a)return;try{const b=a.cloneNode();b.volume=k==='laser'?.55:.75;b.play().catch(()=>{});}catch(_){}}
@@ -55,7 +56,7 @@
     const dead=3.0;
     if(Math.abs(delta)<=dead){motionTurn=0;return;}
     const signed=delta>0?delta-dead:delta+dead;
-    motionTurn=clamp(signed/22,-1,1);
+    motionTurn=-clamp(signed/22,-1,1);
   }
   async function enableMobileMotion(){
     if(!isMobile)return true;
@@ -71,7 +72,7 @@
       window.removeEventListener('deviceorientation',onDeviceOrientation);
       window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});
       motionNeutral=null;motionTurn=0;motionEnabled=true;
-      motionStatus.textContent='Control móvil activo · posición actual calibrada como centro.';
+      motionStatus.textContent='Control móvil activo · giro invertido · posición actual calibrada como centro.';
       enableMotionBtn.textContent='RECALIBRAR GIRO';
       return true;
     }catch(err){
@@ -231,7 +232,17 @@
   }
   function drawShip(p){
     const local=p.i===myIndex;
-    if(p.dead)return;
+    if(p.dead){
+      // La explosion original tiene 18 fotogramas y dura lo mismo que el
+      // tiempo de reaparicion del servidor (0.7 s).
+      const total=0.7;
+      const restante=Number.isFinite(p.respawn)?p.respawn:0;
+      const progreso=clamp(1-restante/total,0,0.9999);
+      const frame=1+Math.min(17,Math.floor(progreso*18));
+      const boom=images[`boom${frame}`];
+      if(boom&&boom.complete) drawImageCentered(boom,p.x,p.y,null,0,1);
+      return;
+    }
     if(p.camo>0&&!local)return;
     let alpha=1;
     if(p.camo>0&&local){alpha=.42;if(p.camo<=3)alpha=(Math.floor(performance.now()/160)%2===0)?.55:.22;}
