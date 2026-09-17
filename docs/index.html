@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Galaxy Combat Web</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
+  <div id="ui" class="overlay">
+    <section id="menu" class="card">
+      <h1>GALAXY COMBAT</h1>
+      <p class="sub">Versión Web · 16:9 · hasta 4 jugadores</p>
+      <label>Nombre <input id="name" maxlength="16" value="JUGADOR"></label>
+      <button id="cpu" disabled>JUGAR CONTRA CPU</button>
+      <div class="row">
+        <select id="difficulty" aria-label="Dificultad CPU">
+          <option value="facil">Fácil</option>
+          <option value="medio">Medio</option>
+          <option value="dificil" selected>Difícil</option>
+        </select>
+      </div>
+      <button id="create" disabled>CREAR PARTIDA ONLINE</button>
+      <div class="joinrow">
+        <input id="code" maxlength="4" placeholder="CÓDIGO" autocomplete="off">
+        <button id="join" disabled>UNIRSE</button>
+      </div>
+      <p class="help desktop-help">Controles: A/D o ←/→ · acelerar W/↑ · disparar Ctrl o Espacio</p>
+      <div id="mobileSetup" class="mobile-setup hidden">
+        <button id="enableMotion" type="button">ACTIVAR CONTROL MÓVIL</button>
+        <p class="help">Móvil: inclina el teléfono para girar · lado izquierdo dispara · lado derecho acelera.</p>
+        <p id="motionStatus" class="motion-status" aria-live="polite"></p>
+      </div>
+      <p id="status" class="status waking" aria-live="polite">Despertando servidor…</p>
+    </section>
+    <section id="lobby" class="card hidden">
+      <h2>SALA <span id="roomCode"></span></h2>
+      <div id="players"></div>
+      <button id="start" disabled>EMPEZAR</button>
+      <p class="help">Los demás abren esta misma dirección y escriben el código.</p>
+    </section>
+    <section id="victory" class="card hidden">
+      <h2 id="victoryText">VICTORIA</h2>
+      <button id="back">VOLVER AL MENÚ</button>
+    </section>
+  </div>
+  <div id="topbar" class="hidden"><span id="roomMini"></span><span class="desktop-only">ESC: salir</span></div>
+  <div id="mobileControls" class="mobile-controls hidden" aria-hidden="true">
+    <div class="mobile-zone fire-zone"><span>DISPARO</span></div>
+    <div class="mobile-zone thrust-zone"><span>ACELERAR</span></div>
+  </div>
+</div>
+<script src="config.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
