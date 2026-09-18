@@ -74,7 +74,15 @@
   }
   sounds.laser=new Audio('assets/sonido/laser_1.mp3');sounds.impact=new Audio('assets/sonido/impacto1.mp3');sounds.pickup=new Audio('assets/sonido/carga3.wav');sounds.start=new Audio('assets/sonido/inicio.wav');sounds.music=new Audio('assets/sonido/musica.mp3');sounds.music.loop=true;sounds.music.volume=.35;
   function playSound(k){const a=sounds[k];if(!a)return;try{const b=a.cloneNode();b.volume=k==='laser'?.55:.75;b.play().catch(()=>{});}catch(_){}}
-  function startMusic(){if(musicStarted)return;musicStarted=true;sounds.music.play().catch(()=>{});}
+  function startMusic(){
+    if(!menu||menu.classList.contains('hidden')||!sounds.music||!sounds.music.paused)return;
+    sounds.music.play().then(()=>{musicStarted=true;}).catch(()=>{musicStarted=false;});
+  }
+  function stopMusic(){
+    if(!sounds.music)return;
+    try{sounds.music.pause();sounds.music.currentTime=0;}catch(_){}
+    musicStarted=false;
+  }
 
   function screenAngle(){
     if(screen.orientation&&Number.isFinite(screen.orientation.angle))return screen.orientation.angle;
@@ -225,7 +233,7 @@
     return false;
   }
   function handle(m){
-    if(m.t==='created'||m.t==='joined'){if(impactFX)impactFX.reset();roomCode=m.code;myIndex=m.index;isHost=m.t==='created';roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');startMusic();}
+    if(m.t==='created'||m.t==='joined'){if(impactFX)impactFX.reset();roomCode=m.code;myIndex=m.index;isHost=m.t==='created';roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');}
     else if(m.t==='lobby'){roomCode=m.code;roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.cpu?' · CPU':''}</div>`).join('');startBtn.disabled=!(isHost&&m.canStart);}
     else if(m.t==='start'){beginGame();playSound('start');}
     else if(m.t==='state'){
@@ -239,8 +247,11 @@
     else if(m.t==='closed'){alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(){inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile)mobileControls.classList.remove('hidden');startMusic();}
+  function beginGame(){stopMusic();inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile)mobileControls.classList.remove('hidden');}
   function showVictory(i){if(!inGame)return;inGame=false;topbar.classList.add('hidden');mobileControls.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?`GANA ${sinTildes(p.n)}`:`GANA J${i+1}`;victory.classList.remove('hidden');}
+
+  menu.addEventListener('pointerdown',startMusic,{passive:true});
+  menu.addEventListener('keydown',startMusic);
 
   document.getElementById('create').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'create',name:sinTildes(campoNombre.value)});});
   document.getElementById('cpu').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'cpu',name:sinTildes(campoNombre.value),difficulty:document.getElementById('difficulty').value});});
