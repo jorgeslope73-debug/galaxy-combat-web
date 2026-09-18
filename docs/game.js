@@ -409,9 +409,9 @@
   }
   function updateLobbyStartButton(canStart=false){
     if(!startBtn)return;
-    startBtn.textContent=isHost?'EMPEZAR':'PREPARADO';
-    // Solo el anfitrion puede iniciar la partida. Para los invitados,
-    // PREPARADO es informativo y no envia ninguna orden al servidor.
+    // Solo el anfitrion necesita un control para iniciar la partida.
+    startBtn.textContent='EMPEZAR';
+    startBtn.classList.toggle('hidden',!isHost);
     startBtn.disabled=isHost?!canStart:true;
   }
   function handle(m){
