@@ -32,6 +32,16 @@
       this.talking=false;
       this.remoteTalking=new Set();
 
+      // iPhone/Safari puede bloquear la reproduccion remota si el audio llega
+      // despues del gesto que activo el microfono. Mantenemos un AudioContext
+      // ya desbloqueado y lo usamos como respaldo para los streams remotos.
+      this.isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||
+        (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+      this.audioContext=null;
+      this.remoteAudioNodes=new Map();
+      this.remoteStreams=new Map();
+      this.playbackBlocked=new Set();
+
       this.enableButton=document.getElementById('enableVoice');
       this.statusEl=document.getElementById('voiceStatus');
       this.pttButton=document.getElementById('voicePtt');
@@ -92,6 +102,83 @@
         this.setTalking(false);
       });
       window.addEventListener('pagehide',()=>this.shutdown(false));
+
+      // Cualquier gesto posterior puede volver a desbloquear la salida si iOS
+      // suspendio el audio al cambiar de estado o al llegar el stream remoto.
+      const resume=()=>{if(this.enabled)this.resumeAudioOutput();};
+      document.addEventListener('pointerdown',resume,{passive:true});
+      document.addEventListener('touchend',resume,{passive:true});
+      document.addEventListener('visibilitychange',()=>{
+        if(!document.hidden&&this.enabled)this.resumeAudioOutput();
+      });
+    }
+
+    async prepareAudioOutput(){
+      const Ctx=window.AudioContext||window.webkitAudioContext;
+      if(!Ctx)return false;
+      try{
+        if(!this.audioContext)this.audioContext=new Ctx();
+        if(this.audioContext.state==='suspended')await this.audioContext.resume();
+        return this.audioContext.state==='running';
+      }catch(err){
+        console.warn('[Galaxy Combat Voice] No se pudo preparar la salida de audio.',err);
+        return false;
+      }
+    }
+
+    async resumeAudioOutput(){
+      const ok=await this.prepareAudioOutput();
+      if(ok){
+        for(const [id,stream] of this.remoteStreams)this.ensureWebAudioRemote(id,stream);
+      }
+      await this.retryRemotePlayback();
+      return ok;
+    }
+
+    ensureWebAudioRemote(id,stream){
+      if(!this.audioContext||this.audioContext.state!=='running'||!stream)return false;
+      if(this.remoteAudioNodes.has(id))return true;
+      try{
+        const source=this.audioContext.createMediaStreamSource(stream);
+        const gain=this.audioContext.createGain();
+        gain.gain.value=1;
+        source.connect(gain).connect(this.audioContext.destination);
+        this.remoteAudioNodes.set(id,{source,gain});
+        return true;
+      }catch(err){
+        console.warn('[Galaxy Combat Voice] Web Audio remoto no disponible.',err);
+        return false;
+      }
+    }
+
+    removeWebAudioRemote(id){
+      const node=this.remoteAudioNodes.get(id);
+      if(node){
+        try{node.source.disconnect();}catch(_){}
+        try{node.gain.disconnect();}catch(_){}
+        this.remoteAudioNodes.delete(id);
+      }
+      this.remoteStreams.delete(id);
+      this.playbackBlocked.delete(id);
+    }
+
+    async retryRemotePlayback(){
+      for(const [id,audio] of this.remoteAudio){
+        if(!audio||!audio.srcObject)continue;
+        try{
+          audio.muted=false;audio.volume=1;
+          const r=audio.play();
+          if(r&&typeof r.then==='function')await r;
+          this.playbackBlocked.delete(id);
+          // Si el elemento HTML ya suena, evitamos duplicarlo por Web Audio.
+          const node=this.remoteAudioNodes.get(id);
+          if(node){try{node.source.disconnect();}catch(_){}try{node.gain.disconnect();}catch(_){}this.remoteAudioNodes.delete(id);}
+        }catch(_){
+          this.playbackBlocked.add(id);
+          const stream=this.remoteStreams.get(id);
+          if(stream)this.ensureWebAudioRemote(id,stream);
+        }
+      }
     }
 
     async enable(){
@@ -104,6 +191,10 @@
       this.enabling=true;
       this.setStatus('SOLICITANDO MICROFONO...');
       try{
+        // Se ejecuta directamente desde el toque/click de ACTIVAR VOZ. En
+        // Safari esto deja la salida de audio autorizada antes de que lleguen
+        // las pistas remotas de WebRTC.
+        await this.prepareAudioOutput();
         const stream=await navigator.mediaDevices.getUserMedia({
           audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
           video:false
@@ -115,6 +206,7 @@
         this.localTrack=track;
         this.enabled=true;
         track.addEventListener('ended',()=>this.disable(false),{once:true});
+        await this.resumeAudioOutput();
         this.setStatus('VOZ ACTIVADA');
         this.refreshUI();
         if(this.localIndex!==null&&!this.cpuMode){
@@ -298,25 +390,53 @@
     }
 
     attachRemoteAudio(id,stream){
+      if(!stream)return;
+      this.remoteStreams.set(id,stream);
       let audio=this.remoteAudio.get(id);
       if(!audio){
         audio=document.createElement('audio');
-        audio.autoplay=true;audio.playsInline=true;
+        audio.autoplay=true;
+        audio.playsInline=true;
+        audio.setAttribute('autoplay','');
+        audio.setAttribute('playsinline','');
+        audio.preload='auto';
+        audio.muted=false;
+        audio.volume=1;
         audio.dataset.voicePlayer=String(id);
-        audio.style.display='none';
+        audio.style.position='fixed';
+        audio.style.width='1px';audio.style.height='1px';
+        audio.style.opacity='0';audio.style.pointerEvents='none';
         document.body.appendChild(audio);
         this.remoteAudio.set(id,audio);
       }
       if(audio.srcObject!==stream)audio.srcObject=stream;
-      const p=audio.play();
-      if(p&&typeof p.catch==='function')p.catch(()=>{
-        this.setStatus('TOCA ACTIVAR VOZ PARA OIR A LOS DEMAS');
-      });
+
+      // Camino normal. Si Safari lo bloquea, el AudioContext ya preparado al
+      // pulsar ACTIVAR VOZ reproduce el mismo MediaStream como respaldo.
+      try{
+        const p=audio.play();
+        if(p&&typeof p.then==='function'){
+          p.then(()=>{
+            this.playbackBlocked.delete(id);
+            const node=this.remoteAudioNodes.get(id);
+            if(node){try{node.source.disconnect();}catch(_){}try{node.gain.disconnect();}catch(_){}this.remoteAudioNodes.delete(id);}
+          }).catch(()=>{
+            this.playbackBlocked.add(id);
+            if(!this.ensureWebAudioRemote(id,stream)){
+              this.setStatus('TOCA LA PANTALLA PARA ACTIVAR EL AUDIO');
+            }
+          });
+        }
+      }catch(_){
+        this.playbackBlocked.add(id);
+        if(!this.ensureWebAudioRemote(id,stream))this.setStatus('TOCA LA PANTALLA PARA ACTIVAR EL AUDIO');
+      }
     }
 
     closePeer(id){
       const pc=this.peers.get(id);if(pc){try{pc.close();}catch(_){}this.peers.delete(id);}
       const audio=this.remoteAudio.get(id);if(audio){try{audio.pause();audio.srcObject=null;audio.remove();}catch(_){}this.remoteAudio.delete(id);}
+      this.removeWebAudioRemote(id);
       this.pendingIce.delete(id);this.offerBusy.delete(id);
     }
 
