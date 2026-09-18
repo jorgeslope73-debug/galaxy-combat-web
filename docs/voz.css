@@ -7,13 +7,17 @@
   width:auto!important;min-width:0!important;max-width:max-content!important;
   flex:0 0 auto!important;display:inline-flex!important;align-items:center;justify-content:center;
   min-height:30px;padding:6px 10px;border:1px solid rgba(183,117,255,.7);
-  border-radius:4px;background:rgba(28,8,48,.82);color:#efe4ff;
+  border-radius:4px;background:rgba(38,38,42,.88);color:#e7e7ea;
   font:inherit;font-size:11px;letter-spacing:.055em;cursor:pointer;
-  box-shadow:0 0 14px rgba(143,69,255,.16);
+  box-shadow:0 0 10px rgba(0,0,0,.28);
   white-space:nowrap;
 }
-.voice-setup button:hover,.voice-setup button.active{
-  background:rgba(99,34,154,.72);border-color:#d1a8ff;
+.voice-setup button:hover:not(.active){
+  background:rgba(55,55,60,.92);border-color:rgba(210,210,218,.55);
+  box-shadow:0 0 12px rgba(0,0,0,.32);
+}
+.voice-setup button.active{
+  background:rgba(99,34,154,.72);border-color:#d1a8ff;color:#efe4ff;
   box-shadow:0 0 20px rgba(178,103,255,.36);
 }
 .voice-status{font-size:10px;letter-spacing:.055em;color:rgba(232,218,255,.78)}

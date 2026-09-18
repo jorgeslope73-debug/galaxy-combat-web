@@ -341,7 +341,7 @@
     refreshUI(){
       const inRoom=this.localIndex!==null;
       if(this.enableButton){
-        this.enableButton.textContent=this.enabled?'DESACTIVAR VOZ':'ACTIVAR VOZ';
+        this.enableButton.textContent=this.enabled?'VOZ ACTIVA':'ACTIVAR VOZ';
         this.enableButton.classList.toggle('active',this.enabled);
       }
       if(this.statusEl&&!this.enabling){
@@ -351,6 +351,8 @@
         const show=this.isMobile&&inRoom;
         this.pttButton.classList.toggle('hidden',!show);
         this.pttButton.textContent=this.enabled?'HABLAR':'ACTIVAR VOZ';
+        this.pttButton.setAttribute('aria-label',this.enabled?'Mantener para hablar':'Activar voz');
+        this.pttButton.title=this.enabled?'Mantener para hablar':'Activar voz';
         this.pttButton.classList.toggle('talking',this.talking);
       }
       if(this.hintEl){
