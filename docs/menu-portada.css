@@ -54,7 +54,7 @@
   white-space: nowrap;
   border: 0;
 }
-#menu .menu-body { padding-top: 34.3%; padding-bottom: 16px; }
+#menu .menu-body { padding-top: 33.2%; padding-bottom: 16px; }
 #menu .launch-console {
   position: relative;
   left: 50%;
@@ -381,7 +381,8 @@
 #menu .room-browser-bottom{
   display:flex;
   flex-direction:column;
-  justify-content:center;
+  justify-content:flex-start;
+  padding-top:16px;
 }
 #menu .room-browser-bottom .private-code-block{
   margin:0;
@@ -424,6 +425,20 @@
   background:rgba(20,8,34,.12);
   border-bottom:1px solid rgba(180,125,225,.20);
 }
+
+#menu #publicRoomsDialog #publicRoomsTitle{
+  display:table;
+  margin:0 auto 10px;
+  padding:7px 16px 6px;
+  border:1px solid rgba(198,145,239,.38);
+  border-radius:999px;
+  background:rgba(24,10,40,.68);
+  color:#f2e5ff;
+  box-shadow:0 4px 14px rgba(0,0,0,.24),0 0 10px rgba(151,76,255,.12);
+  backdrop-filter:blur(4px);
+  -webkit-backdrop-filter:blur(4px);
+}
+
 #menu #publicRoomsDialog .public-room-row{
   background:rgba(17,8,29,.94);
   border-color:rgba(190,135,235,.56);
@@ -443,4 +458,21 @@
   margin-top:0;
   padding-top:0;
   border-top:0;
+}
+
+/* Codigo mas cerca de la lista publica, manteniendo fija la mitad inferior */
+#menu #publicRoomsDialog .room-browser-bottom .private-code-block,
+#menu #publicRoomsDialog .room-browser-bottom .room-dialog-close{
+  transform:none;
+}
+#menu #publicRoomsDialog .room-browser-bottom .room-dialog-close{
+  margin-top:14px!important;
+}
+@media (max-height:520px) and (orientation:landscape){
+  #menu #publicRoomsDialog .room-browser-bottom{
+    padding-top:8px;
+  }
+  #menu #publicRoomsDialog .room-browser-bottom .room-dialog-close{
+    margin-top:8px!important;
+  }
 }
