@@ -100,7 +100,9 @@
 
     draw(ctx, now = clock()) {
       if (!ctx || !Number.isFinite(now)) return;
-      this.bursts = this.bursts.filter(e => now - e.born < e.duration);
+      let write=0;
+      for(const e of this.bursts)if(now-e.born<e.duration)this.bursts[write++]=e;
+      this.bursts.length=write;
       if (!this.bursts.length) return;
       ctx.save();
       try {
