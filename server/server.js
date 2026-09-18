@@ -20,12 +20,30 @@ const PICKUP_RADIUS = 22;
 const BULLET_RADIUS = 4;
 const SMALL_METEOR_RADIUS = 14;
 
-const SHIP_STARTS = [
-  [140, 190, 270],
-  [1780, 300, 90],
-  [140, 890, 270],
-  [1780, 890, 90]
-];
+const SPAWN_PROTECTION_SECONDS = 3;
+
+// The HUD is drawn at (10 / W-216, 5 / H-190), size 128 x 153.
+// Reserve the name line too. Spawns stay under the top panels and above
+// the bottom panels, in the game canvas (not in the black screen bands).
+function spawnArea(index) {
+  const left = index % 2 === 0;
+  const top = index < 2;
+  const panelX = left ? 10 : W - 216;
+  const panelY = top ? 5 : H - 190;
+  const centerX = panelX + 64;
+  const gap = 22;
+  const spreadY = 100;
+  const nearY = top
+    ? panelY + 153 + 28 + SHIP_RADIUS + gap
+    : panelY - SHIP_RADIUS - gap;
+  return {
+    minX: Math.max(SHIP_RADIUS + 12, centerX - 28),
+    maxX: Math.min(W - SHIP_RADIUS - 12, centerX + 28),
+    minY: top ? nearY : nearY - spreadY,
+    maxY: top ? nearY + spreadY : nearY,
+    rot: left ? 270 : 90
+  };
+}
 
 const ASTEROID_STARTS = [
   [160, 430, 300, 1], [30, 930, 10, 3], [1800, 30, 210, 4],
@@ -125,10 +143,9 @@ class GameRoom {
     if (this.players.filter(p=>!p.cpu).length >= MAX_PLAYERS) return null;
     const used = new Set(this.players.map(p=>p.index));
     let index=0; while (used.has(index)) index++;
-    const [x,y,rot] = SHIP_STARTS[index];
     const p = this.makePlayer(index, name, false);
     p.ws = ws; p.isHost = isHost;
-    p.x=x; p.y=y; p.rot=rot;
+    this.placeAtSpawn(p);
     this.players.push(p);
     this.controls.set(index, { turn:0, thrust:false, fire:false });
     return p;
@@ -136,10 +153,9 @@ class GameRoom {
 
   addCpu(name='CPU', difficulty='dificil') {
     const index = 1;
-    const [x,y,rot] = SHIP_STARTS[index];
     const p = this.makePlayer(index, name, true);
     p.difficulty = difficulty;
-    p.x=x; p.y=y; p.rot=rot;
+    this.placeAtSpawn(p);
     this.players.push(p);
     this.controls.set(index, { turn:0, thrust:false, fire:false });
     return p;
@@ -150,7 +166,7 @@ class GameRoom {
       index, name:safeName(name, cpu?'CPU':`JUGADOR ${index+1}`), cpu,
       ws:null, isHost:false, x:0,y:0,rot:0,vx:0,vy:0,
       bullets:1, cadence:30, speed:1, kills:0, deaths:0,
-      reload:0, shield:0, camo:0, protection:2,
+      reload:0, shield:0, camo:0, protection:SPAWN_PROTECTION_SECONDS,
       dead:false, respawn:0, fireLatch:false
     };
   }
@@ -222,10 +238,47 @@ class GameRoom {
     }
   }
 
+  placeAtSpawn(p) {
+    const area = spawnArea(p.index);
+    const obstacles = this.asteroids.map(a => ({ x:a.x, y:a.y, r:a.r }));
+    for (const m of this.meteors) {
+      obstacles.push({ x:m.x, y:m.y, r:SMALL_METEOR_RADIUS });
+    }
+    if (this.giant) {
+      obstacles.push({ x:this.giant.x, y:this.giant.y, r:GIANT_RADIUS });
+    }
+    for (const other of this.players) {
+      if (other.index !== p.index && !other.dead) {
+        obstacles.push({ x:other.x, y:other.y, r:SHIP_RADIUS });
+      }
+    }
+
+    // Bounded search: prefer a clear point, not the previous spawn position.
+    // If the whole zone is obstructed, choose the least crowded candidate;
+    // the three-second protection still lets the player move out safely.
+    let best = null;
+    let bestScore = -Infinity;
+    for (let attempt = 0; attempt < 24; attempt++) {
+      const candidate = { x:rand(area.minX,area.maxX), y:rand(area.minY,area.maxY) };
+      let clearance = Infinity;
+      for (const o of obstacles) {
+        clearance = Math.min(clearance,
+          Math.hypot(candidate.x-o.x,candidate.y-o.y) - SHIP_RADIUS - o.r - 12);
+      }
+      const tooSimilar = p.lastSpawn && dist2(candidate,p.lastSpawn) < 28*28;
+      const score = (clearance >= 0 ? 10000 : 0) + Math.min(1000,clearance) - (tooSimilar ? 1000 : 0);
+      if (score > bestScore) { best=candidate; bestScore=score; }
+      if (clearance >= 0 && !tooSimilar) { best=candidate; break; }
+    }
+    p.x=best.x; p.y=best.y; p.rot=area.rot; p.vx=0; p.vy=0;
+    p.lastSpawn={ x:p.x, y:p.y };
+  }
+
   respawnPlayer(p) {
-    const [x,y,rot] = SHIP_STARTS[p.index];
-    p.x=x; p.y=y; p.rot=rot; p.vx=0; p.vy=0;
-    p.dead=false; p.protection=2; p.bullets=0; p.cadence=30; p.speed=1;
+    this.placeAtSpawn(p);
+    p.dead=false; p.respawn=0;
+    p.protection=SPAWN_PROTECTION_SECONDS;
+    p.bullets=0; p.cadence=30; p.speed=1;
     p.shield=0; p.camo=0; p.reload=0;
   }
 
@@ -294,7 +347,8 @@ class GameRoom {
     this.fxEvents = this.fxEvents.filter(e => this.fxClock - e.at <= 0.8);
 
     for (const p of this.players) {
-      p.protection=Math.max(0,p.protection-dt);
+      // Avoid a floating-point remainder prolonging immunity by one tick.
+      p.protection=p.protection-dt>1e-9 ? p.protection-dt : 0;
       p.shield=Math.max(0,p.shield-dt);
       p.camo=Math.max(0,p.camo-dt);
       p.reload=Math.max(0,p.reload-dt);
