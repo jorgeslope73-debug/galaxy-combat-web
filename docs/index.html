@@ -20,15 +20,17 @@
 .lobby-chat-name{flex:0 0 auto;font-weight:700;text-shadow:0 0 7px currentColor}
 .lobby-chat-text{color:rgba(245,242,255,.92)}
 .lobby-chat-compose{display:flex;gap:7px;align-items:center}
-#lobbyChatInput{flex:1;min-width:0;height:34px;padding:0 10px;border:1px solid rgba(184,125,255,.35);border-radius:5px;background:rgba(10,6,24,.62);color:#fff;font:12px 'Flashback',Arial,sans-serif;outline:none}
-#lobbyChatInput:focus{border-color:rgba(208,168,255,.82);box-shadow:0 0 12px rgba(155,83,255,.22)}
-#lobbyChatSend{flex:0 0 auto;min-height:34px;padding:6px 12px;font-size:11px}
+#lobby .lobby-chat-compose{display:grid!important;grid-template-columns:minmax(0,1fr) auto!important;gap:7px!important;align-items:center!important;width:100%!important}
+#lobby #lobbyChatInput{display:block!important;width:100%!important;min-width:0!important;max-width:none!important;box-sizing:border-box!important;height:36px!important;padding:0 11px!important;border:1px solid rgba(184,125,255,.45)!important;border-radius:5px!important;background:rgba(10,6,24,.72)!important;color:#fff!important;-webkit-text-fill-color:#fff!important;caret-color:#fff!important;font:12px 'Flashback',Arial,sans-serif!important;outline:none!important}
+#lobby #lobbyChatInput::placeholder{color:rgba(235,228,255,.48)!important;-webkit-text-fill-color:rgba(235,228,255,.48)!important}
+#lobby #lobbyChatInput:focus{border-color:rgba(208,168,255,.88)!important;box-shadow:0 0 12px rgba(155,83,255,.24)!important}
+#lobby #lobbyChatSend{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:0!important;max-width:max-content!important;flex:none!important;min-height:36px!important;height:36px!important;padding:5px 10px!important;margin:0!important;font-size:10px!important;white-space:nowrap!important}
 .lobby-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:5px}
 @media (max-width:760px){
   #lobby.lobby-with-chat{width:min(96vw,620px);max-height:92vh;padding:12px}
   .lobby-chat{margin-top:8px}.lobby-chat-log{height:112px;padding:7px 8px}
   .lobby-chat-line{font-size:11px;margin-bottom:4px}.lobby-chat-title{font-size:10px}
-  #lobbyChatInput{height:31px;font-size:10px}.lobby-chat-compose{gap:5px}#lobbyChatSend{min-height:31px;padding:5px 9px;font-size:9px}
+  #lobby #lobbyChatInput{height:33px!important;font-size:10px!important}#lobby .lobby-chat-compose{gap:5px!important}#lobby #lobbyChatSend{height:33px!important;min-height:33px!important;padding:4px 8px!important;font-size:8px!important}
 }
 
 /* El credito del autor solo se muestra en el menu principal. */
