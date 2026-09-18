@@ -3,22 +3,23 @@
   margin:8px auto 0;min-height:38px;
   font-family:'Flashback',Arial,sans-serif;
 }
-.voice-setup button{
+#enableVoice{
   width:auto!important;min-width:0!important;max-width:max-content!important;
-  flex:0 0 auto!important;display:inline-flex!important;align-items:center;justify-content:center;
-  min-height:30px;padding:6px 10px;border:1px solid rgba(183,117,255,.7);
-  border-radius:4px;background:rgba(38,38,42,.88);color:#e7e7ea;
-  font:inherit;font-size:11px;letter-spacing:.055em;cursor:pointer;
-  box-shadow:0 0 10px rgba(0,0,0,.28);
-  white-space:nowrap;
+  flex:0 0 auto!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;
+  min-height:28px!important;padding:5px 9px!important;border-radius:4px!important;
+  border:1px solid rgba(150,150,158,.58)!important;
+  background:#303034!important;color:#ededf0!important;
+  font-family:'Flashback',Arial,sans-serif!important;font-size:10px!important;letter-spacing:.055em!important;
+  cursor:pointer!important;box-shadow:0 0 8px rgba(0,0,0,.32)!important;white-space:nowrap!important;
 }
-.voice-setup button:hover:not(.active){
-  background:rgba(55,55,60,.92);border-color:rgba(210,210,218,.55);
-  box-shadow:0 0 12px rgba(0,0,0,.32);
+#enableVoice:hover:not(.active){
+  background:#3a3a3f!important;border-color:rgba(190,190,198,.68)!important;
 }
-.voice-setup button.active{
-  background:rgba(99,34,154,.72);border-color:#d1a8ff;color:#efe4ff;
-  box-shadow:0 0 20px rgba(178,103,255,.36);
+#enableVoice.active{
+  background:rgba(99,34,154,.88)!important;
+  border-color:#d1a8ff!important;
+  color:#f4eaff!important;
+  box-shadow:0 0 20px rgba(178,103,255,.42)!important;
 }
 .voice-status{font-size:10px;letter-spacing:.055em;color:rgba(232,218,255,.78)}
 .voice-hint,.voice-talker{
@@ -50,5 +51,5 @@
 .voice-ptt:active{transform:translateX(-50%) scale(.96)}
 @media (pointer:fine){.voice-ptt{display:none!important}}
 @media (max-width:760px){
-  .voice-setup{gap:7px;margin-top:4px}.voice-setup button{font-size:9px;padding:5px 8px;min-height:28px}.voice-status{font-size:8px}
+  .voice-setup{gap:7px;margin-top:4px}#enableVoice{font-size:9px!important;padding:5px 8px!important;min-height:27px!important}.voice-status{font-size:8px}
 }
