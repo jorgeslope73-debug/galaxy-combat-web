@@ -476,3 +476,13 @@
     margin-top:8px!important;
   }
 }
+
+/* Ajuste fino: subir ligeramente solo el bloque principal del menu */
+#menu:not(.join-browser-open) .launch-console{
+  top:-10px;
+}
+@media (max-height:520px) and (orientation:landscape){
+  #menu:not(.join-browser-open) .launch-console{
+    top:-6px;
+  }
+}

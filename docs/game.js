@@ -390,7 +390,7 @@
     if(roomTypeDialog)roomTypeDialog.classList.remove('hidden');
   }
   function showPublicRoomsDialog(){
-    if(joinCodeDialog)joinCodeDialog.value=(document.getElementById('code').value||'').trim().toUpperCase();
+    if(joinCodeDialog)joinCodeDialog.value='';
     if(publicRoomsDialog)publicRoomsDialog.classList.remove('hidden');
     renderPublicRooms();send({t:'public-rooms'});
   }
