@@ -7,7 +7,7 @@
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
 <link rel="stylesheet" href="style.css?v=perf-final-20260918-1">
 <link rel="stylesheet" href="menu-portada.css?v=join-gap-20260918-5">
-<link rel="stylesheet" href="voz.css?v=iphone-audio-fix-20260918-1">
+<link rel="stylesheet" href="voz.css?v=volumen-20260918-1-iphone-audio-fix-20260918-1">
 </head>
 <body>
 <div id="app">
@@ -84,8 +84,12 @@
                 </div>
               </div>
             </div>
-            <div class="voice-setup" aria-label="Chat de voz">
+            <div class="voice-setup" aria-label="Chat de voz y sonido">
               <button id="enableVoice" type="button">ACTIVAR VOZ</button>
+              <label class="game-volume" for="gameVolume" title="Volumen de musica y efectos">
+                <span class="game-volume-icon" aria-hidden="true">&#128266;</span>
+                <input id="gameVolume" type="range" min="0" max="100" step="5" value="70" aria-label="Volumen del juego">
+              </label>
               <span id="voiceStatus" class="voice-status" aria-live="polite">VOZ DESACTIVADA</span>
             </div>
             <p class="help desktop-help menu-keys"><span>GIRAR <b>A / D</b> o flechas</span><i aria-hidden="true"></i><span>ACELERAR <b>W / ARRIBA</b></span><i aria-hidden="true"></i><span>DISPARAR <b>CTRL / ESPACIO</b></span></p>
@@ -104,7 +108,8 @@
     <section id="lobby" class="card hidden">
       <h2>SALA <span id="roomCode"></span></h2>
       <div id="players"></div>
-      <button id="start" disabled>EMPEZAR</button>
+      <button id="start" disabled>PREPARADO</button>
+      <button id="leaveRoom" type="button">SALIR DE SALA</button>
       <p class="help">Los demas abren esta misma direccion y escriben el codigo.</p>
     </section>
     <section id="victory" class="card hidden">
@@ -123,6 +128,6 @@
 <script src="config.js"></script>
 <script src="impactos.js?v=perf-final-20260918-1"></script>
 <script src="voz.js?v=iphone-audio-fix-20260918-1"></script>
-<script src="game.js?v=join-transparente-20260918-1"></script>
+<script src="game.js?v=host-start-20260918-1"></script>
 </body>
 </html>

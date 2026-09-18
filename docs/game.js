@@ -118,15 +118,22 @@
     pickup:{url:'assets/sonido/carga3.wav',size:3,volume:.75},
     start:{url:'assets/sonido/inicio.wav',size:1,volume:.75}
   };
+  const gameVolumeEl=document.getElementById('gameVolume');
+  const defaultGameVolume=isMobile?0.45:0.75;
+  let gameVolume=defaultGameVolume;
+  try{
+    const saved=localStorage.getItem('galaxyGameVolume');
+    if(saved!==null&&Number.isFinite(Number(saved)))gameVolume=clamp(Number(saved),0,1);
+  }catch(_){}
   const soundPools={};
   for(const [key,def] of Object.entries(soundDefs)){
     const items=[];
     for(let i=0;i<def.size;i++){
-      const a=new Audio(def.url);a.preload='auto';a.volume=def.volume;items.push(a);
+      const a=new Audio(def.url);a.preload='auto';a.volume=def.volume*gameVolume;items.push(a);
     }
     soundPools[key]={items,next:0};
   }
-  sounds.music=new Audio('assets/sonido/musica.mp3');sounds.music.preload='auto';sounds.music.loop=true;sounds.music.volume=.35;
+  sounds.music=new Audio('assets/sonido/musica.mp3');sounds.music.preload='auto';sounds.music.loop=true;sounds.music.volume=.35*gameVolume;
   function playSound(k){
     const pool=soundPools[k];if(!pool||!pool.items.length)return;
     const a=pool.items[pool.next++%pool.items.length];
@@ -140,6 +147,20 @@
     if(!sounds.music)return;
     try{sounds.music.pause();sounds.music.currentTime=0;}catch(_){}
     musicStarted=false;
+  }
+  function applyGameVolume(value,persist=true){
+    gameVolume=clamp(Number(value)||0,0,1);
+    for(const [key,pool] of Object.entries(soundPools)){
+      const base=soundDefs[key]?.volume??1;
+      for(const a of pool.items)a.volume=base*gameVolume;
+    }
+    if(sounds.music)sounds.music.volume=.35*gameVolume;
+    if(gameVolumeEl)gameVolumeEl.value=String(Math.round(gameVolume*100));
+    if(persist){try{localStorage.setItem('galaxyGameVolume',String(gameVolume));}catch(_){}}
+  }
+  if(gameVolumeEl){
+    applyGameVolume(gameVolume,false);
+    gameVolumeEl.addEventListener('input',()=>applyGameVolume(Number(gameVolumeEl.value)/100,true));
   }
 
   function screenAngle(){
@@ -346,7 +367,6 @@
   function closeRoomDialogs(){
     if(roomTypeDialog)roomTypeDialog.classList.add('hidden');
     if(publicRoomsDialog)publicRoomsDialog.classList.add('hidden');
-    menu.classList.remove('join-browser-open');
   }
   function renderPublicRooms(){
     if(!publicRoomsList)return;
@@ -367,12 +387,10 @@
     }
   }
   function showRoomTypeDialog(){
-    menu.classList.remove('join-browser-open');
     if(roomTypeDialog)roomTypeDialog.classList.remove('hidden');
   }
   function showPublicRoomsDialog(){
     if(joinCodeDialog)joinCodeDialog.value=(document.getElementById('code').value||'').trim().toUpperCase();
-    menu.classList.add('join-browser-open');
     if(publicRoomsDialog)publicRoomsDialog.classList.remove('hidden');
     renderPublicRooms();send({t:'public-rooms'});
   }
@@ -389,6 +407,13 @@
     startMusic();await prepareMobileControls();closeRoomDialogs();
     send({t:'join',name:sinTildes(campoNombre.value),code:clean});
   }
+  function updateLobbyStartButton(canStart=false){
+    if(!startBtn)return;
+    startBtn.textContent=isHost?'EMPEZAR':'PREPARADO';
+    // Solo el anfitrion puede iniciar la partida. Para los invitados,
+    // PREPARADO es informativo y no envia ninguna orden al servidor.
+    startBtn.disabled=isHost?!canStart:true;
+  }
   function handle(m){
     if(m.t==='public-rooms'){
       publicRooms=Array.isArray(m.rooms)?m.rooms:[];renderPublicRooms();return;
@@ -397,9 +422,9 @@
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;lastVoicePlayersSig='';rebuildPreviousLookup(null);
-      roomCode=m.code;myIndex=m.index;isHost=m.t==='created';if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
+      roomCode=m.code;myIndex=m.index;isHost=m.t==='created';updateLobbyStartButton(false);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
     }
-    else if(m.t==='lobby'){roomCode=m.code;syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.cpu?' · CPU':''}</div>`).join('');startBtn.disabled=!(isHost&&m.canStart);}
+    else if(m.t==='lobby'){roomCode=m.code;syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);}
     else if(m.t==='start'){beginGame();playSound('start');}
     else if(m.t==='state'){
       const now=performance.now();
@@ -450,6 +475,16 @@
   window.addEventListener('orientationchange',scheduleCanvasResolution,{passive:true});
   scheduleCanvasResolution();
   startBtn.addEventListener('click',()=>send({t:'start'}));
+  document.getElementById('leaveRoom').addEventListener('click',()=>{
+    if(roomCode)send({t:'leave'});
+    if(voice)voice.clearSession();
+    inGame=false;state=null;previousState=null;lastStateTime=0;previousStateTime=0;
+    roomCode='';myIndex=null;isHost=false;lastVoicePlayersSig='';rebuildPreviousLookup(null);
+    lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
+    mobileControls.classList.add('hidden');touchSides.clear();refreshTouchControls();
+    roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';updateLobbyStartButton(false);
+    menu.classList.remove('hidden');startMusic();scheduleCanvasResolution();
+  });
   document.getElementById('back').addEventListener('click',()=>location.reload());
   window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'){if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}else if(inGame)location.reload();}});
   window.addEventListener('keyup',e=>keys.delete(e.code));
