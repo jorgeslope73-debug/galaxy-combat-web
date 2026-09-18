@@ -303,3 +303,45 @@
   #menu .server-spinner { animation: none; }
   #menu input, #menu select, #menu button { transition: none; }
 }
+
+
+/* Salas publicas / privadas */
+#menu .room-dialog{
+  position:fixed;inset:0;z-index:240;display:flex;align-items:center;justify-content:center;
+  padding:max(18px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) max(18px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));
+  background:rgba(2,0,8,.72);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  pointer-events:auto;
+}
+#menu .room-dialog-card{
+  width:min(560px,94vw);max-height:min(690px,88vh);overflow:auto;padding:22px;
+  border:1px solid rgba(195,132,244,.55);border-radius:12px;
+  background:linear-gradient(155deg,rgba(32,12,52,.97),rgba(8,4,20,.97));
+  box-shadow:0 20px 70px rgba(0,0,0,.65),0 0 30px rgba(151,76,255,.18);
+}
+#menu .room-dialog h3{margin:0 0 10px;text-align:center;color:#f0dbff;font:400 20px/1.25 Flashback,Arial,sans-serif;letter-spacing:.08em}
+#menu .room-dialog-copy{margin:0 0 18px;text-align:center;color:#cdb8db;font:13px/1.45 Arial,sans-serif}
+#menu .room-dialog-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+#menu .room-dialog-actions button{height:54px;font-size:18px}
+#menu #createPublic{background:linear-gradient(135deg,#8941a6,#562479)}
+#menu #createPrivate{background:rgba(20,15,29,.92);border-color:#766786}
+#menu .room-dialog-close{width:auto!important;min-width:120px;margin:14px auto 0!important;height:38px!important;min-height:38px!important;padding:6px 14px!important;background:rgba(18,15,24,.88)!important;border-color:#675b71!important;color:#baadbf!important;font-size:12px!important}
+#menu .public-rooms-list{display:flex;flex-direction:column;gap:8px;min-height:84px;max-height:330px;overflow:auto;padding:4px 2px 6px}
+#menu .public-room-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:10px;align-items:center;padding:11px 12px;border:1px solid rgba(174,119,220,.34);border-radius:8px;background:rgba(11,6,22,.78)}
+#menu .public-room-info{min-width:0;text-align:left}
+#menu .public-room-host{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#f0dcff;font:400 14px/1.25 Flashback,Arial,sans-serif;letter-spacing:.04em}
+#menu .public-room-code{display:block;margin-top:3px;color:#9c87ad;font:11px/1.2 Arial,sans-serif;letter-spacing:.1em}
+#menu .public-room-count{color:#d7c3e5;font:13px/1 Arial,sans-serif;white-space:nowrap}
+#menu .public-room-join{width:auto!important;min-width:112px;height:38px!important;min-height:38px!important;padding:6px 12px!important;font-size:13px!important}
+#menu .public-rooms-empty{margin:24px 0;text-align:center;color:#aa98b9;font:13px/1.4 Arial,sans-serif}
+#menu .private-code-block{margin-top:15px;padding-top:15px;border-top:1px solid rgba(167,115,208,.28)}
+#menu .private-code-title{display:block;margin-bottom:8px;text-align:center;color:#bda8cc;font:12px/1.3 Flashback,Arial,sans-serif;letter-spacing:.06em}
+#menu .private-code-row{display:grid;grid-template-columns:130px 1fr;gap:8px}
+#menu .private-code-row input{text-transform:uppercase;text-align:center;letter-spacing:.12em}
+@media (max-width:560px){
+  #menu .room-dialog-card{padding:16px}
+  #menu .room-dialog h3{font-size:17px}
+  #menu .public-room-row{grid-template-columns:minmax(0,1fr) auto;gap:7px}
+  #menu .public-room-count{grid-column:1;grid-row:2;text-align:left}
+  #menu .public-room-join{grid-column:2;grid-row:1/3;min-width:98px}
+  #menu .private-code-row{grid-template-columns:108px 1fr}
+}

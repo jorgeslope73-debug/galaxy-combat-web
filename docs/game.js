@@ -4,6 +4,7 @@
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
   const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
   const serverWait=document.getElementById('serverWait'),serverWaitText=document.getElementById('serverWaitText');
+  const roomTypeDialog=document.getElementById('roomTypeDialog'),publicRoomsDialog=document.getElementById('publicRoomsDialog'),publicRoomsList=document.getElementById('publicRoomsList'),joinCodeDialog=document.getElementById('joinCodeDialog');
   const W=1920,H=1080;
   const playerColors=['#5ae1ff','#ff50a5','#5aff78','#ffdc46'];
   const images={},sounds={};
@@ -12,6 +13,7 @@
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
   let lastControlTurn=0,lastVoicePlayersSig='',renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
+  let publicRooms=[];
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
@@ -263,6 +265,7 @@
       connectAttempt=0;wakeStartedAt=0;
       setServerReady(true);
       statusEl.textContent='Servidor conectado · listo para jugar';
+      send({t:'public-rooms'});
     };
     ws.onclose=()=>{
       setServerReady(false);
@@ -340,8 +343,55 @@
     lastVoicePlayersSig=sig;
     voice.syncPlayers(players);
   }
+  function closeRoomDialogs(){
+    if(roomTypeDialog)roomTypeDialog.classList.add('hidden');
+    if(publicRoomsDialog)publicRoomsDialog.classList.add('hidden');
+  }
+  function renderPublicRooms(){
+    if(!publicRoomsList)return;
+    publicRoomsList.textContent='';
+    if(!publicRooms.length){
+      const p=document.createElement('p');p.className='public-rooms-empty';p.textContent='NO HAY PARTIDAS PUBLICAS ESPERANDO';publicRoomsList.appendChild(p);return;
+    }
+    for(const room of publicRooms){
+      const row=document.createElement('div');row.className='public-room-row';
+      const info=document.createElement('div');info.className='public-room-info';
+      const host=document.createElement('span');host.className='public-room-host';host.textContent=sinTildes(room.host||'JUGADOR');
+      const code=document.createElement('span');code.className='public-room-code';code.textContent='SALA '+String(room.code||'');
+      info.append(host,code);
+      const count=document.createElement('span');count.className='public-room-count';count.textContent=`${Number(room.players)||0}/${Number(room.maxPlayers)||4}`;
+      const joinBtn=document.createElement('button');joinBtn.type='button';joinBtn.className='public-room-join';joinBtn.textContent='UNIRSE';
+      joinBtn.addEventListener('click',()=>joinRoomByCode(room.code));
+      row.append(info,count,joinBtn);publicRoomsList.appendChild(row);
+    }
+  }
+  function showRoomTypeDialog(){
+    if(roomTypeDialog)roomTypeDialog.classList.remove('hidden');
+  }
+  function showPublicRoomsDialog(){
+    if(joinCodeDialog)joinCodeDialog.value=(document.getElementById('code').value||'').trim().toUpperCase();
+    if(publicRoomsDialog)publicRoomsDialog.classList.remove('hidden');
+    renderPublicRooms();send({t:'public-rooms'});
+  }
+  async function prepareMobileControls(){
+    if(isMobile&&!motionEnabled)await enableMobileMotion();
+  }
+  async function createOnlineRoom(isPublic){
+    startMusic();await prepareMobileControls();closeRoomDialogs();
+    send({t:'create',name:sinTildes(campoNombre.value),public:!!isPublic});
+  }
+  async function joinRoomByCode(code){
+    const clean=String(code||'').trim().toUpperCase();
+    if(!clean){showPublicRoomsDialog();return;}
+    startMusic();await prepareMobileControls();closeRoomDialogs();
+    send({t:'join',name:sinTildes(campoNombre.value),code:clean});
+  }
   function handle(m){
+    if(m.t==='public-rooms'){
+      publicRooms=Array.isArray(m.rooms)?m.rooms:[];renderPublicRooms();return;
+    }
     if(m.t==='created'||m.t==='joined'){
+      closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;lastVoicePlayersSig='';rebuildPreviousLookup(null);
       roomCode=m.code;myIndex=m.index;isHost=m.t==='created';if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
@@ -372,9 +422,17 @@
   menu.addEventListener('pointerdown',startMusic,{passive:true});
   menu.addEventListener('keydown',startMusic);
 
-  document.getElementById('create').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'create',name:sinTildes(campoNombre.value)});});
+  document.getElementById('create').addEventListener('click',()=>{startMusic();showRoomTypeDialog();});
   document.getElementById('cpu').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'cpu',name:sinTildes(campoNombre.value),difficulty:document.getElementById('difficulty').value});});
-  document.getElementById('join').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'join',name:sinTildes(campoNombre.value),code:document.getElementById('code').value});});
+  document.getElementById('join').addEventListener('click',()=>{startMusic();showPublicRoomsDialog();});
+  document.getElementById('createPublic').addEventListener('click',()=>createOnlineRoom(true));
+  document.getElementById('createPrivate').addEventListener('click',()=>createOnlineRoom(false));
+  document.getElementById('closeRoomType').addEventListener('click',closeRoomDialogs);
+  document.getElementById('closePublicRooms').addEventListener('click',closeRoomDialogs);
+  document.getElementById('joinByCodeDialog').addEventListener('click',()=>joinRoomByCode(joinCodeDialog&&joinCodeDialog.value));
+  if(joinCodeDialog)joinCodeDialog.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();joinRoomByCode(joinCodeDialog.value);}});
+  if(roomTypeDialog)roomTypeDialog.addEventListener('pointerdown',e=>{if(e.target===roomTypeDialog)closeRoomDialogs();});
+  if(publicRoomsDialog)publicRoomsDialog.addEventListener('pointerdown',e=>{if(e.target===publicRoomsDialog)closeRoomDialogs();});
   if(isMobile){
     mobileSetup.classList.remove('hidden');
     enableMotionBtn.addEventListener('click',enableMobileMotion);
@@ -390,7 +448,7 @@
   scheduleCanvasResolution();
   startBtn.addEventListener('click',()=>send({t:'start'}));
   document.getElementById('back').addEventListener('click',()=>location.reload());
-  window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'&&inGame)location.reload();});
+  window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'){if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}else if(inGame)location.reload();}});
   window.addEventListener('keyup',e=>keys.delete(e.code));
   window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);if(voice)voice.shutdown(true);try{if(ws)ws.close();}catch(_){}});
 
