@@ -92,6 +92,11 @@ class GameRoom {
     this.winner = null;
     this.seq = 0;
     this.soundSeq = 0;
+    // Cosmetic events only. No forces, damage or timers are changed by FX.
+    this.fxClock = 0;
+    this.fxSeq = 0;
+    this.fxEvents = [];
+    this.fxLastHit = new Map();
     this.bullets = [];
     this.pickups = [];
     this.meteors = [];
@@ -162,8 +167,38 @@ class GameRoom {
     return true;
   }
 
+  emitShipImpact(player, source=null, destroyed=false) {
+    if (!player || !Number.isFinite(player.x) || !Number.isFinite(player.y)) return;
+    if (player.dead && !destroyed) return;
+    // A sustained contact produces brief sparks, not one burst per tick.
+    if (!destroyed) {
+      const last = this.fxLastHit.get(player.index);
+      if (last !== undefined && this.fxClock - last < 0.18) return;
+      this.fxLastHit.set(player.index, this.fxClock);
+    }
+    let x = player.x, y = player.y;
+    if (!destroyed && source && Number.isFinite(source.x) && Number.isFinite(source.y)) {
+      const n = normalize(source.x - x, source.y - y);
+      x += n.x * SHIP_RADIUS;
+      y += n.y * SHIP_RADIUS;
+    }
+    this.fxEvents.push({
+      id: ++this.fxSeq, i: player.index,
+      x: +x.toFixed(1), y: +y.toFixed(1),
+      kind: destroyed ? 'explosion' : 'hit',
+      // A nonlethal contact must not expose a camouflaged ship to opponents.
+      hidden: !destroyed && player.camo > 0,
+      at: this.fxClock
+    });
+    if (this.fxEvents.length > 32) this.fxEvents.splice(0, this.fxEvents.length - 32);
+  }
+
   destroyShip(victim, attacker=null) {
-    if (victim.dead || victim.protection>0 || victim.shield>0 || this.finished) return;
+    if (victim.dead || this.finished) return;
+    if (victim.protection>0 || victim.shield>0) {
+      this.emitShipImpact(victim, attacker, false);
+      return;
+    }
     victim.dead = true;
     victim.respawn = 0.7;
     victim.vx = victim.vy = 0;
@@ -175,6 +210,7 @@ class GameRoom {
     victim.camo = 0;
     victim.reload = 0;
     this.noDeathTime = 0;
+    this.emitShipImpact(victim, null, true);
     emitSound(this,'impact');
     if (attacker && attacker !== victim) {
       attacker.kills++;
@@ -254,6 +290,8 @@ class GameRoom {
   update(dt) {
     if (!this.started || this.finished) return;
     this.noDeathTime += dt;
+    this.fxClock += dt;
+    this.fxEvents = this.fxEvents.filter(e => this.fxClock - e.at <= 0.8);
 
     for (const p of this.players) {
       p.protection=Math.max(0,p.protection-dt);
@@ -314,6 +352,7 @@ class GameRoom {
           if(p.index===b.owner||p.dead||p.protection>0)continue;
           if(circles(b,BULLET_RADIUS,p,SHIP_RADIUS)){
             if(p.shield<=0) this.destroyShip(p,this.players.find(q=>q.index===b.owner)||null);
+            else this.emitShipImpact(p,b,false);
             remove=true;break;
           }
         }
@@ -383,7 +422,7 @@ class GameRoom {
       const m=this.meteors[i];m.x+=m.vx*dt;m.y+=m.vy*dt;m.angle=(m.angle+120*dt)%360;
       for(const a of this.asteroids){if(circles(m,SMALL_METEOR_RADIUS,a,a.r)){const n=normalize(m.x-a.x,m.y-a.y);const dot=m.vx*n.x+m.vy*n.y;if(dot<0){m.vx-=2*dot*n.x;m.vy-=2*dot*n.y;}m.x+=n.x*4;m.y+=n.y*4;}}
       let removed=false;
-      for(const p of this.players){if(!p.dead&&circles(m,SMALL_METEOR_RADIUS,p,SHIP_RADIUS)){if(p.shield>0){const n=normalize(m.x-p.x,m.y-p.y);const dot=m.vx*n.x+m.vy*n.y;m.vx-=2*dot*n.x;m.vy-=2*dot*n.y;}else{this.destroyShip(p,null);this.meteors.splice(i,1);removed=true;}break;}}
+      for(const p of this.players){if(!p.dead&&circles(m,SMALL_METEOR_RADIUS,p,SHIP_RADIUS)){if(p.shield>0){this.emitShipImpact(p,m,false);const n=normalize(m.x-p.x,m.y-p.y);const dot=m.vx*n.x+m.vy*n.y;m.vx-=2*dot*n.x;m.vy-=2*dot*n.y;}else{this.destroyShip(p,null);this.meteors.splice(i,1);removed=true;}break;}}
       if(removed)continue;
       if(m.x<-100||m.x>W+100||m.y<-100||m.y>H+100)this.meteors.splice(i,1);
     }
@@ -403,7 +442,7 @@ class GameRoom {
       return;
     }
     const g=this.giant;g.x+=g.vx*dt;g.y+=g.vy*dt;if(g.x>-GIANT_RADIUS&&g.x<W+GIANT_RADIUS&&g.y>-GIANT_RADIUS&&g.y<H+GIANT_RADIUS)g.entered=true;
-    for(const p of this.players){if(!p.dead&&circles(g,GIANT_RADIUS,p,SHIP_RADIUS)){if(p.shield>0||p.protection>0){const n=normalize(p.x-g.x,p.y-g.y);p.vx=n.x*130;p.vy=n.y*130;p.x+=n.x*8;p.y+=n.y*8;}else this.destroyShip(p,null);}}
+    for(const p of this.players){if(!p.dead&&circles(g,GIANT_RADIUS,p,SHIP_RADIUS)){if(p.shield>0||p.protection>0){this.emitShipImpact(p,g,false);const n=normalize(p.x-g.x,p.y-g.y);p.vx=n.x*130;p.vy=n.y*130;p.x+=n.x*8;p.y+=n.y*8;}else this.destroyShip(p,null);}}
     for(const a of this.asteroids){if(circles(g,GIANT_RADIUS,a,a.r)){const n=normalize(a.x-g.x,a.y-g.y);a.vx+=n.x*25;a.vy+=n.y*25;a.x+=n.x*5;a.y+=n.y*5;}}
     for(let i=this.pickups.length-1;i>=0;i--)if(circles(g,GIANT_RADIUS,this.pickups[i],PICKUP_RADIUS))this.pickups.splice(i,1);
     if(g.entered&&(g.x<-350||g.x>W+350||g.y<-350||g.y>H+350)){this.giant=null;this.nextGiant=rand(130,190);}
@@ -412,10 +451,12 @@ class GameRoom {
   shipCollisions(){
     for(const p of this.players){
       if(p.dead)continue;
-      for(const a of this.asteroids){if(circles(p,SHIP_RADIUS,a,a.r)){if(p.shield>0){const n=normalize(p.x-a.x,p.y-a.y);const dot=p.vx*n.x+p.vy*n.y;if(dot<0){p.vx-=1.85*dot*n.x;p.vy-=1.85*dot*n.y;}p.x+=n.x*5;p.y+=n.y*5;}else this.destroyShip(p,null);}}
+      for(const a of this.asteroids){if(circles(p,SHIP_RADIUS,a,a.r)){if(p.shield>0){this.emitShipImpact(p,a,false);const n=normalize(p.x-a.x,p.y-a.y);const dot=p.vx*n.x+p.vy*n.y;if(dot<0){p.vx-=1.85*dot*n.x;p.vy-=1.85*dot*n.y;}p.x+=n.x*5;p.y+=n.y*5;}else this.destroyShip(p,null);}}
     }
     for(let i=0;i<this.players.length;i++)for(let j=i+1;j<this.players.length;j++){
       const a=this.players[i],b=this.players[j];if(a.dead||b.dead||!circles(a,SHIP_RADIUS,b,SHIP_RADIUS))continue;
+      if(a.shield>0 || a.protection>0)this.emitShipImpact(a,b,false);
+      if(b.shield>0 || b.protection>0)this.emitShipImpact(b,a,false);
       if(a.shield>0&&b.shield<=0)this.destroyShip(b,a); else if(b.shield>0&&a.shield<=0)this.destroyShip(a,b); else if(a.shield<=0&&b.shield<=0){this.destroyShip(a,null);this.destroyShip(b,null);} else {const n=normalize(a.x-b.x,a.y-b.y);a.vx=n.x*120;a.vy=n.y*120;b.vx=-n.x*120;b.vy=-n.y*120;}
     }
   }
@@ -424,7 +465,12 @@ class GameRoom {
     return {
       t:'state',seq:++this.seq,code:this.code,mode:this.mode,started:this.started,finished:this.finished,winner:this.winner,
       w:W,h:H,scoreToWin:SCORE_TO_WIN,
-      players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:+p.x.toFixed(1),y:+p.y.toFixed(1),r:+p.rot.toFixed(1),vx:+p.vx.toFixed(1),vy:+p.vy.toFixed(1),ammo:p.bullets,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:+p.shield.toFixed(2),camo:+p.camo.toFixed(2),prot:+p.protection.toFixed(2),dead:p.dead})),
+      fxVersion:1,
+      fx:this.fxEvents.map(e=>({
+        id:e.id,i:e.i,x:e.x,y:e.y,kind:e.kind,hidden:e.hidden,
+        age:Math.max(0,Math.round((this.fxClock-e.at)*1000))
+      })),
+      players:this.players.map(p=>({i:p.index,n:p.name,cpu:p.cpu,x:+p.x.toFixed(1),y:+p.y.toFixed(1),r:+p.rot.toFixed(1),vx:+p.vx.toFixed(1),vy:+p.vy.toFixed(1),ammo:p.bullets,cad:p.cadence,spd:p.speed,k:p.kills,d:p.deaths,shield:+p.shield.toFixed(2),camo:+p.camo.toFixed(2),prot:+p.protection.toFixed(2),dead:p.dead,respawn:+p.respawn.toFixed(3)})),
       asteroids:this.asteroids.map(a=>({id:a.id,x:+a.x.toFixed(1),y:+a.y.toFixed(1),type:a.type})),
       bullets:this.bullets.map(b=>({id:b.id,o:b.owner,x:+b.x.toFixed(1),y:+b.y.toFixed(1),vx:+b.vx.toFixed(1),vy:+b.vy.toFixed(1)})),
       pickups:this.pickups.map(p=>({id:p.id,type:p.type,x:+p.x.toFixed(1),y:+(p.y+Math.cos(p.phase)*3).toFixed(1)})),
