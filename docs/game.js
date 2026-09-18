@@ -744,7 +744,18 @@
     if(impactFX)impactFX.draw(ctx,now);
     drawHud(now);
     drawLeaderAnnouncement(now);
-    if(state.shower>0){ctx.font='22px Flashback,Arial';ctx.textAlign='center';ctx.fillStyle='rgba(255,170,70,.85)';ctx.fillText('LLUVIA DE METEORITOS',W/2,185);}
+    if(state.shower>0){
+      const pulse=.58+.42*(.5+.5*Math.sin(performance.now()*.005));
+      ctx.save();
+      ctx.globalAlpha=pulse;
+      ctx.font='22px Flashback,Arial';
+      ctx.textAlign='center';
+      ctx.fillStyle='rgb(255,170,70)';
+      ctx.shadowColor='rgba(255,135,35,.65)';
+      ctx.shadowBlur=8+5*(1-pulse);
+      ctx.fillText('LLUVIA DE METEORITOS',W/2,185);
+      ctx.restore();
+    }
   }
   connect();render();
 })();
