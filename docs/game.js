@@ -69,7 +69,7 @@
     const dead=3.0;
     if(Math.abs(delta)<=dead){motionTurn=0;return;}
     const signed=delta>0?delta-dead:delta+dead;
-    motionTurn=clamp(signed/22,-1,1);
+    motionTurn=-clamp(signed/22,-1,1);
   }
   async function enableMobileMotion(){
     if(!isMobile)return true;
@@ -278,6 +278,13 @@
     else if(pk.type==='camo'){ctx.strokeStyle='#d1b4ff';ctx.fillStyle='rgba(160,100,255,.18)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,21,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.globalAlpha=.9;ctx.font='18px Arial';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('C',0,1);}
     ctx.restore();
   }
+  function spawnProtectionAlpha(secondsLeft){
+    if(!Number.isFinite(secondsLeft)||secondsLeft<=0)return 1;
+    // Six soft pulses over three seconds. The ship never disappears fully.
+    // Use the server timer, so all players see the same protection state.
+    const elapsed=Math.max(0,3-secondsLeft);
+    return .35+.65*(.5+.5*Math.cos(elapsed*Math.PI*4));
+  }
   function drawShip(p){
     const local=p.i===myIndex;
     // The short explosion is drawn by impactFX, never from a PNG download.
@@ -285,7 +292,7 @@
     if(p.camo>0&&!local)return;
     let alpha=1;
     if(p.camo>0&&local){alpha=.42;if(p.camo<=3)alpha=(Math.floor(performance.now()/160)%2===0)?.55:.22;}
-    if(p.prot>0)alpha*=.75;
+    if(p.prot>0)alpha*=spawnProtectionAlpha(p.prot);
     if(p.shield>0){ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='rgba(130,245,255,.95)';ctx.fillStyle='rgba(80,220,255,.12)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(p.x,p.y,39,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();}
     // Python: armado = balas > 0 y recarga terminada. El servidor confirma
     // ese estado; no cambiamos el movimiento ni el efecto de propulsion web.
