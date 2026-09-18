@@ -544,6 +544,23 @@ class GameRoom {
     for(let i=this.meteors.length-1;i>=0;i--){
       const m=this.meteors[i];m.x+=m.vx*dt;m.y+=m.vy*dt;m.angle=(m.angle+120*dt)%360;
       for(const a of this.asteroids){if(circles(m,SMALL_METEOR_RADIUS,a,a.r)){const n=normalize(m.x-a.x,m.y-a.y);const dot=m.vx*n.x+m.vy*n.y;if(dot<0){m.vx-=2*dot*n.x;m.vy-=2*dot*n.y;}m.x+=n.x*4;m.y+=n.y*4;}}
+      // La lluvia rebota contra el meteorito gigante en vez de atravesarlo.
+      // Se refleja la velocidad relativa para que el rebote siga siendo estable
+      // aunque el gigante este moviendose lentamente.
+      if(this.giant&&circles(m,SMALL_METEOR_RADIUS,this.giant,GIANT_RADIUS)){
+        const g=this.giant;
+        const n=normalize(m.x-g.x,m.y-g.y);
+        const rvx=m.vx-g.vx,rvy=m.vy-g.vy;
+        const dot=rvx*n.x+rvy*n.y;
+        if(dot<0){
+          m.vx=g.vx+(rvx-2*dot*n.x);
+          m.vy=g.vy+(rvy-2*dot*n.y);
+        }
+        const dx=m.x-g.x,dy=m.y-g.y;
+        const dist=Math.hypot(dx,dy)||1;
+        const overlap=SMALL_METEOR_RADIUS+GIANT_RADIUS-dist;
+        if(overlap>0){m.x+=n.x*(overlap+2);m.y+=n.y*(overlap+2);}
+      }
       // Los meteoritos barren los elementos flotantes que atraviesan.
       // El meteorito continua su trayectoria; solo desaparece la mejora/municion.
       for(let k=this.pickups.length-1;k>=0;k--){
