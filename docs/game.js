@@ -28,6 +28,7 @@
     assetList[`ship${i}`]=`assets/sprites/coete${i}.png`;
     assetList[`ship${i}a`]=`assets/sprites/coete${i}a.png`;
     assetList[`ship${i}f`]=`assets/sprites/coete${i}f.png`;
+    assetList[`ship${i}af`]=`assets/sprites/coete${i}af.png`;
   }
   const warnedImages=new WeakSet();
   function reportImageFailure(im,error){
@@ -286,7 +287,15 @@
     if(p.camo>0&&local){alpha=.42;if(p.camo<=3)alpha=(Math.floor(performance.now()/160)%2===0)?.55:.22;}
     if(p.prot>0)alpha*=.75;
     if(p.shield>0){ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='rgba(130,245,255,.95)';ctx.fillStyle='rgba(80,220,255,.12)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(p.x,p.y,39,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();}
-    const im=images[`ship${p.i+1}${Math.hypot(p.vx,p.vy)>40?'a':''}`]||images[`ship${p.i+1}`];
+    // Python: armado = balas > 0 y recarga terminada. El servidor confirma
+    // ese estado; no cambiamos el movimiento ni el efecto de propulsion web.
+    const shipKey=`ship${p.i+1}`;
+    const motionSuffix=Math.hypot(p.vx,p.vy)>40?'a':'';
+    const readySuffix=p.armed===true?'f':'';
+    const selected=images[shipKey+motionSuffix+readySuffix];
+    const normal=images[shipKey+motionSuffix]||images[shipKey];
+    // Si el PNG aun no esta disponible, dibujar la nave normal sin bloquear.
+    const im=imageReady(selected)?selected:normal;
     // Los PNG originales de las naves apuntan hacia ARRIBA.
     // La física usa rot=0 arriba, 90 izquierda, 180 abajo y 270 derecha.
     // Canvas gira en el sentido visual contrario a esa convención, por eso
