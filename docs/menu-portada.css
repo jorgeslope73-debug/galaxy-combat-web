@@ -1,0 +1,305 @@
+/* Galaxy Combat: nombre centrado y tipografia original Flashback.
+   Solo presentacion del menu; no modifica el lienzo ni el HUD de la partida. */
+#menu.menu-cover {
+  --menu-edge: max(18px, env(safe-area-inset-left, 0px), env(safe-area-inset-right, 0px));
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+  scrollbar-color: #765198 #080311;
+  pointer-events: auto;
+  touch-action: pan-y;
+  background: #05010b;
+  font-family: Flashback, Arial, sans-serif;
+  color: #f9f3ff;
+}
+/* Permite desplazar el menu en un telefono corto, no durante la partida. */
+#app:has(#menu:not(.hidden)) { touch-action: pan-y; }
+#menu .menu-scene {
+  position: relative;
+  flex: 0 0 auto;
+  width: min(100%, 1920px, calc(100svh * 16 / 9));
+  aspect-ratio: 16 / 9;
+  margin: auto 0;
+  isolation: isolate;
+}
+#menu .menu-art {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: auto;
+  display: block;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: -1;
+}
+#menu .menu-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+#menu .menu-body { padding-top: 34.3%; padding-bottom: 16px; }
+#menu .launch-console {
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1120px, calc(100vw - var(--menu-edge) * 2));
+}
+#menu .pilot-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 0 2px;
+}
+#menu .pilot-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  flex: none;
+  width: min(340px, 100%);
+  margin: 0 auto;
+  text-align: center;
+}
+#menu .field-title {
+  color: #e1c9f5;
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 1.2;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+#menu input, #menu select, #menu button {
+  min-width: 0;
+  min-height: 44px;
+  height: 46px;
+  padding: 10px 13px;
+  border: 1px solid rgba(200, 143, 255, .36);
+  border-radius: 7px;
+  background: rgba(13, 6, 26, .86);
+  color: #fff6ff;
+  font-family: Flashback, Arial, sans-serif;
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: .025em;
+  transition: border-color .18s, background .18s, box-shadow .18s;
+}
+#menu input {
+  user-select: text;
+  -webkit-user-select: text;
+}
+#menu input::placeholder { color: #c0a9d1; opacity: .8; }
+#menu #name { width: 100%; font-size: 20px; font-weight: 400; letter-spacing: .06em; text-align: center; }
+#menu .connection-info { min-width: 0; flex: none; width: 100%; min-height: 22px; }
+#menu .server-wait, #menu #status {
+  margin: 0;
+  min-height: 22px;
+  color: #dfc4f6;
+  font: 13px / 1.45 Arial, Helvetica, sans-serif;
+  text-align: center;
+}
+#menu .server-wait {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+#menu #status.waking { display: none; }
+#menu .connection-info:has(#status:not(.waking)) .server-wait { display: none; }
+#menu #status.ready { color: #b8ecc6; }
+#menu #status.ready::before { content: ''; }
+#menu #status.ready::after {
+  content: '';
+  display: inline-block;
+  vertical-align: middle;
+  width: 6px;
+  height: 6px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: #8fdaa6;
+  box-shadow: 0 0 9px #59d58666;
+}
+#menu .server-spinner {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border: 2px solid #c19be03d;
+  border-top-color: #e5b5ff;
+  border-radius: 50%;
+  animation: portadaSpin .9s linear infinite;
+}
+@keyframes portadaSpin { to { transform: rotate(360deg); } }
+#menu .mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+#menu .mode-card {
+  position: relative;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid rgba(177, 120, 229, .42);
+  border-radius: 11px;
+  background: linear-gradient(145deg, rgba(31, 12, 49, .87), rgba(9, 5, 21, .85));
+  box-shadow: 0 10px 30px #0000003d, inset 0 1px 0 #d7a5ff10;
+}
+#menu .mode-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 0 0 13px;
+  color: #ebdcf8;
+  font: 400 17px / 1.3 Flashback, Arial, sans-serif;
+  letter-spacing: .075em;
+  white-space: nowrap;
+}
+#menu .mode-number {
+  color: #bb6fed;
+  font-size: 14px;
+  letter-spacing: .03em;
+  font-weight: 400;
+  border-right: 1px solid #9865bc77;
+  padding-right: 9px;
+}
+#menu .mode-actions { display: flex; gap: 8px; }
+#menu .mode-actions > * { width: 100%; }
+#menu .cpu-actions select { flex: 0 0 112px; width: 112px; }
+#menu .code-actions input { flex: 0 0 112px; width: 112px; text-transform: uppercase; letter-spacing: .10em; }
+#menu button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 0;
+  cursor: pointer;
+  background: linear-gradient(135deg, #6f318f, #40205f);
+  border-color: #b977e8;
+  box-shadow: inset 0 1px 0 #e6b6ff20, 0 0 16px #a041cf12;
+}
+#menu button span { font-weight: 400; font-size: 20px; color: #e3b7ff; }
+#menu .online-mode button { background: linear-gradient(135deg, #8941a6, #562479); }
+#menu button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #9450b7, #66338b);
+  border-color: #ebc3ff;
+  box-shadow: 0 0 20px #ba56e333;
+}
+#menu :is(input, select, button):focus-visible {
+  outline: 2px solid #efc4ff;
+  outline-offset: 3px;
+  border-color: #fff0ff;
+}
+#menu button:disabled { opacity: .45; filter: saturate(.5); cursor: not-allowed; }
+#menu .menu-keys {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin: 12px 0 0;
+  font: 11px / 1.5 Arial, Helvetica, sans-serif;
+  color: #c7b4db;
+  opacity: .9;
+}
+#menu .menu-keys b { font-weight: 600; color: #f3e0ff; }
+#menu .menu-keys i { height: 10px; width: 1px; background: #957ba957; }
+#menu .mobile-setup { margin: 13px 0 0; }
+#menu .mobile-row { display: flex; align-items: center; gap: 14px; }
+#menu #enableMotion {
+  width: auto;
+  min-width: 215px;
+  background: rgba(37, 18, 54, .8);
+  font-size: 16px;
+  border-color: #a971cd;
+}
+#menu .mobile-guide { margin: 0; color: #d5c6e4; opacity: 1; font: 12px / 1.4 Arial, Helvetica, sans-serif; }
+#menu .motion-status { margin: 6px 0 0; min-height: 0; font: 12px / 1.35 Arial, Helvetica, sans-serif; color: #e1c5f2; }
+#menu .motion-status:empty { display: none; }
+#menu .menu-credit {
+  position: relative;
+  width: max-content;
+  max-width: 94vw;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 12px;
+  font: 400 16px / 1.4 Flashback, Arial, sans-serif;
+  letter-spacing: .12em;
+  text-align: center;
+  color: #aa8cbc;
+  text-shadow: 0 1px 8px #000;
+}
+#menu .menu-credit strong { margin-left: 6px; color: #f1d7ff; font-weight: 400; }
+@media (max-width: 1100px), (max-height: 780px) {
+  #menu .mode-card { padding: 12px; }
+  #menu .mode-title { font-size: 15px; margin-bottom: 10px; gap: 7px; }
+  #menu .cpu-actions select { width: 112px; flex-basis: 112px; }
+  #menu .code-actions input { width: 92px; flex-basis: 92px; }
+  #menu .pilot-row { gap: 7px; margin-bottom: 10px; }
+  #menu .menu-credit { margin-top: 12px; }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  #menu .menu-scene { width: min(100%, clamp(230px, calc((100svh - 285px) * 2.7), 420px)); aspect-ratio: auto; }
+  #menu .menu-body { padding-top: 35.2%; padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+  #menu .launch-console { width: min(980px, calc(100vw - var(--menu-edge) * 2)); }
+  #menu .mode-grid { gap: 8px; }
+  #menu .mode-card { padding: 9px; border-radius: 8px; }
+  #menu .mode-title { font-size: 14px; letter-spacing: .02em; margin-bottom: 6px; gap: 5px; }
+  #menu .mode-number { font-size: 12px; padding-right: 5px; }
+  #menu .pilot-field { flex: none; width: min(280px, 100%); gap: 4px; }
+  #menu .field-title { font-size: 16px; letter-spacing: .06em; }
+  #menu .connection-info { flex: none; min-height: 18px; }
+  #menu .server-wait, #menu #status { font-size: 11px; }
+  #menu input, #menu select, #menu button { min-height: 44px; height: 44px; padding: 8px; font-size: 17px; }
+  #menu #name { font-size: 19px; }
+  #menu .cpu-actions select { width: 112px; flex-basis: 112px; }
+  #menu .code-actions input { width: 90px; flex-basis: 90px; font-size: 16px; }
+  #menu .mode-actions { gap: 5px; }
+  #menu button { gap: 6px; }
+  #menu button span { font-size: 16px; }
+  #menu .mobile-setup { margin-top: 8px; }
+  #menu #enableMotion { min-width: 230px; font-size: 16px; }
+  #menu .mobile-guide { font-size: 11px; }
+  #menu .menu-credit { margin-top: 8px; font-size: 14px; }
+}
+@media (orientation: landscape) and (max-height: 560px) and (max-width: 780px) {
+  #menu .mode-title { font-size: 12px; }
+  #menu .mode-number { font-size: 11px; }
+}
+@media (orientation: portrait) and (max-width: 700px) {
+  #menu .menu-scene { width: 100%; aspect-ratio: auto; margin: 0; }
+  #menu .menu-body { padding-top: 36%; padding-bottom: max(24px, env(safe-area-inset-bottom, 0px)); }
+  #menu .launch-console { width: calc(100vw - var(--menu-edge) * 2); }
+  #menu .pilot-row { flex-direction: column; align-items: center; gap: 8px; margin-bottom: 13px; }
+  #menu .pilot-field { flex: none; width: min(320px, 100%); gap: 6px; }
+  #menu .field-title { font-size: 17px; }
+  #menu .connection-info { flex: none; }
+  #menu .server-wait { justify-content: center; }
+  #menu .server-wait, #menu #status { font-size: 11px; text-align: center; }
+  #menu .mode-grid { grid-template-columns: 1fr; gap: 10px; }
+  #menu .mode-card { padding: 12px; }
+  #menu .mode-title { font-size: 16px; margin-bottom: 9px; }
+  #menu input, #menu select, #menu button { height: 46px; font-size: 18px; }
+  #menu .cpu-actions select, #menu .code-actions input { width: 122px; flex-basis: 122px; }
+  #menu #code { font-size: 18px; }
+  #menu .mobile-row { flex-direction: column; gap: 10px; align-items: stretch; }
+  #menu #enableMotion { width: 100%; font-size: 17px; }
+  #menu .mobile-guide { text-align: center; font-size: 11px; }
+  #menu .menu-credit { margin-top: 20px; font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #menu .server-spinner { animation: none; }
+  #menu input, #menu select, #menu button { transition: none; }
+}

@@ -3,47 +3,67 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Galaxy Combat Web</title>
+<meta name="theme-color" content="#10051e">
+<title>Galaxy Combat | Jorge Lopez Diaz</title>
 <link rel="stylesheet" href="style.css">
-<style>
-.server-wait{display:flex;align-items:center;justify-content:center;gap:10px;margin:12px 0 14px;padding:11px 14px;border:1px solid rgba(90,225,255,.45);border-radius:8px;background:rgba(0,18,32,.72);color:#bff7ff;font-size:14px;line-height:1.35;text-align:left;box-shadow:0 0 16px rgba(90,225,255,.10)}
-.server-wait.hidden{display:none}
-.server-spinner{width:15px;height:15px;flex:0 0 15px;border:2px solid rgba(90,225,255,.25);border-top-color:#5ae1ff;border-radius:50%;animation:serverSpin .8s linear infinite}
-@keyframes serverSpin{to{transform:rotate(360deg)}}
-</style>
+<link rel="stylesheet" href="menu-portada.css?v=nombre-flashback-20260918-1">
 </head>
 <body>
 <div id="app">
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
-    <section id="menu" class="card">
-      <h1>GALAXY COMBAT</h1>
-      <p class="sub">Version Web · 16:9 · hasta 4 jugadores</p>
-      <div id="serverWait" class="server-wait" role="status" aria-live="polite">
-        <span class="server-spinner" aria-hidden="true"></span>
-        <span id="serverWaitText">Conectando con el servidor… espera un momento.</span>
+    <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
+      <div class="menu-scene">
+        <img class="menu-art" src="assets/sprites/INTRO.png?v=portada-1" width="1920" height="1080" alt="" fetchpriority="high" draggable="false">
+        <h1 id="menuTitle" class="menu-sr-only">GALAXY COMBAT</h1>
+        <div class="menu-body">
+          <div class="launch-console">
+            <div class="pilot-row">
+              <label class="pilot-field" for="name"><span class="field-title">TU NOMBRE</span><input id="name" maxlength="16" value="JUGADOR" autocomplete="nickname" spellcheck="false" autocapitalize="characters" aria-label="Nombre del jugador"></label>
+              <div class="connection-info">
+                <div id="serverWait" class="server-wait" role="status" aria-live="polite">
+                  <span class="server-spinner" aria-hidden="true"></span>
+                  <span id="serverWaitText">Conectando con el servidor... espera un momento.</span>
+                </div>
+                <p id="status" class="status waking" aria-live="polite">Conectando con el servidor...</p>
+              </div>
+            </div>
+            <div class="mode-grid" aria-label="Modos de juego">
+              <div class="mode-card cpu-mode">
+                <h2 class="mode-title"><span class="mode-number" aria-hidden="true">01</span> CONTRA LA MAQUINA</h2>
+                <div class="mode-actions cpu-actions">
+                  <select id="difficulty" aria-label="Dificultad CPU">
+                    <option value="facil">FACIL</option>
+                    <option value="medio">MEDIO</option>
+                    <option value="dificil" selected>DIFICIL</option>
+                  </select>
+                  <button id="cpu" type="button" disabled>JUGAR <span aria-hidden="true">&rarr;</span></button>
+                </div>
+              </div>
+              <div class="mode-card online-mode">
+                <h2 class="mode-title"><span class="mode-number" aria-hidden="true">02</span> ONLINE &middot; 2-4 JUGADORES</h2>
+                <div class="mode-actions"><button id="create" type="button" disabled>CREAR PARTIDA <span aria-hidden="true">+</span></button></div>
+              </div>
+              <div class="mode-card join-mode">
+                <h2 class="mode-title"><span class="mode-number" aria-hidden="true">03</span> UNIRSE A UNA SALA</h2>
+                <div class="mode-actions code-actions">
+                  <input id="code" maxlength="4" placeholder="CODIGO" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Codigo de sala de cuatro caracteres">
+                  <button id="join" type="button" disabled>UNIRSE <span aria-hidden="true">&rarr;</span></button>
+                </div>
+              </div>
+            </div>
+            <p class="help desktop-help menu-keys"><span>GIRAR <b>A / D</b> o flechas</span><i aria-hidden="true"></i><span>ACELERAR <b>W / ARRIBA</b></span><i aria-hidden="true"></i><span>DISPARAR <b>CTRL / ESPACIO</b></span></p>
+            <div id="mobileSetup" class="mobile-setup hidden">
+              <div class="mobile-row">
+                <button id="enableMotion" type="button">ACTIVAR CONTROL MOVIL</button>
+                <p class="help mobile-guide">Inclina para girar &middot; izquierda: disparo &middot; derecha: acelerar.</p>
+              </div>
+              <p id="motionStatus" class="motion-status" aria-live="polite"></p>
+            </div>
+          </div>
+          <footer class="menu-credit">BY <strong>JORGE LOPEZ DIAZ</strong></footer>
+        </div>
       </div>
-      <label>Nombre <input id="name" maxlength="16" value="JUGADOR"></label>
-      <button id="cpu" disabled>JUGAR CONTRA CPU</button>
-      <div class="row">
-        <select id="difficulty" aria-label="Dificultad CPU">
-          <option value="facil">Facil</option>
-          <option value="medio">Medio</option>
-          <option value="dificil" selected>Dificil</option>
-        </select>
-      </div>
-      <button id="create" disabled>CREAR PARTIDA ONLINE</button>
-      <div class="joinrow">
-        <input id="code" maxlength="4" placeholder="CODIGO" autocomplete="off">
-        <button id="join" disabled>UNIRSE</button>
-      </div>
-      <p class="help desktop-help">Controles: A/D o ←/→ · acelerar W/↑ · disparar Ctrl o Espacio</p>
-      <div id="mobileSetup" class="mobile-setup hidden">
-        <button id="enableMotion" type="button">ACTIVAR CONTROL MOVIL</button>
-        <p class="help">Movil: inclina el telefono para girar · lado izquierdo dispara · lado derecho acelera.</p>
-        <p id="motionStatus" class="motion-status" aria-live="polite"></p>
-      </div>
-      <p id="status" class="status waking" aria-live="polite">Despertando servidor…</p>
     </section>
     <section id="lobby" class="card hidden">
       <h2>SALA <span id="roomCode"></span></h2>
