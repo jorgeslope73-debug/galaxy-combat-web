@@ -147,7 +147,7 @@ class GameRoom {
     this.giant = null;
     this.asteroids = [];
     this.nextPickup = 1;
-    this.firstShower = rand(12,18);
+    this.firstShower = rand(18,24);
     this.showerLeft = 0;
     this.nextMeteor = 0;
     this.nextShower = 0;
