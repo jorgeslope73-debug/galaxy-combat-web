@@ -85,6 +85,16 @@ function safeName(v, fallback='JUGADOR') {
   const s = String(v || '').replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0,16);
   return s || fallback;
 }
+function safeChatText(v) {
+  return String(v || '')
+    .replace(/[\x00-\x1f\x7f]/g, ' ')
+    .replace(/[áàäâÁÀÄÂ]/g, c => c===c.toUpperCase()?'A':'a')
+    .replace(/[éèëêÉÈËÊ]/g, c => c===c.toUpperCase()?'E':'e')
+    .replace(/[íìïîÍÌÏÎ]/g, c => c===c.toUpperCase()?'I':'i')
+    .replace(/[óòöôÓÒÖÔ]/g, c => c===c.toUpperCase()?'O':'o')
+    .replace(/[úùüûÚÙÜÛ]/g, c => c===c.toUpperCase()?'U':'u')
+    .replace(/\s+/g, ' ').trim().slice(0,120);
+}
 function send(ws, obj) {
   if (ws && ws.readyState === ws.OPEN) {
     try { ws.send(JSON.stringify(obj)); } catch (_) {}
@@ -136,6 +146,8 @@ class GameRoom {
     this.winner = null;
     this.seq = 0;
     this.soundSeq = 0;
+    this.chatSeq = 0;
+    this.chatMessages = [];
     // Cosmetic events only. No forces, damage or timers are changed by FX.
     this.fxClock = 0;
     this.fxSeq = 0;
@@ -193,7 +205,7 @@ class GameRoom {
       ws:null, isHost:false, x:0,y:0,rot:0,vx:0,vy:0,
       bullets:1, cadence:30, speed:1, kills:0, deaths:0,
       reload:0, shield:0, camo:0, protection:SPAWN_PROTECTION_SECONDS,
-      dead:false, respawn:0, fireLatch:false, voiceReady:false
+      dead:false, respawn:0, fireLatch:false, voiceReady:false, lastChatAt:0
     };
   }
 
@@ -649,15 +661,24 @@ wss.on('connection',ws=>{
   ws.on('message',raw=>{
     let msg;try{msg=JSON.parse(String(raw));}catch(_){return;}
     if(msg.t==='create'){
-      const code=roomCode();const room=new GameRoom(code,'online','medio',!!msg.public);rooms.set(code,room);const p=room.addHuman(ws,msg.name,true);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,public:room.isPublic});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
+      const code=roomCode();const room=new GameRoom(code,'online','medio',!!msg.public);rooms.set(code,room);const p=room.addHuman(ws,msg.name,true);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,public:room.isPublic});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
     } else if(msg.t==='cpu'){
       const code=roomCode();const room=new GameRoom(code,'cpu',String(msg.difficulty||'dificil'));rooms.set(code,room);const p=room.addHuman(ws,msg.name,true);room.addCpu('CPU',room.difficulty);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,cpu:true});room.start();
     } else if(msg.t==='join'){
-      const code=String(msg.code||'').trim().toUpperCase();const room=rooms.get(code);if(!room||room.started||room.mode!=='online'){send(ws,{t:'error',message:'Sala no disponible.'});return;}const p=room.addHuman(ws,msg.name,false);if(!p){send(ws,{t:'error',message:'Sala llena.'});return;}clientInfo.set(ws,{code,index:p.index});send(ws,{t:'joined',code,index:p.index,public:room.isPublic});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
+      const code=String(msg.code||'').trim().toUpperCase();const room=rooms.get(code);if(!room||room.started||room.mode!=='online'){send(ws,{t:'error',message:'Sala no disponible.'});return;}const p=room.addHuman(ws,msg.name,false);if(!p){send(ws,{t:'error',message:'Sala llena.'});return;}clientInfo.set(ws,{code,index:p.index});send(ws,{t:'joined',code,index:p.index,public:room.isPublic});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
     } else if(msg.t==='start'){
       const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);const p=room&&room.players.find(x=>x.ws===ws);if(room&&p&&p.isHost&&room.start())broadcastPublicRooms();
     } else if(msg.t==='public-rooms'){
       sendPublicRooms(ws);
+    } else if(msg.t==='chat'){
+      const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);const p=room&&room.players.find(x=>x.index===info.index&&x.ws===ws);
+      if(!room||!p||p.cpu||room.mode!=='online'||room.started||room.finished)return;
+      const now=Date.now();if(now-(p.lastChatAt||0)<600)return;
+      const text=safeChatText(msg.text);if(!text)return;p.lastChatAt=now;
+      const chat={t:'chat',id:++room.chatSeq,i:p.index,n:p.name,text};
+      room.chatMessages.push({id:chat.id,i:chat.i,n:chat.n,text:chat.text});
+      if(room.chatMessages.length>24)room.chatMessages.splice(0,room.chatMessages.length-24);
+      broadcast(room,chat);
     } else if(msg.t==='ctrl'){
       const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);if(!room||!room.started)return;room.controls.set(info.index,{turn:clamp(Number(msg.turn)||0,-1,1),thrust:!!msg.thrust,fire:!!msg.fire});
     } else if(msg.t==='voice-ready'){
