@@ -1,7 +1,6 @@
 'use strict';
 
 const http = require('http');
-const os = require('os');
 const { WebSocketServer } = require('ws');
 
 const PORT = Number(process.env.PORT || 8080);
@@ -10,6 +9,11 @@ const H = 1080;
 const TICK_HZ = 60;
 const NET_HZ = 30;
 const DT = 1 / TICK_HZ;
+const STEP_MS = 1000 / TICK_HZ;
+const SNAP_EVERY_TICKS = Math.max(1, Math.round(TICK_HZ / NET_HZ));
+const DRAG_PER_TICK = Math.pow(0.35, DT);
+const MAX_STATE_BUFFER = 128 * 1024;
+const IDLE_CONTROL = Object.freeze({turn:0, thrust:false, fire:false});
 const SCORE_TO_WIN = 10;
 const MAX_PLAYERS = 4;
 
@@ -92,6 +96,16 @@ function broadcast(room, obj) {
     if (p.ws && p.ws.readyState === p.ws.OPEN) {
       try { p.ws.send(data); } catch (_) {}
     }
+  }
+}
+// Los estados son reemplazables: si un cliente esta momentaneamente atrasado,
+// saltamos snapshots antiguos en vez de llenar la cola TCP y crear segundos de lag.
+function broadcastState(room, obj) {
+  const data = JSON.stringify(obj);
+  for (const p of room.players) {
+    if (!p.ws || p.ws.readyState !== p.ws.OPEN) continue;
+    if (Number(p.ws.bufferedAmount || 0) > MAX_STATE_BUFFER) continue;
+    try { p.ws.send(data); } catch (_) {}
   }
 }
 function emitSound(room, kind) {
@@ -294,8 +308,10 @@ class GameRoom {
   }
 
   chooseCpuControls(cpu) {
-    const rival = this.players.find(p=>!p.cpu && !p.dead);
-    if (!rival || cpu.dead) return {turn:0,thrust:false,fire:false};
+    let rival=null;
+    for(const p of this.players){if(!p.cpu&&!p.dead){rival=p;break;}}
+    if (!rival || cpu.dead) return IDLE_CONTROL;
+
     const dx=rival.x-cpu.x, dy=rival.y-cpu.y;
     const distance=Math.hypot(dx,dy);
     const targetRot=(Math.atan2(-dx,-dy)*180/Math.PI+360)%360;
@@ -305,26 +321,35 @@ class GameRoom {
 
     const dangerousCamo = rival.shield>0;
     if (dangerousCamo) {
-      const choices=this.pickups.filter(x=>x.type==='shield'||x.type.startsWith('ammo'));
-      if (choices.length) seekPickup=choices.sort((a,b)=>dist2(cpu,a)-dist2(cpu,b))[0];
+      let bestD2=Infinity;
+      for(const pk of this.pickups){
+        if(pk.type!=='shield'&&!pk.type.startsWith('ammo'))continue;
+        const d2=dist2(cpu,pk);
+        if(d2<bestD2){bestD2=d2;seekPickup=pk;}
+      }
       if (!seekPickup) { desiredX=cpu.x-dx; desiredY=cpu.y-dy; }
     } else if (cpu.difficulty==='dificil') {
       const excellentShot = Math.abs(err) < 5 && distance < 850;
       const closeFight = cpu.bullets>0 && distance < 500;
       if (!excellentShot && !closeFight) {
-        const scored=this.pickups.map(pk=>{
+        let bestScore=10;
+        for(const pk of this.pickups){
           let value=0;
           if (pk.type.startsWith('ammo')) value = cpu.bullets===0?120:(cpu.bullets<=2?85:25);
-          if (pk.type==='cadence') value = cpu.cadence>=20?100:35;
-          if (pk.type==='speed') value = cpu.speed<2?55:10;
-          if (pk.type==='shield') value = cpu.shield<=0?95:20;
-          const d=Math.sqrt(dist2(cpu,pk));
-          return {pk,score:value-d*0.06};
-        }).sort((a,b)=>b.score-a.score);
-        if (scored.length && scored[0].score>10) seekPickup=scored[0].pk;
+          else if (pk.type==='cadence') value = cpu.cadence>=20?100:35;
+          else if (pk.type==='speed') value = cpu.speed<2?55:10;
+          else if (pk.type==='shield') value = cpu.shield<=0?95:20;
+          const score=value-Math.sqrt(dist2(cpu,pk))*0.06;
+          if(score>bestScore){bestScore=score;seekPickup=pk;}
+        }
       }
     } else if (cpu.bullets===0) {
-      seekPickup=this.pickups.filter(x=>x.type.startsWith('ammo')).sort((a,b)=>dist2(cpu,a)-dist2(cpu,b))[0]||null;
+      let bestD2=Infinity;
+      for(const pk of this.pickups){
+        if(!pk.type.startsWith('ammo'))continue;
+        const d2=dist2(cpu,pk);
+        if(d2<bestD2){bestD2=d2;seekPickup=pk;}
+      }
     }
 
     if (seekPickup) { desiredX=seekPickup.x; desiredY=seekPickup.y; }
@@ -332,21 +357,28 @@ class GameRoom {
     const dRot=(Math.atan2(-ddx,-ddy)*180/Math.PI+360)%360;
     err=((dRot-cpu.rot+540)%360)-180;
 
-    // evasión sencilla de meteoritos/asteroides/giant
-    const hazards=[...this.asteroids,...this.meteors]; if(this.giant) hazards.push(this.giant);
+    // Evasion sin construir arrays ni closures temporales en cada tick.
     let avoidX=0, avoidY=0;
-    for(const h of hazards){
-      const hx=cpu.x-h.x, hy=cpu.y-h.y; const d=Math.hypot(hx,hy);
-      const safe=(h.r||30)+90;
-      if(d<safe && d>1){ avoidX += hx/d*(safe-d); avoidY += hy/d*(safe-d); }
+    for(const h of this.asteroids){
+      const hx=cpu.x-h.x,hy=cpu.y-h.y,d=Math.hypot(hx,hy),safe=(h.r||ASTEROID_RADIUS)+90;
+      if(d<safe&&d>1){avoidX+=hx/d*(safe-d);avoidY+=hy/d*(safe-d);}
     }
-    if(Math.hypot(avoidX,avoidY)>20){
+    for(const h of this.meteors){
+      const hx=cpu.x-h.x,hy=cpu.y-h.y,d=Math.hypot(hx,hy),safe=(h.r||30)+90;
+      if(d<safe&&d>1){avoidX+=hx/d*(safe-d);avoidY+=hy/d*(safe-d);}
+    }
+    if(this.giant){
+      const h=this.giant,hx=cpu.x-h.x,hy=cpu.y-h.y,d=Math.hypot(hx,hy),safe=(h.r||GIANT_RADIUS)+90;
+      if(d<safe&&d>1){avoidX+=hx/d*(safe-d);avoidY+=hy/d*(safe-d);}
+    }
+    const avoidMag=Math.hypot(avoidX,avoidY);
+    if(avoidMag>20){
       const ar=(Math.atan2(-avoidX,-avoidY)*180/Math.PI+360)%360;
       err=((ar-cpu.rot+540)%360)-180;
     }
 
     const turn=clamp(err/38,-1,1);
-    const thrust=Math.abs(err)<60 && (seekPickup||distance>280||Math.hypot(avoidX,avoidY)>20);
+    const thrust=Math.abs(err)<60 && (seekPickup||distance>280||avoidMag>20);
     const fire=!dangerousCamo && !seekPickup && cpu.bullets>0 && cpu.reload<=0 && Math.abs(err)<6 && distance<1350;
     return {turn,thrust,fire};
   }
@@ -355,7 +387,9 @@ class GameRoom {
     if (!this.started || this.finished) return;
     this.noDeathTime += dt;
     this.fxClock += dt;
-    this.fxEvents = this.fxEvents.filter(e => this.fxClock - e.at <= 0.8);
+    let fxWrite=0;
+    for(const e of this.fxEvents)if(this.fxClock-e.at<=0.8)this.fxEvents[fxWrite++]=e;
+    this.fxEvents.length=fxWrite;
 
     for (const p of this.players) {
       // Avoid a floating-point remainder prolonging immunity by one tick.
@@ -368,11 +402,11 @@ class GameRoom {
         if (p.respawn<=0) this.respawnPlayer(p);
         continue;
       }
-      const c=p.cpu ? this.chooseCpuControls(p) : (this.controls.get(p.index)||{turn:0,thrust:false,fire:false});
+      const c=p.cpu ? this.chooseCpuControls(p) : (this.controls.get(p.index)||IDLE_CONTROL);
       p.rot=(p.rot+c.turn*240*dt+360)%360;
       const d=dirFromRot(p.rot);
       if(c.thrust){ p.vx+=d.x*(240*p.speed)*dt; p.vy+=d.y*(240*p.speed)*dt; }
-      const drag=Math.pow(0.35,dt); p.vx*=drag; p.vy*=drag;
+      p.vx*=DRAG_PER_TICK; p.vy*=DRAG_PER_TICK;
       const vmax=330*p.speed; const sp=Math.hypot(p.vx,p.vy); if(sp>vmax){p.vx=p.vx/sp*vmax;p.vy=p.vy/sp*vmax;}
       p.x=(p.x+p.vx*dt+W)%W; p.y=(p.y+p.vy*dt+H)%H;
       if(c.fire && p.bullets>0 && p.reload<=0){
@@ -585,7 +619,7 @@ const server=http.createServer((req,res)=>{
   res.end('Galaxy Combat WebSocket server online.\n');
 });
 
-const wss=new WebSocketServer({server,path:'/ws'});
+const wss=new WebSocketServer({server,path:'/ws',perMessageDeflate:false});
 wss.on('connection',ws=>{
   send(ws,{t:'hello'});
   ws.on('message',raw=>{
@@ -621,8 +655,30 @@ wss.on('connection',ws=>{
   ws.on('close',()=>removePlayer(ws));
 });
 
-setInterval(()=>{for(const room of rooms.values())room.update(DT);},1000/TICK_HZ);
-setInterval(()=>{for(const room of rooms.values())if(room.started)broadcast(room,room.publicState());},1000/NET_HZ);
+let loopLast=performance.now(),loopAccumulator=0,simTick=0;
+function gameLoop(){
+  const now=performance.now();
+  let elapsed=now-loopLast;loopLast=now;
+  if(!Number.isFinite(elapsed)||elapsed<0)elapsed=STEP_MS;
+  loopAccumulator+=Math.min(100,elapsed);
+
+  let steps=0;
+  while(loopAccumulator>=STEP_MS&&steps<5){
+    for(const room of rooms.values())room.update(DT);
+    loopAccumulator-=STEP_MS;
+    simTick++;
+    if(simTick%SNAP_EVERY_TICKS===0){
+      for(const room of rooms.values())if(room.started)broadcastState(room,room.publicState());
+    }
+    steps++;
+  }
+  // Si el proceso se congela un instante, no intentamos reproducir cientos de
+  // ticks atrasados: eso empeoraria el lag. Conservamos solo la fraccion util.
+  if(steps===5&&loopAccumulator>=STEP_MS)loopAccumulator%=STEP_MS;
+  const delay=Math.max(1,Math.min(STEP_MS,STEP_MS-loopAccumulator-.5));
+  setTimeout(gameLoop,delay);
+}
+setTimeout(gameLoop,STEP_MS);
 setInterval(()=>{const now=Date.now();for(const [code,room] of rooms){if(room.players.length===0||now-room.createdAt>12*60*60*1000)rooms.delete(code);}},30000);
 
 server.listen(PORT,'0.0.0.0',()=>{
