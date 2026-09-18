@@ -18,6 +18,36 @@
   let mobileFire=false,mobileThrust=false;
   const touchSides=new Map();
 
+  // Solo quitamos el acento de las vocales; se conserva la letra enie.
+  // NFC admite nombres escritos o pegados con acentos combinados.
+  const vocalesSinTilde={
+    '\u00e1':'a','\u00e9':'e','\u00ed':'i','\u00f3':'o','\u00fa':'u',
+    '\u00c1':'A','\u00c9':'E','\u00cd':'I','\u00d3':'O','\u00da':'U'
+  };
+  function sinTildes(valor){
+    return String(valor==null?'':valor).normalize('NFC').replace(
+      /[\u00e1\u00e9\u00ed\u00f3\u00fa\u00c1\u00c9\u00cd\u00d3\u00da]/g,
+      letra=>vocalesSinTilde[letra]
+    );
+  }
+  const campoNombre=document.getElementById('name');
+  function normalizarNombreVisible(){
+    const anterior=campoNombre.value,nuevo=sinTildes(anterior);
+    if(nuevo===anterior)return;
+    const inicio=campoNombre.selectionStart,fin=campoNombre.selectionEnd;
+    campoNombre.value=nuevo;
+    if(inicio!==null&&fin!==null){
+      campoNombre.setSelectionRange(
+        sinTildes(anterior.slice(0,inicio)).length,
+        sinTildes(anterior.slice(0,fin)).length
+      );
+    }
+  }
+  campoNombre.addEventListener('input',e=>{
+    if(!e.isComposing)normalizarNombreVisible();
+  });
+  campoNombre.addEventListener('compositionend',normalizarNombreVisible);
+
   const assetList={
     bg:'assets/sprites/fondo.png', giant:'assets/sprites/asteroidegrande.png',
     pantA:'assets/sprites/pantA.png',pantB:'assets/sprites/pantB.png',
@@ -75,7 +105,7 @@
     if(!isMobile)return true;
     try{
       if(typeof DeviceOrientationEvent==='undefined'){
-        motionStatus.textContent='Este navegador no ofrece sensor de orientación.';
+        motionStatus.textContent='Este navegador no ofrece sensor de orientacion.';
         return false;
       }
       if(typeof DeviceOrientationEvent.requestPermission==='function'){
@@ -85,11 +115,11 @@
       window.removeEventListener('deviceorientation',onDeviceOrientation);
       window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});
       motionNeutral=null;motionTurn=0;motionEnabled=true;
-      motionStatus.textContent='Control móvil activo · giro corregido · posición actual calibrada como centro.';
+      motionStatus.textContent='Control movil activo · giro corregido · posicion actual calibrada como centro.';
       enableMotionBtn.textContent='RECALIBRAR GIRO';
       return true;
     }catch(err){
-      motionStatus.textContent='No se pudo activar el giro: '+(err&&err.message?err.message:'permiso no disponible');
+      motionStatus.textContent='No se pudo activar el giro: '+sinTildes(err&&err.message?err.message:'permiso no disponible');
       return false;
     }
   }
@@ -142,7 +172,7 @@
     const dots='.'.repeat((connectAttempt%3)+1);
     const msg=secs<8
       ? `Conectando con el servidor${dots} espera un momento.`
-      : `El servidor se está iniciando${dots} Puede tardar hasta un minuto (${secs}s).`;
+      : `El servidor se esta iniciando${dots} Puede tardar hasta un minuto (${secs}s).`;
     statusEl.textContent=msg;
     if(serverWaitText)serverWaitText.textContent=msg;
   }
@@ -174,7 +204,7 @@
       setServerReady(false);
       if(manualClose)return;
       if(inGame){
-        statusEl.textContent='Se perdió la conexión con la partida';
+        statusEl.textContent='Se perdio la conexion con la partida';
         setTimeout(()=>location.reload(),1500);
       }else{
         wakeStatus();
@@ -185,7 +215,7 @@
       setServerReady(false);
       wakeStatus();
       // onclose programa el siguiente intento. No mostramos un error definitivo
-      // porque un Render gratuito puede estar arrancando todavía.
+      // porque un Render gratuito puede estar arrancando todavia.
     };
     ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch(_){return;}handle(m);};
   }
@@ -196,7 +226,7 @@
   }
   function handle(m){
     if(m.t==='created'||m.t==='joined'){if(impactFX)impactFX.reset();roomCode=m.code;myIndex=m.index;isHost=m.t==='created';roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');startMusic();}
-    else if(m.t==='lobby'){roomCode=m.code;roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(p.n)}${p.cpu?' · CPU':''}</div>`).join('');startBtn.disabled=!(isHost&&m.canStart);}
+    else if(m.t==='lobby'){roomCode=m.code;roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.cpu?' · CPU':''}</div>`).join('');startBtn.disabled=!(isHost&&m.canStart);}
     else if(m.t==='start'){beginGame();playSound('start');}
     else if(m.t==='state'){
       if(impactFX)impactFX.consume(m,myIndex,performance.now());
@@ -205,16 +235,16 @@
     }
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;showVictory(m.winner);}
-    else if(m.t==='error'){statusEl.textContent=m.message||'Error';}
-    else if(m.t==='closed'){alert(m.reason||'Sala cerrada');location.reload();}
+    else if(m.t==='error'){statusEl.textContent=sinTildes(m.message||'Error');}
+    else if(m.t==='closed'){alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function beginGame(){inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile)mobileControls.classList.remove('hidden');startMusic();}
-  function showVictory(i){if(!inGame)return;inGame=false;topbar.classList.add('hidden');mobileControls.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?`GANA ${p.n}`:`GANA J${i+1}`;victory.classList.remove('hidden');}
+  function showVictory(i){if(!inGame)return;inGame=false;topbar.classList.add('hidden');mobileControls.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?`GANA ${sinTildes(p.n)}`:`GANA J${i+1}`;victory.classList.remove('hidden');}
 
-  document.getElementById('create').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'create',name:document.getElementById('name').value});});
-  document.getElementById('cpu').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'cpu',name:document.getElementById('name').value,difficulty:document.getElementById('difficulty').value});});
-  document.getElementById('join').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'join',name:document.getElementById('name').value,code:document.getElementById('code').value});});
+  document.getElementById('create').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'create',name:sinTildes(campoNombre.value)});});
+  document.getElementById('cpu').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'cpu',name:sinTildes(campoNombre.value),difficulty:document.getElementById('difficulty').value});});
+  document.getElementById('join').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'join',name:sinTildes(campoNombre.value),code:document.getElementById('code').value});});
   if(isMobile){
     mobileSetup.classList.remove('hidden');
     enableMotionBtn.addEventListener('click',enableMobileMotion);
@@ -304,9 +334,9 @@
     // Si el PNG aun no esta disponible, dibujar la nave normal sin bloquear.
     const im=imageReady(selected)?selected:normal;
     // Los PNG originales de las naves apuntan hacia ARRIBA.
-    // La física usa rot=0 arriba, 90 izquierda, 180 abajo y 270 derecha.
-    // Canvas gira en el sentido visual contrario a esa convención, por eso
-    // dibujamos con -rot. Así el morro coincide exactamente con el avance.
+    // La fisica usa rot=0 arriba, 90 izquierda, 180 abajo y 270 derecha.
+    // Canvas gira en el sentido visual contrario a esa convencion, por eso
+    // dibujamos con -rot. Asi el morro coincide exactamente con el avance.
     drawImageCentered(im,p.x,p.y,null,-p.r,alpha);
   }
   function drawHud(){
@@ -314,7 +344,7 @@
     state.players.forEach(p=>{
       const left=p.i%2===0,top=p.i<2;const px=left?10:W-216,py=top?5:H-190;const color=playerColors[p.i];
       const panel=images[left?'pantA':'pantB'];drawImageSafely(panel,px,py,128,153);
-      ctx.font='20px Flashback,Arial';ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(performance.now()*.0042));ctx.globalAlpha=alpha;ctx.fillText(`J${p.i+1} · ${p.n}`,px+64,py+157);ctx.globalAlpha=1;
+      ctx.font='20px Flashback,Arial';ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(performance.now()*.0042));ctx.globalAlpha=alpha;ctx.fillText(`J${p.i+1} · ${sinTildes(p.n)}`,px+64,py+157);ctx.globalAlpha=1;
       const tx=left?60:W-170;ctx.textAlign='left';ctx.fillStyle=color;ctx.fillText(String(p.ammo),tx,py+15);ctx.fillText('x'+p.spd,tx,py+80);ctx.fillText(`${p.k}/${state.scoreToWin}`,tx,py+115);
       ctx.fillStyle='#be0000';ctx.fillRect(tx,py+53,Math.max(0,(30-p.cad)*2.3),7);ctx.fillRect(tx,py+105,67*clamp((p.spd-1),0,1),7);
     });
