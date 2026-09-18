@@ -439,6 +439,40 @@
       ctx.restore();
     }
   }
+  function drawMobileVoiceControl(){
+    if(!isMobile||!inGame||!voice||!voice.enabled||voice.cpuMode)return;
+    const x=W/2,y=H-72;
+    const talking=!!voice.talking;
+    ctx.save();
+    try{
+      // El control visual se pinta en el canvas, justo encima del fondo.
+      // Las naves, meteoritos, balas y mejoras se dibujan despues y por tanto
+      // siempre pasan por encima del icono.
+      ctx.globalAlpha=talking?.52:.24;
+      ctx.fillStyle=talking?'rgba(95,255,150,.72)':'rgba(255,255,255,.42)';
+      ctx.strokeStyle=talking?'rgba(150,255,188,.92)':'rgba(255,255,255,.52)';
+      ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(x,y,31,0,Math.PI*2);ctx.fill();ctx.stroke();
+
+      ctx.globalAlpha=talking?.78:.48;
+      ctx.strokeStyle='#ffffff';
+      ctx.fillStyle='#ffffff';
+      ctx.lineWidth=4;
+      ctx.lineCap='round';ctx.lineJoin='round';
+      // Capsula del microfono.
+      ctx.beginPath();
+      ctx.roundRect(x-8,y-16,16,25,8);
+      ctx.fill();
+      // Arco inferior, pie y base.
+      ctx.beginPath();
+      ctx.arc(x,y-2,14,0,Math.PI,false);
+      ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x,y+12);ctx.lineTo(x,y+20);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x-8,y+20);ctx.lineTo(x+8,y+20);ctx.stroke();
+    }finally{
+      ctx.restore();
+    }
+  }
   function render(){
     requestAnimationFrame(render);
     ctx.setTransform(1,0,0,1,0,0);
@@ -449,6 +483,7 @@
     // Capa de controles visuales movil: despues del fondo y antes de cualquier
     // objeto de juego, asi todos los elementos de la partida pasan por encima.
     drawMobileControlLabels();
+    drawMobileVoiceControl();
     for(const a of state.asteroids){drawImageCentered(images[`asteroid${a.type}`]||images.asteroid1,a.x,a.y,a.type===5?60:90);}
     for(const pk of state.pickups)drawPickup(pk);
     for(const m of state.meteors)drawImageCentered(images[`asteroid${m.type}`]||images.asteroid1,m.x,m.y,[0,22,27,31][m.type]||25,m.a);
