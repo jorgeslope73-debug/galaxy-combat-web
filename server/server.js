@@ -125,10 +125,11 @@ function broadcastVoicePresence(room,from,type,extra={}) {
 }
 
 class GameRoom {
-  constructor(code, mode='online', difficulty='medio') {
+  constructor(code, mode='online', difficulty='medio', isPublic=false) {
     this.code = code;
     this.mode = mode;
     this.difficulty = difficulty;
+    this.isPublic = mode==='online' && !!isPublic;
     this.players = [];
     this.started = false;
     this.finished = false;
@@ -596,6 +597,27 @@ class GameRoom {
   }
 }
 
+function publicRoomsSnapshot() {
+  const list=[];
+  for(const room of rooms.values()){
+    if(!room.isPublic||room.mode!=='online'||room.started||room.finished)continue;
+    const humans=room.players.filter(p=>!p.cpu);
+    if(!humans.length||humans.length>=MAX_PLAYERS)continue;
+    const host=humans.find(p=>p.isHost)||humans[0];
+    list.push({code:room.code,host:host?host.name:'JUGADOR',players:humans.length,maxPlayers:MAX_PLAYERS,createdAt:room.createdAt});
+  }
+  list.sort((a,b)=>b.players-a.players||a.createdAt-b.createdAt);
+  return list.map(({createdAt,...room})=>room);
+}
+function sendPublicRooms(ws){send(ws,{t:'public-rooms',rooms:publicRoomsSnapshot()});}
+function broadcastPublicRooms(){
+  if(!wss)return;
+  const data=JSON.stringify({t:'public-rooms',rooms:publicRoomsSnapshot()});
+  for(const client of wss.clients){
+    if(client.readyState===client.OPEN){try{client.send(data);}catch(_){}}
+  }
+}
+
 function removePlayer(ws) {
   const info=clientInfo.get(ws); if(!info)return;
   const room=rooms.get(info.code); if(!room)return;
@@ -604,6 +626,7 @@ function removePlayer(ws) {
   room.players=room.players.filter(x=>x!==p);room.controls.delete(p.index);
   if(p.isHost){broadcast(room,{t:'closed',reason:'El anfitrión cerró la sala.'});rooms.delete(room.code);}
   else broadcast(room,{t:'lobby',code:room.code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});
+  broadcastPublicRooms();
 }
 
 const server=http.createServer((req,res)=>{
@@ -622,16 +645,19 @@ const server=http.createServer((req,res)=>{
 const wss=new WebSocketServer({server,path:'/ws',perMessageDeflate:false});
 wss.on('connection',ws=>{
   send(ws,{t:'hello'});
+  sendPublicRooms(ws);
   ws.on('message',raw=>{
     let msg;try{msg=JSON.parse(String(raw));}catch(_){return;}
     if(msg.t==='create'){
-      const code=roomCode();const room=new GameRoom(code,'online');rooms.set(code,room);const p=room.addHuman(ws,msg.name,true);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});
+      const code=roomCode();const room=new GameRoom(code,'online','medio',!!msg.public);rooms.set(code,room);const p=room.addHuman(ws,msg.name,true);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,public:room.isPublic});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
     } else if(msg.t==='cpu'){
       const code=roomCode();const room=new GameRoom(code,'cpu',String(msg.difficulty||'dificil'));rooms.set(code,room);const p=room.addHuman(ws,msg.name,true);room.addCpu('CPU',room.difficulty);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,cpu:true});room.start();
     } else if(msg.t==='join'){
-      const code=String(msg.code||'').trim().toUpperCase();const room=rooms.get(code);if(!room||room.started||room.mode!=='online'){send(ws,{t:'error',message:'Sala no disponible.'});return;}const p=room.addHuman(ws,msg.name,false);if(!p){send(ws,{t:'error',message:'Sala llena.'});return;}clientInfo.set(ws,{code,index:p.index});send(ws,{t:'joined',code,index:p.index});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});
+      const code=String(msg.code||'').trim().toUpperCase();const room=rooms.get(code);if(!room||room.started||room.mode!=='online'){send(ws,{t:'error',message:'Sala no disponible.'});return;}const p=room.addHuman(ws,msg.name,false);if(!p){send(ws,{t:'error',message:'Sala llena.'});return;}clientInfo.set(ws,{code,index:p.index});send(ws,{t:'joined',code,index:p.index,public:room.isPublic});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
     } else if(msg.t==='start'){
-      const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);const p=room&&room.players.find(x=>x.ws===ws);if(room&&p&&p.isHost)room.start();
+      const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);const p=room&&room.players.find(x=>x.ws===ws);if(room&&p&&p.isHost&&room.start())broadcastPublicRooms();
+    } else if(msg.t==='public-rooms'){
+      sendPublicRooms(ws);
     } else if(msg.t==='ctrl'){
       const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);if(!room||!room.started)return;room.controls.set(info.index,{turn:clamp(Number(msg.turn)||0,-1,1),thrust:!!msg.thrust,fire:!!msg.fire});
     } else if(msg.t==='voice-ready'){
@@ -679,7 +705,7 @@ function gameLoop(){
   setTimeout(gameLoop,delay);
 }
 setTimeout(gameLoop,STEP_MS);
-setInterval(()=>{const now=Date.now();for(const [code,room] of rooms){if(room.players.length===0||now-room.createdAt>12*60*60*1000)rooms.delete(code);}},30000);
+setInterval(()=>{const now=Date.now();let changed=false;for(const [code,room] of rooms){if(room.players.length===0||now-room.createdAt>12*60*60*1000){rooms.delete(code);changed=true;}}if(changed)broadcastPublicRooms();},30000);
 
 server.listen(PORT,'0.0.0.0',()=>{
   console.log(`Galaxy Combat WebSocket server online on port ${PORT}`);
