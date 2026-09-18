@@ -3,10 +3,12 @@
   const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
   const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
+  const serverWait=document.getElementById('serverWait'),serverWaitText=document.getElementById('serverWaitText');
   const W=1920,H=1080;
   const playerColors=['#5ae1ff','#ff50a5','#5aff78','#ffdc46'];
   const images={},sounds={}; let state=null,myIndex=null,isHost=false,roomCode='',inGame=false,lastStateTime=0;
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
+  const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const serverButtons=['cpu','create','join'].map(id=>document.getElementById(id));
   const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
@@ -27,7 +29,18 @@
     assetList[`ship${i}a`]=`assets/sprites/coete${i}a.png`;
     assetList[`ship${i}f`]=`assets/sprites/coete${i}f.png`;
   }
-  for(const [k,url] of Object.entries(assetList)){const im=new Image();im.src=url;images[k]=im;}
+  const warnedImages=new WeakSet();
+  function reportImageFailure(im,error){
+    if(!im||warnedImages.has(im))return;
+    warnedImages.add(im);
+    console.warn('[Galaxy Combat] Image unavailable; continuing without blocking the game.',im.currentSrc||im.src,error||'');
+  }
+  for(const [k,url] of Object.entries(assetList)){
+    const im=new Image();
+    im.onerror=()=>reportImageFailure(im);
+    im.src=url;
+    images[k]=im;
+  }
   sounds.laser=new Audio('assets/sonido/laser_1.mp3');sounds.impact=new Audio('assets/sonido/impacto1.mp3');sounds.pickup=new Audio('assets/sonido/carga3.wav');sounds.start=new Audio('assets/sonido/inicio.wav');sounds.music=new Audio('assets/sonido/musica.mp3');sounds.music.loop=true;sounds.music.volume=.35;
   function playSound(k){const a=sounds[k];if(!a)return;try{const b=a.cloneNode();b.volume=k==='laser'?.55:.75;b.play().catch(()=>{});}catch(_){}}
   function startMusic(){if(musicStarted)return;musicStarted=true;sounds.music.play().catch(()=>{});}
@@ -71,7 +84,7 @@
       window.removeEventListener('deviceorientation',onDeviceOrientation);
       window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});
       motionNeutral=null;motionTurn=0;motionEnabled=true;
-      motionStatus.textContent='Control móvil activo · posición actual calibrada como centro.';
+      motionStatus.textContent='Control móvil activo · giro corregido · posición actual calibrada como centro.';
       enableMotionBtn.textContent='RECALIBRAR GIRO';
       return true;
     }catch(err){
@@ -121,13 +134,16 @@
     for(const b of serverButtons)b.disabled=!ready;
     statusEl.classList.toggle('ready',ready);
     statusEl.classList.toggle('waking',!ready);
+    if(serverWait)serverWait.classList.toggle('hidden',ready);
   }
   function wakeStatus(){
     const secs=wakeStartedAt?Math.max(0,Math.floor((Date.now()-wakeStartedAt)/1000)):0;
     const dots='.'.repeat((connectAttempt%3)+1);
-    statusEl.textContent=secs<8
-      ? `Conectando con el servidor${dots}`
-      : `Despertando servidor${dots} puede tardar hasta un minuto (${secs}s)`;
+    const msg=secs<8
+      ? `Conectando con el servidor${dots} espera un momento.`
+      : `El servidor se está iniciando${dots} Puede tardar hasta un minuto (${secs}s).`;
+    statusEl.textContent=msg;
+    if(serverWaitText)serverWaitText.textContent=msg;
   }
   function scheduleReconnect(delay=2200){
     clearTimeout(reconnectTimer);
@@ -178,10 +194,14 @@
     return false;
   }
   function handle(m){
-    if(m.t==='created'||m.t==='joined'){roomCode=m.code;myIndex=m.index;isHost=m.t==='created';roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');startMusic();}
+    if(m.t==='created'||m.t==='joined'){if(impactFX)impactFX.reset();roomCode=m.code;myIndex=m.index;isHost=m.t==='created';roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');startMusic();}
     else if(m.t==='lobby'){roomCode=m.code;roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(p.n)}${p.cpu?' · CPU':''}</div>`).join('');startBtn.disabled=!(isHost&&m.canStart);}
     else if(m.t==='start'){beginGame();playSound('start');}
-    else if(m.t==='state'){state=m;lastStateTime=performance.now();if(!inGame&&m.started)beginGame();}
+    else if(m.t==='state'){
+      if(impactFX)impactFX.consume(m,myIndex,performance.now());
+      state=m;lastStateTime=performance.now();
+      if(!inGame&&m.started&&!m.finished)beginGame();
+    }
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;showVictory(m.winner);}
     else if(m.t==='error'){statusEl.textContent=m.message||'Error';}
@@ -220,7 +240,35 @@
     send({t:'ctrl',turn,thrust,fire});
   },1000/30);
 
-  function drawImageCentered(im,x,y,size,rot=0,alpha=1){if(!im||!im.complete)return;ctx.save();ctx.globalAlpha=alpha;ctx.translate(x,y);ctx.rotate(rot*Math.PI/180);if(size){ctx.drawImage(im,-size/2,-size/2,size,size);}else{ctx.drawImage(im,-im.width/2,-im.height/2);}ctx.restore();}
+  function imageReady(im){
+    // complete is ALSO true after a failed download. Check decoded dimensions.
+    return Boolean(im&&im.complete&&im.naturalWidth>0&&im.naturalHeight>0);
+  }
+  function drawImageSafely(im,x,y,width,height){
+    if(!imageReady(im))return false;
+    try{
+      if(width===undefined){ctx.drawImage(im,x,y);}
+      else {ctx.drawImage(im,x,y,width,height);}
+      return true;
+    }catch(error){
+      reportImageFailure(im,error);
+      return false;
+    }
+  }
+  function drawImageCentered(im,x,y,size,rot=0,alpha=1){
+    if(!imageReady(im)||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(rot))return false;
+    ctx.save();
+    try{
+      ctx.globalAlpha=alpha;
+      ctx.translate(x,y);
+      ctx.rotate(rot*Math.PI/180);
+      if(size)return drawImageSafely(im,-size/2,-size/2,size,size);
+      return drawImageSafely(im,-im.naturalWidth/2,-im.naturalHeight/2);
+    }finally{
+      // An image error must never leave translate/rotate/alpha on the canvas.
+      ctx.restore();
+    }
+  }
   function drawPickup(pk){
     const map={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed'};
     if(map[pk.type]){drawImageCentered(images[map[pk.type]],pk.x,pk.y,46);return;}
@@ -231,6 +279,7 @@
   }
   function drawShip(p){
     const local=p.i===myIndex;
+    // The short explosion is drawn by impactFX, never from a PNG download.
     if(p.dead)return;
     if(p.camo>0&&!local)return;
     let alpha=1;
@@ -248,7 +297,7 @@
     if(!state)return;const max=Math.max(0,...state.players.map(p=>p.k));const leaders=state.players.filter(p=>p.k===max&&max>0);const leader=leaders.length===1?leaders[0].i:null;
     state.players.forEach(p=>{
       const left=p.i%2===0,top=p.i<2;const px=left?10:W-216,py=top?5:H-190;const color=playerColors[p.i];
-      const panel=images[left?'pantA':'pantB'];if(panel&&panel.complete)ctx.drawImage(panel,px,py,128,153);
+      const panel=images[left?'pantA':'pantB'];drawImageSafely(panel,px,py,128,153);
       ctx.font='20px Flashback,Arial';ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(performance.now()*.0042));ctx.globalAlpha=alpha;ctx.fillText(`J${p.i+1} · ${p.n}`,px+64,py+157);ctx.globalAlpha=1;
       const tx=left?60:W-170;ctx.textAlign='left';ctx.fillStyle=color;ctx.fillText(String(p.ammo),tx,py+15);ctx.fillText('x'+p.spd,tx,py+80);ctx.fillText(`${p.k}/${state.scoreToWin}`,tx,py+115);
       ctx.fillStyle='#be0000';ctx.fillRect(tx,py+53,Math.max(0,(30-p.cad)*2.3),7);ctx.fillRect(tx,py+105,67*clamp((p.spd-1),0,1),7);
@@ -256,8 +305,11 @@
   }
   function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
   function render(){
-    requestAnimationFrame(render);ctx.clearRect(0,0,W,H);
-    if(images.bg.complete)ctx.drawImage(images.bg,0,0,W,H);else{ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);}
+    requestAnimationFrame(render);
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.globalAlpha=1;
+    ctx.clearRect(0,0,W,H);
+    if(!drawImageSafely(images.bg,0,0,W,H)){ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);}
     if(!state)return;
     for(const a of state.asteroids){drawImageCentered(images[`asteroid${a.type}`]||images.asteroid1,a.x,a.y,a.type===5?60:90);}
     for(const pk of state.pickups)drawPickup(pk);
@@ -265,6 +317,7 @@
     if(state.giant)drawImageCentered(images.giant,state.giant.x,state.giant.y,270,0,1);
     for(const b of state.bullets){const sp=Math.hypot(b.vx,b.vy)||1;ctx.strokeStyle='#50ff78';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(b.x-b.vx/sp*12,b.y-b.vy/sp*12);ctx.lineTo(b.x,b.y);ctx.stroke();}
     for(const p of state.players)drawShip(p);
+    if(impactFX)impactFX.draw(ctx,performance.now());
     drawHud();
     if(state.shower>0){ctx.font='22px Flashback,Arial';ctx.textAlign='center';ctx.fillStyle='rgba(255,170,70,.85)';ctx.fillText('LLUVIA DE METEORITOS',W/2,185);}
   }

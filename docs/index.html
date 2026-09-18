@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Galaxy Combat Web</title>
 <link rel="stylesheet" href="style.css">
+<style>
+.server-wait{display:flex;align-items:center;justify-content:center;gap:10px;margin:12px 0 14px;padding:11px 14px;border:1px solid rgba(90,225,255,.45);border-radius:8px;background:rgba(0,18,32,.72);color:#bff7ff;font-size:14px;line-height:1.35;text-align:left;box-shadow:0 0 16px rgba(90,225,255,.10)}
+.server-wait.hidden{display:none}
+.server-spinner{width:15px;height:15px;flex:0 0 15px;border:2px solid rgba(90,225,255,.25);border-top-color:#5ae1ff;border-radius:50%;animation:serverSpin .8s linear infinite}
+@keyframes serverSpin{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
 <div id="app">
@@ -13,6 +19,10 @@
     <section id="menu" class="card">
       <h1>GALAXY COMBAT</h1>
       <p class="sub">Versión Web · 16:9 · hasta 4 jugadores</p>
+      <div id="serverWait" class="server-wait" role="status" aria-live="polite">
+        <span class="server-spinner" aria-hidden="true"></span>
+        <span id="serverWaitText">Conectando con el servidor… espera un momento.</span>
+      </div>
       <label>Nombre <input id="name" maxlength="16" value="JUGADOR"></label>
       <button id="cpu" disabled>JUGAR CONTRA CPU</button>
       <div class="row">
@@ -53,6 +63,7 @@
   </div>
 </div>
 <script src="config.js"></script>
-<script src="game.js"></script>
+<script src="impactos.js?v=impactos-1"></script>
+<script src="game.js?v=impactos-1"></script>
 </body>
 </html>
