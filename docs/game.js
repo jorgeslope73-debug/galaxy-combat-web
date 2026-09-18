@@ -368,6 +368,7 @@
   function closeRoomDialogs(){
     if(roomTypeDialog)roomTypeDialog.classList.add('hidden');
     if(publicRoomsDialog)publicRoomsDialog.classList.add('hidden');
+    if(menu)menu.classList.remove('submenu-open');
   }
   function renderPublicRooms(){
     if(!publicRoomsList)return;
@@ -388,10 +389,12 @@
     }
   }
   function showRoomTypeDialog(){
+    if(menu)menu.classList.add('submenu-open');
     if(roomTypeDialog)roomTypeDialog.classList.remove('hidden');
   }
   function showPublicRoomsDialog(){
     if(joinCodeDialog)joinCodeDialog.value='';
+    if(menu)menu.classList.add('submenu-open');
     if(publicRoomsDialog)publicRoomsDialog.classList.remove('hidden');
     renderPublicRooms();send({t:'public-rooms'});
   }

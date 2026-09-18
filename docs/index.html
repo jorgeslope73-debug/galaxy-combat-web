@@ -19,33 +19,20 @@
 .lobby-chat-line:last-child{margin-bottom:0}
 .lobby-chat-name{flex:0 0 auto;font-weight:700;text-shadow:0 0 7px currentColor}
 .lobby-chat-text{color:rgba(245,242,255,.92)}
-.lobby-chat-compose{display:flex;gap:7px;align-items:center;width:100%}
-/* El CSS general pone input y button al 100%. En el chat lo anulamos para
-   que el campo ocupe casi toda la linea y ENVIAR sea realmente compacto. */
-#lobbyChatInput{
-  flex:1 1 auto!important;width:auto!important;min-width:180px!important;height:38px;
-  margin:0!important;padding:0 12px!important;box-sizing:border-box;
-  border:1px solid rgba(184,125,255,.42);border-radius:5px;
-  background:rgba(5,4,16,.82)!important;color:#fff!important;
-  -webkit-text-fill-color:#fff!important;caret-color:#fff;
-  font:14px Arial,sans-serif!important;outline:none;
-}
-#lobbyChatInput::placeholder{color:rgba(235,229,245,.46);-webkit-text-fill-color:rgba(235,229,245,.46)}
-#lobbyChatInput:focus{border-color:rgba(208,168,255,.9);box-shadow:0 0 12px rgba(155,83,255,.25)}
-#lobbyChatSend{
-  flex:0 0 78px!important;width:78px!important;min-width:78px!important;max-width:78px!important;
-  min-height:38px!important;height:38px;margin:0!important;padding:0 7px!important;
-  font-size:10px!important;box-sizing:border-box;
-}
+.lobby-chat-compose{display:flex;gap:7px;align-items:center}
+#lobbyChatInput{flex:1;min-width:0;height:34px;padding:0 10px;border:1px solid rgba(184,125,255,.35);border-radius:5px;background:rgba(10,6,24,.62);color:#fff;font:12px 'Flashback',Arial,sans-serif;outline:none}
+#lobbyChatInput:focus{border-color:rgba(208,168,255,.82);box-shadow:0 0 12px rgba(155,83,255,.22)}
+#lobbyChatSend{flex:0 0 auto;min-height:34px;padding:6px 12px;font-size:11px}
 .lobby-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:5px}
 @media (max-width:760px){
   #lobby.lobby-with-chat{width:min(96vw,620px);max-height:92vh;padding:12px}
   .lobby-chat{margin-top:8px}.lobby-chat-log{height:112px;padding:7px 8px}
   .lobby-chat-line{font-size:11px;margin-bottom:4px}.lobby-chat-title{font-size:10px}
-  .lobby-chat-compose{gap:5px}
-  #lobbyChatInput{min-width:0!important;height:34px;font-size:13px!important;padding:0 9px!important}
-  #lobbyChatSend{flex-basis:64px!important;width:64px!important;min-width:64px!important;max-width:64px!important;height:34px!important;min-height:34px!important;padding:0 4px!important;font-size:8px!important}
+  #lobbyChatInput{height:31px;font-size:10px}.lobby-chat-compose{gap:5px}#lobbyChatSend{min-height:31px;padding:5px 9px;font-size:9px}
 }
+
+/* El credito del autor solo se muestra en el menu principal. */
+#menu.submenu-open .menu-credit{display:none!important}
 </style>
 </head>
 <body>
