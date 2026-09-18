@@ -238,7 +238,7 @@
     return false;
   }
   function handle(m){
-    if(m.t==='created'||m.t==='joined'){if(impactFX)impactFX.reset();roomCode=m.code;myIndex=m.index;isHost=m.t==='created';if(voice)voice.setSession(roomCode,myIndex);roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');}
+    if(m.t==='created'||m.t==='joined'){if(impactFX)impactFX.reset();roomCode=m.code;myIndex=m.index;isHost=m.t==='created';if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');}
     else if(m.t==='lobby'){roomCode=m.code;if(voice)voice.syncPlayers(m.players);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.cpu?' · CPU':''}</div>`).join('');startBtn.disabled=!(isHost&&m.canStart);}
     else if(m.t==='start'){beginGame();playSound('start');}
     else if(m.t==='state'){

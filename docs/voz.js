@@ -21,6 +21,7 @@
       this.localTrack=null;
       this.localIndex=null;
       this.roomCode='';
+      this.cpuMode=false;
       this.peers=new Map();
       this.readyPeers=new Set();
       this.peerPlayers=new Set();
@@ -71,6 +72,7 @@
 
       window.addEventListener('keydown',async e=>{
         if(e.code!=='KeyV'||isEditableTarget(e.target))return;
+        if(this.cpuMode)return;
         if(e.repeat){e.preventDefault();return;}
         this.keyVDown=true;
         e.preventDefault();
@@ -115,7 +117,7 @@
         track.addEventListener('ended',()=>this.disable(false),{once:true});
         this.setStatus('VOZ ACTIVADA');
         this.refreshUI();
-        if(this.localIndex!==null){
+        if(this.localIndex!==null&&!this.cpuMode){
           this.send({t:'voice-ready'});
           for(const peer of this.readyPeers)this.maybeOffer(peer);
         }
@@ -151,19 +153,20 @@
       this.localTrack=null;this.localStream=null;this.enabled=false;
     }
 
-    setSession(code,index){
+    setSession(code,index,cpuMode=false){
       this.roomCode=String(code||'');
       this.localIndex=Number.isInteger(index)?index:Number(index);
+      this.cpuMode=!!cpuMode;
       this.readyPeers.clear();
       this.peerPlayers.clear();
       this.closeAllPeers();
-      if(this.enabled)this.send({t:'voice-ready'});
+      if(this.enabled&&!this.cpuMode)this.send({t:'voice-ready'});
       this.refreshUI();
     }
 
     clearSession(){
       if(this.enabled&&this.localIndex!==null)this.send({t:'voice-offline'});
-      this.localIndex=null;this.roomCode='';
+      this.localIndex=null;this.roomCode='';this.cpuMode=false;
       this.readyPeers.clear();this.peerPlayers.clear();this.remoteTalking.clear();
       this.closeAllPeers();
       this.refreshUI();
@@ -348,7 +351,7 @@
         this.statusEl.textContent=this.enabled?'VOZ ACTIVADA':'VOZ DESACTIVADA';
       }
       if(this.pttButton){
-        const show=this.isMobile&&inRoom;
+        const show=this.isMobile&&inRoom&&this.enabled&&!this.cpuMode;
         this.pttButton.classList.toggle('hidden',!show);
         this.pttButton.textContent=this.enabled?'HABLAR':'ACTIVAR VOZ';
         this.pttButton.setAttribute('aria-label',this.enabled?'Mantener para hablar':'Activar voz');
@@ -356,7 +359,7 @@
         this.pttButton.classList.toggle('talking',this.talking);
       }
       if(this.hintEl){
-        const show=!this.isMobile&&inRoom;
+        const show=!this.isMobile&&inRoom&&!this.cpuMode;
         this.hintEl.classList.toggle('hidden',!show);
         this.hintEl.textContent=this.enabled?(this.talking?'V · HABLANDO':'V · HABLAR'):'V · ACTIVAR VOZ';
         this.hintEl.classList.toggle('talking',this.talking);
