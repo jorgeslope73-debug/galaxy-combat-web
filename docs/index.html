@@ -8,6 +8,29 @@
 <link rel="stylesheet" href="style.css?v=perf-final-20260918-1">
 <link rel="stylesheet" href="menu-portada.css?v=menu-up-20260918-6">
 <link rel="stylesheet" href="voz.css?v=volumen-20260918-1-iphone-audio-fix-20260918-1">
+<style>
+/* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
+#lobby.lobby-with-chat{width:min(620px,92vw);max-height:min(760px,88vh);overflow:hidden}
+.lobby-chat{margin:12px auto 8px;width:min(540px,100%);display:flex;flex-direction:column;gap:7px}
+.lobby-chat-title{font-family:'Flashback',Arial,sans-serif;font-size:12px;letter-spacing:.08em;color:rgba(235,225,255,.82);text-align:left}
+.lobby-chat-log{height:150px;overflow-y:auto;padding:9px 10px;border:1px solid rgba(187,131,255,.25);border-radius:6px;background:rgba(6,4,18,.45);box-shadow:inset 0 0 18px rgba(0,0,0,.28);scrollbar-width:thin;scrollbar-color:rgba(177,120,255,.55) transparent}
+.lobby-chat-empty{margin:0;color:rgba(230,220,245,.48);font:11px 'Flashback',Arial,sans-serif;text-align:center;padding-top:52px}
+.lobby-chat-line{display:flex;gap:7px;align-items:flex-start;margin:0 0 6px;font-family:Arial,sans-serif;font-size:13px;line-height:1.25;overflow-wrap:anywhere}
+.lobby-chat-line:last-child{margin-bottom:0}
+.lobby-chat-name{flex:0 0 auto;font-weight:700;text-shadow:0 0 7px currentColor}
+.lobby-chat-text{color:rgba(245,242,255,.92)}
+.lobby-chat-compose{display:flex;gap:7px;align-items:center}
+#lobbyChatInput{flex:1;min-width:0;height:34px;padding:0 10px;border:1px solid rgba(184,125,255,.35);border-radius:5px;background:rgba(10,6,24,.62);color:#fff;font:12px 'Flashback',Arial,sans-serif;outline:none}
+#lobbyChatInput:focus{border-color:rgba(208,168,255,.82);box-shadow:0 0 12px rgba(155,83,255,.22)}
+#lobbyChatSend{flex:0 0 auto;min-height:34px;padding:6px 12px;font-size:11px}
+.lobby-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:5px}
+@media (max-width:760px){
+  #lobby.lobby-with-chat{width:min(96vw,620px);max-height:92vh;padding:12px}
+  .lobby-chat{margin-top:8px}.lobby-chat-log{height:112px;padding:7px 8px}
+  .lobby-chat-line{font-size:11px;margin-bottom:4px}.lobby-chat-title{font-size:10px}
+  #lobbyChatInput{height:31px;font-size:10px}.lobby-chat-compose{gap:5px}#lobbyChatSend{min-height:31px;padding:5px 9px;font-size:9px}
+}
+</style>
 </head>
 <body>
 <div id="app">
@@ -104,11 +127,23 @@
         </div>
       </div>
     </section>
-    <section id="lobby" class="card hidden">
+    <section id="lobby" class="card lobby-with-chat hidden">
       <h2>SALA <span id="roomCode"></span></h2>
       <div id="players"></div>
-      <button id="start" class="hidden" disabled>EMPEZAR</button>
-      <button id="leaveRoom" type="button">SALIR DE SALA</button>
+      <div class="lobby-chat" aria-label="Chat de la sala">
+        <div class="lobby-chat-title">CHAT DE SALA</div>
+        <div id="lobbyChatLog" class="lobby-chat-log" aria-live="polite">
+          <p id="lobbyChatEmpty" class="lobby-chat-empty">Sin mensajes</p>
+        </div>
+        <div class="lobby-chat-compose">
+          <input id="lobbyChatInput" maxlength="120" placeholder="ESCRIBE MENSAJE..." autocomplete="off" spellcheck="false" aria-label="Mensaje para la sala">
+          <button id="lobbyChatSend" type="button">ENVIAR</button>
+        </div>
+      </div>
+      <div class="lobby-actions">
+        <button id="start" class="hidden" disabled>EMPEZAR</button>
+        <button id="leaveRoom" type="button">SALIR DE SALA</button>
+      </div>
       <p class="help">Los demas abren esta misma direccion y escriben el codigo.</p>
     </section>
     <section id="victory" class="card hidden">
@@ -127,6 +162,6 @@
 <script src="config.js"></script>
 <script src="impactos.js?v=perf-final-20260918-1"></script>
 <script src="voz.js?v=iphone-audio-fix-20260918-1"></script>
-<script src="game.js?v=lluvia-suave-20260918-1"></script>
+<script src="game.js?v=chat-sala-20260918-1"></script>
 </body>
 </html>

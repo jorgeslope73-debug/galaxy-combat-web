@@ -3,6 +3,7 @@
   const canvas=document.getElementById('game'),ctx=canvas.getContext('2d',{alpha:false,desynchronized:true})||canvas.getContext('2d');
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
   const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
+  const lobbyChatLog=document.getElementById('lobbyChatLog'),lobbyChatEmpty=document.getElementById('lobbyChatEmpty'),lobbyChatInput=document.getElementById('lobbyChatInput'),lobbyChatSend=document.getElementById('lobbyChatSend');
   const serverWait=document.getElementById('serverWait'),serverWaitText=document.getElementById('serverWaitText');
   const roomTypeDialog=document.getElementById('roomTypeDialog'),publicRoomsDialog=document.getElementById('publicRoomsDialog'),publicRoomsList=document.getElementById('publicRoomsList'),joinCodeDialog=document.getElementById('joinCodeDialog');
   const W=1920,H=1080;
@@ -414,15 +415,50 @@
     startBtn.classList.toggle('hidden',!isHost);
     startBtn.disabled=isHost?!canStart:true;
   }
+  function clearLobbyChat(){
+    if(!lobbyChatLog)return;
+    lobbyChatLog.querySelectorAll('.lobby-chat-line').forEach(el=>el.remove());
+    if(lobbyChatEmpty)lobbyChatEmpty.classList.remove('hidden');
+    lobbyChatLog.scrollTop=lobbyChatLog.scrollHeight;
+    if(lobbyChatInput)lobbyChatInput.value='';
+  }
+  function appendLobbyChatMessage(msg){
+    if(!lobbyChatLog||!msg)return;
+    const text=String(msg.text||'').trim();
+    if(!text)return;
+    if(lobbyChatEmpty)lobbyChatEmpty.classList.add('hidden');
+    const line=document.createElement('div');line.className='lobby-chat-line';
+    const who=document.createElement('span');who.className='lobby-chat-name';
+    const idx=Number(msg.i);who.style.color=playerColors[idx]||'#fff';
+    who.textContent=`J${Number.isFinite(idx)?idx+1:'?'} ${sinTildes(msg.n||'JUGADOR')}:`;
+    const body=document.createElement('span');body.className='lobby-chat-text';body.textContent=sinTildes(text);
+    line.append(who,body);lobbyChatLog.appendChild(line);
+    while(lobbyChatLog.querySelectorAll('.lobby-chat-line').length>24){
+      const first=lobbyChatLog.querySelector('.lobby-chat-line');if(!first)break;first.remove();
+    }
+    lobbyChatLog.scrollTop=lobbyChatLog.scrollHeight;
+  }
+  function loadLobbyChatHistory(messages){
+    clearLobbyChat();
+    for(const msg of (Array.isArray(messages)?messages:[]))appendLobbyChatMessage(msg);
+  }
+  function sendLobbyChat(){
+    if(!roomCode||inGame||!lobbyChatInput)return;
+    const text=sinTildes(String(lobbyChatInput.value||'').trim()).slice(0,120);
+    if(!text)return;
+    if(send({t:'chat',text}))lobbyChatInput.value='';
+  }
   function handle(m){
     if(m.t==='public-rooms'){
       publicRooms=Array.isArray(m.rooms)?m.rooms:[];renderPublicRooms();return;
     }
+    if(m.t==='chat-history'){loadLobbyChatHistory(m.messages);return;}
+    if(m.t==='chat'){appendLobbyChatMessage(m);return;}
     if(m.t==='created'||m.t==='joined'){
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;lastVoicePlayersSig='';rebuildPreviousLookup(null);
-      roomCode=m.code;myIndex=m.index;isHost=m.t==='created';updateLobbyStartButton(false);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
+      roomCode=m.code;myIndex=m.index;isHost=m.t==='created';clearLobbyChat();updateLobbyStartButton(false);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
     }
     else if(m.t==='lobby'){roomCode=m.code;syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);}
     else if(m.t==='start'){beginGame();playSound('start');}
@@ -461,6 +497,13 @@
   if(joinCodeDialog)joinCodeDialog.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();joinRoomByCode(joinCodeDialog.value);}});
   if(roomTypeDialog)roomTypeDialog.addEventListener('pointerdown',e=>{if(e.target===roomTypeDialog)closeRoomDialogs();});
   if(publicRoomsDialog)publicRoomsDialog.addEventListener('pointerdown',e=>{if(e.target===publicRoomsDialog)closeRoomDialogs();});
+  if(lobbyChatSend)lobbyChatSend.addEventListener('click',sendLobbyChat);
+  if(lobbyChatInput)lobbyChatInput.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendLobbyChat();}
+    // Evita que las teclas escritas en el chat controlen la nave si cambia el estado.
+    e.stopPropagation();
+  });
+  if(lobbyChatInput)lobbyChatInput.addEventListener('keyup',e=>e.stopPropagation());
   if(isMobile){
     mobileSetup.classList.remove('hidden');
     enableMotionBtn.addEventListener('click',enableMobileMotion);
@@ -482,7 +525,7 @@
     roomCode='';myIndex=null;isHost=false;lastVoicePlayersSig='';rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
     mobileControls.classList.add('hidden');touchSides.clear();refreshTouchControls();
-    roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';updateLobbyStartButton(false);
+    roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';clearLobbyChat();updateLobbyStartButton(false);
     menu.classList.remove('hidden');startMusic();scheduleCanvasResolution();
   });
   document.getElementById('back').addEventListener('click',()=>location.reload());
