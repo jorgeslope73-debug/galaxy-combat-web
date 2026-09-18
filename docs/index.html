@@ -6,7 +6,7 @@
 <meta name="theme-color" content="#10051e">
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
 <link rel="stylesheet" href="style.css?v=perf-final-20260918-1">
-<link rel="stylesheet" href="menu-portada.css?v=salas-publicas-20260918-1">
+<link rel="stylesheet" href="menu-portada.css?v=salas-publicas-layout-20260918-2">
 <link rel="stylesheet" href="voz.css?v=iphone-audio-fix-20260918-1">
 </head>
 <body>
@@ -66,18 +66,22 @@
             </div>
             <div id="publicRoomsDialog" class="room-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="publicRoomsTitle">
               <div class="room-dialog-card room-browser-card">
-                <h3 id="publicRoomsTitle">PARTIDAS PUBLICAS</h3>
-                <div id="publicRoomsList" class="public-rooms-list" aria-live="polite">
-                  <p class="public-rooms-empty">Buscando partidas...</p>
-                </div>
-                <div class="private-code-block">
-                  <span class="private-code-title">O ENTRA POR CODIGO</span>
-                  <div class="private-code-row">
-                    <input id="joinCodeDialog" maxlength="4" placeholder="CODIGO" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Codigo de sala">
-                    <button id="joinByCodeDialog" type="button">UNIRSE</button>
+                <div class="room-browser-top">
+                  <h3 id="publicRoomsTitle">PARTIDAS PUBLICAS</h3>
+                  <div id="publicRoomsList" class="public-rooms-list" aria-live="polite">
+                    <p class="public-rooms-empty">Buscando partidas...</p>
                   </div>
                 </div>
-                <button id="closePublicRooms" class="room-dialog-close" type="button">CERRAR</button>
+                <div class="room-browser-bottom">
+                  <div class="private-code-block">
+                    <span class="private-code-title">O ENTRA POR CODIGO</span>
+                    <div class="private-code-row">
+                      <input id="joinCodeDialog" maxlength="4" placeholder="CODIGO" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Codigo de sala">
+                      <button id="joinByCodeDialog" type="button">UNIRSE</button>
+                    </div>
+                  </div>
+                  <button id="closePublicRooms" class="room-dialog-close" type="button">CERRAR</button>
+                </div>
               </div>
             </div>
             <div class="voice-setup" aria-label="Chat de voz">
@@ -119,6 +123,6 @@
 <script src="config.js"></script>
 <script src="impactos.js?v=perf-final-20260918-1"></script>
 <script src="voz.js?v=iphone-audio-fix-20260918-1"></script>
-<script src="game.js?v=salas-publicas-20260918-1"></script>
+<script src="game.js?v=join-transparente-20260918-1"></script>
 </body>
 </html>
