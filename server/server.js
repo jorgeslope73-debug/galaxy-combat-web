@@ -98,6 +98,17 @@ function emitSound(room, kind) {
   room.soundSeq++;
   broadcast(room, { t:'sound', kind, seq:room.soundSeq });
 }
+function sendToPlayer(room,index,obj) {
+  const p=room&&room.players.find(x=>x.index===index&&!x.cpu);
+  if(!p||!p.ws)return false;
+  send(p.ws,obj);return true;
+}
+function broadcastVoicePresence(room,from,type,extra={}) {
+  for(const p of room.players){
+    if(p.cpu||p.index===from||!p.ws)continue;
+    send(p.ws,{t:type,from,...extra});
+  }
+}
 
 class GameRoom {
   constructor(code, mode='online', difficulty='medio') {
@@ -167,7 +178,7 @@ class GameRoom {
       ws:null, isHost:false, x:0,y:0,rot:0,vx:0,vy:0,
       bullets:1, cadence:30, speed:1, kills:0, deaths:0,
       reload:0, shield:0, camo:0, protection:SPAWN_PROTECTION_SECONDS,
-      dead:false, respawn:0, fireLatch:false
+      dead:false, respawn:0, fireLatch:false, voiceReady:false
     };
   }
 
@@ -539,6 +550,7 @@ function removePlayer(ws) {
   const info=clientInfo.get(ws); if(!info)return;
   const room=rooms.get(info.code); if(!room)return;
   const p=room.players.find(x=>x.ws===ws); if(!p)return;
+  if(p.voiceReady)broadcastVoicePresence(room,p.index,'voice-left');
   room.players=room.players.filter(x=>x!==p);room.controls.delete(p.index);
   if(p.isHost){broadcast(room,{t:'closed',reason:'El anfitrión cerró la sala.'});rooms.delete(room.code);}
   else broadcast(room,{t:'lobby',code:room.code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});
@@ -572,6 +584,22 @@ wss.on('connection',ws=>{
       const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);const p=room&&room.players.find(x=>x.ws===ws);if(room&&p&&p.isHost)room.start();
     } else if(msg.t==='ctrl'){
       const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);if(!room||!room.started)return;room.controls.set(info.index,{turn:clamp(Number(msg.turn)||0,-1,1),thrust:!!msg.thrust,fire:!!msg.fire});
+    } else if(msg.t==='voice-ready'){
+      const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);const p=room&&room.players.find(x=>x.index===info.index&&x.ws===ws);if(!room||!p||p.cpu)return;
+      p.voiceReady=true;
+      send(ws,{t:'voice-peers',peers:room.players.filter(x=>!x.cpu&&x.index!==p.index&&x.voiceReady).map(x=>x.index)});
+      broadcastVoicePresence(room,p.index,'voice-ready');
+    } else if(msg.t==='voice-offline'){
+      const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);const p=room&&room.players.find(x=>x.index===info.index&&x.ws===ws);if(!room||!p)return;
+      p.voiceReady=false;broadcastVoicePresence(room,p.index,'voice-offline');
+    } else if(msg.t==='voice-offer'||msg.t==='voice-answer'||msg.t==='voice-ice'){
+      const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);const p=room&&room.players.find(x=>x.index===info.index&&x.ws===ws);if(!room||!p||p.cpu||!p.voiceReady)return;
+      const to=Number(msg.to);if(!Number.isInteger(to)||to===p.index)return;
+      const target=room.players.find(x=>x.index===to&&!x.cpu&&x.voiceReady);if(!target)return;
+      sendToPlayer(room,to,{t:msg.t,from:p.index,data:msg.data});
+    } else if(msg.t==='voice-talking'){
+      const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);const p=room&&room.players.find(x=>x.index===info.index&&x.ws===ws);if(!room||!p||p.cpu||!p.voiceReady)return;
+      broadcastVoicePresence(room,p.index,'voice-talking',{on:!!msg.on});
     } else if(msg.t==='leave'){removePlayer(ws);clientInfo.delete(ws);}
   });
   ws.on('close',()=>removePlayer(ws));
