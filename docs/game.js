@@ -12,6 +12,7 @@
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const serverButtons=['cpu','create','join'].map(id=>document.getElementById(id));
   const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+  const voice=typeof window.GalaxyVoice==='function'?new window.GalaxyVoice({send:o=>send(o),isMobile}):null;
   const mobileSetup=document.getElementById('mobileSetup'),enableMotionBtn=document.getElementById('enableMotion'),motionStatus=document.getElementById('motionStatus');
   const mobileControls=document.getElementById('mobileControls'),fireZone=document.querySelector('.fire-zone'),thrustZone=document.querySelector('.thrust-zone');
   let motionEnabled=false,motionTurn=0,motionNeutral=null,motionLastRaw=0;
@@ -225,7 +226,11 @@
       // onclose programa el siguiente intento. No mostramos un error definitivo
       // porque un Render gratuito puede estar arrancando todavia.
     };
-    ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch(_){return;}handle(m);};
+    ws.onmessage=e=>{
+      let m;try{m=JSON.parse(e.data);}catch(_){return;}
+      if(voice&&voice.isSignal(m)){voice.handleSignal(m);return;}
+      handle(m);
+    };
   }
   function send(o){
     if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(o));return true;}
@@ -233,12 +238,13 @@
     return false;
   }
   function handle(m){
-    if(m.t==='created'||m.t==='joined'){if(impactFX)impactFX.reset();roomCode=m.code;myIndex=m.index;isHost=m.t==='created';roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');}
-    else if(m.t==='lobby'){roomCode=m.code;roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.cpu?' · CPU':''}</div>`).join('');startBtn.disabled=!(isHost&&m.canStart);}
+    if(m.t==='created'||m.t==='joined'){if(impactFX)impactFX.reset();roomCode=m.code;myIndex=m.index;isHost=m.t==='created';if(voice)voice.setSession(roomCode,myIndex);roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');}
+    else if(m.t==='lobby'){roomCode=m.code;if(voice)voice.syncPlayers(m.players);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.cpu?' · CPU':''}</div>`).join('');startBtn.disabled=!(isHost&&m.canStart);}
     else if(m.t==='start'){beginGame();playSound('start');}
     else if(m.t==='state'){
       if(impactFX)impactFX.consume(m,myIndex,performance.now());
       state=m;lastStateTime=performance.now();
+      if(voice)voice.syncPlayers(m.players);
       if(!inGame&&m.started&&!m.finished)beginGame();
     }
     else if(m.t==='sound'){playSound(m.kind);}
@@ -270,7 +276,7 @@
   document.getElementById('back').addEventListener('click',()=>location.reload());
   window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'&&inGame)location.reload();});
   window.addEventListener('keyup',e=>keys.delete(e.code));
-  window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);try{if(ws)ws.close();}catch(_){}});
+  window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);if(voice)voice.shutdown(true);try{if(ws)ws.close();}catch(_){}});
 
   setInterval(()=>{
     if(!inGame)return;

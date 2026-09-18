@@ -7,6 +7,7 @@
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="menu-portada.css?v=nombre-flashback-20260918-1">
+<link rel="stylesheet" href="voz.css?v=voz-web-1">
 </head>
 <body>
 <div id="app">
@@ -52,6 +53,10 @@
                 </div>
               </div>
             </div>
+            <div class="voice-setup" aria-label="Chat de voz">
+              <button id="enableVoice" type="button">ACTIVAR VOZ</button>
+              <span id="voiceStatus" class="voice-status" aria-live="polite">VOZ DESACTIVADA</span>
+            </div>
             <p class="help desktop-help menu-keys"><span>GIRAR <b>A / D</b> o flechas</span><i aria-hidden="true"></i><span>ACELERAR <b>W / ARRIBA</b></span><i aria-hidden="true"></i><span>DISPARAR <b>CTRL / ESPACIO</b></span></p>
             <div id="mobileSetup" class="mobile-setup hidden">
               <div class="mobile-row">
@@ -76,14 +81,17 @@
       <button id="back">VOLVER AL MENU</button>
     </section>
   </div>
-  <div id="topbar" class="hidden"><span id="roomMini"></span><span class="desktop-only">ESC: salir</span></div>
+  <div id="topbar" class="hidden"><span id="roomMini"></span><span id="voiceHint" class="voice-hint hidden"></span><span class="desktop-only">ESC: salir</span></div>
+  <div id="voiceTalker" class="voice-talker hidden" aria-live="polite"></div>
   <div id="mobileControls" class="mobile-controls hidden" aria-hidden="true">
     <div class="mobile-zone fire-zone"><span>DISPARO</span></div>
     <div class="mobile-zone thrust-zone"><span>ACELERAR</span></div>
   </div>
+  <button id="voicePtt" class="voice-ptt hidden" type="button" aria-label="Mantener para hablar">ACTIVAR VOZ</button>
 </div>
 <script src="config.js"></script>
 <script src="impactos.js?v=impactos-1"></script>
-<script src="game.js?v=sin-tildes-20260918-1"></script>
+<script src="voz.js?v=voz-web-1"></script>
+<script src="game.js?v=voz-web-1"></script>
 </body>
 </html>
