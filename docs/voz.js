@@ -335,6 +335,13 @@
 
     refreshTalkers(){
       if(!this.talkerEl)return;
+      // Si la voz local no esta habilitada (o estamos contra CPU), no mostramos
+      // ningun indicador de voz dentro de la partida.
+      if(!this.enabled||this.cpuMode){
+        this.talkerEl.textContent='';
+        this.talkerEl.classList.add('hidden');
+        return;
+      }
       const ids=[...this.remoteTalking].sort((a,b)=>a-b);
       if(!ids.length){this.talkerEl.textContent='';this.talkerEl.classList.add('hidden');return;}
       this.talkerEl.textContent=ids.map(i=>`J${i+1} HABLANDO`).join(' · ');
@@ -359,11 +366,12 @@
         this.pttButton.classList.toggle('talking',this.talking);
       }
       if(this.hintEl){
-        const show=!this.isMobile&&inRoom&&!this.cpuMode;
+        const show=!this.isMobile&&inRoom&&this.enabled&&!this.cpuMode;
         this.hintEl.classList.toggle('hidden',!show);
-        this.hintEl.textContent=this.enabled?(this.talking?'V · HABLANDO':'V · HABLAR'):'V · ACTIVAR VOZ';
+        this.hintEl.textContent=this.talking?'V · HABLANDO':'V · HABLAR';
         this.hintEl.classList.toggle('talking',this.talking);
       }
+      this.refreshTalkers();
     }
   }
 

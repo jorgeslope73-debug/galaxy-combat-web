@@ -15,6 +15,15 @@
   const voice=typeof window.GalaxyVoice==='function'?new window.GalaxyVoice({send:o=>send(o),isMobile}):null;
   const mobileSetup=document.getElementById('mobileSetup'),enableMotionBtn=document.getElementById('enableMotion'),motionStatus=document.getElementById('motionStatus');
   const mobileControls=document.getElementById('mobileControls'),fireZone=document.querySelector('.fire-zone'),thrustZone=document.querySelector('.thrust-zone');
+  // En movil las zonas tactiles siguen por encima del canvas para recibir los toques,
+  // pero sus textos HTML se ocultan: los dibujamos dentro del canvas justo encima
+  // del fondo para que naves, meteoritos, balas y mejoras pasen visualmente por encima.
+  if(isMobile){
+    const fireLabel=fireZone&&fireZone.querySelector('span');
+    const thrustLabel=thrustZone&&thrustZone.querySelector('span');
+    if(fireLabel)fireLabel.style.visibility='hidden';
+    if(thrustLabel)thrustLabel.style.visibility='hidden';
+  }
   let motionEnabled=false,motionTurn=0,motionNeutral=null,motionLastRaw=0;
   let mobileFire=false,mobileThrust=false;
   const touchSides=new Map();
@@ -367,6 +376,23 @@
     });
   }
   function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  function drawMobileControlLabels(){
+    if(!isMobile||!inGame)return;
+    ctx.save();
+    try{
+      ctx.font='24px Flashback,Arial';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.fillStyle='rgba(255,255,255,1)';
+      // Muy discretos en reposo y algo mas visibles mientras se pulsa la zona.
+      ctx.globalAlpha=mobileFire?.42:.22;
+      ctx.fillText('DISPARO',W*.24,H-72);
+      ctx.globalAlpha=mobileThrust?.42:.22;
+      ctx.fillText('ACELERAR',W*.76,H-72);
+    }finally{
+      ctx.restore();
+    }
+  }
   function render(){
     requestAnimationFrame(render);
     ctx.setTransform(1,0,0,1,0,0);
@@ -374,6 +400,9 @@
     ctx.clearRect(0,0,W,H);
     if(!drawImageSafely(images.bg,0,0,W,H)){ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);}
     if(!state)return;
+    // Capa de controles visuales movil: despues del fondo y antes de cualquier
+    // objeto de juego, asi todos los elementos de la partida pasan por encima.
+    drawMobileControlLabels();
     for(const a of state.asteroids){drawImageCentered(images[`asteroid${a.type}`]||images.asteroid1,a.x,a.y,a.type===5?60:90);}
     for(const pk of state.pickups)drawPickup(pk);
     for(const m of state.meteors)drawImageCentered(images[`asteroid${m.type}`]||images.asteroid1,m.x,m.y,[0,22,27,31][m.type]||25,m.a);
