@@ -406,6 +406,17 @@ class GameRoom {
         a.x-=n.x*2;b.x+=n.x*2;a.y-=n.y*2;b.y+=n.y*2;
       }
     }
+    // Los asteroides grandes destruyen cualquier elemento flotante que atraviesen.
+    // El asteroide permanece; solo desaparece la municion o mejora alcanzada.
+    for(let i=this.pickups.length-1;i>=0;i--){
+      const pk=this.pickups[i];
+      for(const a of this.asteroids){
+        if(circles(a,a.r,pk,PICKUP_RADIUS)){
+          this.pickups.splice(i,1);
+          break;
+        }
+      }
+    }
   }
 
   updateBullets(dt){
