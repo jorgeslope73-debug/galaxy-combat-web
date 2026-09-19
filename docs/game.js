@@ -16,6 +16,7 @@
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
   let crashScoreFxStart=0,crashScoreFxUntil=0;
+  let penaltyMessageUntil=0;
   let publicRooms=[];
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
@@ -491,6 +492,7 @@
         // el jugador al que se le acaba de restar el punto.
         crashScoreFxStart=now;
         crashScoreFxUntil=now+950;
+        penaltyMessageUntil=now+2000;
       }
       previousState=state;
       previousStateTime=lastStateTime;
@@ -789,6 +791,36 @@
     });
   }
   function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+
+  function drawPenaltyAnnouncement(now){
+    if(!penaltyMessageUntil||now>=penaltyMessageUntil)return;
+    const remaining=penaltyMessageUntil-now;
+    const age=2000-remaining;
+    const fadeIn=clamp(age/180,0,1);
+    const fadeOut=clamp(remaining/320,0,1);
+    const alpha=Math.min(fadeIn,fadeOut);
+    const pulse=.94+.06*Math.sin(age*.012);
+    ctx.save();
+    try{
+      ctx.translate(W/2,105);
+      ctx.scale(pulse,pulse);
+      ctx.font='26px Flashback,Arial';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.globalAlpha=alpha;
+      ctx.fillStyle='#ff6a32';
+      ctx.strokeStyle='rgba(0,0,0,.82)';
+      ctx.lineWidth=5;
+      ctx.shadowColor='rgba(255,70,20,.9)';
+      ctx.shadowBlur=14;
+      const text='PENALIZACION -1';
+      ctx.strokeText(text,0,0);
+      ctx.fillText(text,0,0);
+    }finally{
+      ctx.restore();
+    }
+  }
+
   function drawLeaderAnnouncement(now){
     if(!leaderAnnouncement)return;
     if(now>=leaderAnnouncement.until){leaderAnnouncement=null;return;}
@@ -917,6 +949,7 @@
     }
     if(impactFX)impactFX.draw(ctx,now);
     drawHud(now);
+    drawPenaltyAnnouncement(now);
     drawLeaderAnnouncement(now);
     if(state.shower>0){
       const pulse=.58+.42*(.5+.5*Math.sin(performance.now()*.005));
