@@ -49,3 +49,28 @@ Se recomienda jugar con el teléfono en horizontal.
 Se ha corregido el sentido visual de las naves en navegador: la rotación del sprite usa el signo equivalente a Pygame, de modo que al acelerar la nave avanza hacia su morro.
 
 - Corregida la orientación visual de los PNG de las naves: ahora el morro coincide con la dirección real de avance.
+
+
+## V15 - reconexion de partida
+
+Si se corta el WebSocket durante una partida iniciada, el servidor conserva al jugador durante 30 segundos. El cliente usa un playerToken privado para recuperar automaticamente la misma nave, puntuacion, municion y mejoras. La sesion temporal tambien se guarda en sessionStorage para sobrevivir a una recarga breve de Safari.
+
+
+## V16.4.7 - TURN opcional para voz
+
+La voz mantiene los STUN de Google y puede usar un servidor TURN de respaldo.
+El backend expone `/rtc-config` y solo incluye TURN cuando las tres variables
+de entorno estan configuradas en Render:
+
+- `TURN_URLS` (o `TURN_URL`) - una o varias URLs TURN separadas por comas.
+- `TURN_USERNAME` - usuario TURN.
+- `TURN_CREDENTIAL` - credencial TURN.
+
+No se guardan credenciales TURN en el repositorio. Si faltan estas variables o
+la peticion de configuracion falla, el cliente continua usando STUN de Google.
+
+Ejemplo de `TURN_URLS`:
+
+```text
+turn:turn.example.com:3478?transport=udp,turn:turn.example.com:3478?transport=tcp
+```
