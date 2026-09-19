@@ -37,6 +37,9 @@
   let lastControlTurn=0,lastVoicePlayersSig='',renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
+  // Mantiene visualmente el contador anterior hasta que empieza el pop de escala.
+  // La puntuacion real del servidor sigue actualizandose al instante.
+  let killScoreHeldValue=null,killScorePendingValue=null;
   let crashScoreFxStart=0,crashScoreFxUntil=0;
   let penaltyMessageUntil=0;
   let publicRooms=[];
@@ -523,11 +526,18 @@
         // el jugador que acaba de sumar una muerte.
         killHudFlashStart=now;
         killHudFlashUntil=now+450;
-        // El marcador espera dos segundos desde la baja y luego hace un pulso
-        // grande durante otros dos segundos. Solo existe en este cliente.
+        // El servidor suma la baja inmediatamente, pero visualmente mantenemos
+        // el valor anterior hasta que empieza el pop de escala. De este modo
+        // numero nuevo y animacion aparecen exactamente a la vez.
+        // Si la baja anterior ya habia sido revelada, el nuevo valor de espera
+        // parte del marcador que el jugador ya estaba viendo.
+        if(killScoreHeldValue===null||now>=killScoreFxStart)killScoreHeldValue=Number(oldLocal.k)||0;
+        killScorePendingValue=Number(newLocal.k)||0;
         killScoreFxStart=now+2000;
         killScoreFxUntil=killScoreFxStart+2000;
       } else if(oldLocal&&newLocal&&Number(newLocal.k)<Number(oldLocal.k)){
+        killScoreHeldValue=null;
+        killScorePendingValue=null;
         // Penalizacion por estrellarse: el servidor ya ha descontado la baja.
         // Esta explosion del marcador es exclusivamente local y solo la ve
         // el jugador al que se le acaba de restar el punto.
@@ -545,7 +555,7 @@
     }
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;showVictory(m.winner);}
-    else if(m.t==='restarted'){state=null;previousState=null;lastStateTime=0;previousStateTime=0;rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;crashScoreFxStart=0;crashScoreFxUntil=0;penaltyMessageUntil=0;victory.classList.add('hidden');beginGame();}
+    else if(m.t==='restarted'){state=null;previousState=null;lastStateTime=0;previousStateTime=0;rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;penaltyMessageUntil=0;victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){statusEl.textContent=sinTildes(m.message||'Error');}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
   }
@@ -597,6 +607,7 @@
     if(voice)voice.clearSession();
     stopResumeWindow();clearResumeSession();playerToken='';
     inGame=false;state=null;previousState=null;lastStateTime=0;previousStateTime=0;
+    killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
     roomCode='';myIndex=null;isHost=false;lastVoicePlayersSig='';rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
     mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();
@@ -789,7 +800,20 @@
       const nameX=rightHud?px+panelW-4*hudScale:px+4*hudScale;
       ctx.font=isMobile?`800 ${22*hudScale}px Arial,Helvetica,sans-serif`:`${20*hudScale}px Flashback,Arial`;ctx.fillStyle=color;ctx.textAlign=rightHud?'right':'left';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(hudPlayerName(p),nameX,py+157*hudScale);ctx.globalAlpha=1;
       const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;if(isMobile)ctx.font=`800 ${23*hudScale}px Arial,Helvetica,sans-serif`;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);
-      const killText=`${p.k}/${state.scoreToWin}`;
+      let displayedKills=Number(p.k)||0;
+      if(p.i===myIndex&&killScorePendingValue!==null){
+        if(now<killScoreFxStart){
+          displayedKills=killScoreHeldValue===null?displayedKills:killScoreHeldValue;
+        }else{
+          // El nuevo valor aparece justo al comenzar el escalado del marcador.
+          displayedKills=killScorePendingValue;
+          if(now>=killScoreFxUntil){
+            killScoreHeldValue=null;
+            killScorePendingValue=null;
+          }
+        }
+      }
+      const killText=`${displayedKills}/${state.scoreToWin}`;
       if(localCrashScoreFx){
         // Explosion local del contador cuando una colision propia resta una baja.
         // El nuevo valor ya viene del servidor; aqui solo reforzamos visualmente
@@ -923,10 +947,11 @@
       ctx.fillStyle='rgba(255,255,255,1)';
       ctx.shadowColor='rgba(0,0,0,.65)';
       ctx.shadowBlur=4;
-      // En reposo siguen discretos; al pulsar se hacen bastante mas visibles.
-      ctx.globalAlpha=mobileFire?.56:.34;
+      // En movil los textos son solo una guia tenue. Al mantener pulsada
+      // una zona, su texto desaparece para no tapar la accion.
+      ctx.globalAlpha=mobileFire?0:.20;
       ctx.fillText('DISPARO',W*.24,H-72);
-      ctx.globalAlpha=mobileThrust?.56:.34;
+      ctx.globalAlpha=mobileThrust?0:.20;
       ctx.fillText('ACELERAR',W*.76,H-72);
     }finally{
       ctx.restore();
