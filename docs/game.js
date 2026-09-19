@@ -689,7 +689,11 @@
   }
   const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed'};
   function pickupExpiryAlpha(pk){
-    const left=Number(pk&&pk.expiresIn);
+    const raw=pk&&pk.expiresIn;
+    // null significa que esta mejora NO esta pendiente de desaparecer.
+    // Importante: Number(null) === 0, por eso hay que comprobar null antes.
+    if(raw===null||raw===undefined)return 1;
+    const left=Number(raw);
     // Durante toda su vida permanece al 100%. Solo en los ultimos 2 segundos
     // parpadea de forma regular entre 50% y 100% de opacidad.
     if(!Number.isFinite(left)||left>2)return 1;
