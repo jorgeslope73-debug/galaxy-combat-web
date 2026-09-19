@@ -1109,8 +1109,8 @@
       ctx.textBaseline='middle';
       for(const p of ghosts){
         const color=playerColors[p.i]||'#d7b6ff';
-        // Parpadeo muy suave entre ~58% y ~78% de opacidad.
-        const pulse=.68+.10*Math.sin(now*.0045+(p.i||0)*.9);
+        // Pastilla semitransparente con un pulso muy suave.
+        const pulse=.52+.08*Math.sin(now*.0045+(p.i||0)*.9);
         ctx.globalAlpha=pulse;
         ctx.fillStyle=color;
         ctx.strokeStyle=color;
@@ -1123,7 +1123,7 @@
         ctx.fill();
         ctx.stroke();
         ctx.shadowBlur=0;
-        ctx.globalAlpha=.92;
+        ctx.globalAlpha=.72;
         ctx.fillStyle='#ffffff';
         ctx.fillText('FANTASMA',x,y+1);
         x+=pillW+gap;
@@ -1247,6 +1247,10 @@
     drawMobileExitControl();
     drawMobileVoiceControl();
 
+    // El aviso FANTASMA vive en la capa baja: permanece visible mientras dura
+    // el camuflaje, pero naves, meteoritos, balas y demas objetos lo tapan.
+    drawGhostStatus(now);
+
     for(const a of state.asteroids){
       const old=previousLookup.asteroids.get(a.id);
       const x=old?lerp(old.x,a.x,blend):a.x;
@@ -1285,7 +1289,6 @@
     drawHud(now);
     drawPenaltyAnnouncement(now);
     drawLeaderAnnouncement(now);
-    drawGhostStatus(now);
     drawBrutalAnnouncement(now);
     if(state.shower>0){
       const pulse=.58+.42*(.5+.5*Math.sin(performance.now()*.005));
