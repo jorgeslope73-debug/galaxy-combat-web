@@ -9,7 +9,29 @@
   const W=1920,H=1080;
   const playerColors=['#5ae1ff','#ff50a5','#5aff78','#ffdc46'];
   const images={},sounds={};
-  let state=null,previousState=null,myIndex=null,isHost=false,roomCode='',inGame=false,lastStateTime=0,previousStateTime=0;
+  let state=null,previousState=null,myIndex=null,isHost=false,roomCode='',playerToken='',inGame=false,lastStateTime=0,previousStateTime=0;
+  const RESUME_STORAGE_KEY='galaxyCombatResumeV1';
+  const RESUME_WINDOW_MS=30000;
+  let resumeStartedAt=0,resumeExpiryTimer=null;
+  function loadResumeSession(){
+    try{
+      const v=JSON.parse(sessionStorage.getItem(RESUME_STORAGE_KEY)||'null');
+      if(v&&typeof v.code==='string'&&typeof v.token==='string'&&v.code&&v.token)return {code:v.code,token:v.token};
+    }catch(_){}
+    return null;
+  }
+  function saveResumeSession(){
+    if(!roomCode||!playerToken)return;
+    try{sessionStorage.setItem(RESUME_STORAGE_KEY,JSON.stringify({code:roomCode,token:playerToken}));}catch(_){}
+  }
+  function clearResumeSession(){
+    try{sessionStorage.removeItem(RESUME_STORAGE_KEY);}catch(_){}
+  }
+  function stopResumeWindow(){
+    resumeStartedAt=0;
+    clearTimeout(resumeExpiryTimer);resumeExpiryTimer=null;
+    if(roomMini&&roomMini.textContent==='RECONECTANDO...')roomMini.textContent='';
+  }
   const NET_FRAME_MS=1000/30;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
   let lastControlTurn=0,lastVoicePlayersSig='',renderScale=1;
@@ -282,14 +304,32 @@
       connectAttempt=0;wakeStartedAt=0;
       setServerReady(true);
       statusEl.textContent='Servidor conectado · listo para jugar';
-      send({t:'public-rooms'});
+      const saved=(roomCode&&playerToken)?{code:roomCode,token:playerToken}:loadResumeSession();
+      if(saved){
+        if(roomMini)roomMini.textContent='RECONECTANDO...';
+        send({t:'resume',code:saved.code,token:saved.token});
+      }else{
+        send({t:'public-rooms'});
+      }
     };
     ws.onclose=()=>{
       setServerReady(false);
       if(manualClose)return;
-      if(inGame){
-        statusEl.textContent='Se perdio la conexion con la partida';
-        setTimeout(()=>location.reload(),1500);
+      const saved=(roomCode&&playerToken)?{code:roomCode,token:playerToken}:loadResumeSession();
+      if(saved&&(inGame||roomCode)){
+        statusEl.textContent='Reconectando con la partida...';
+        if(roomMini)roomMini.textContent='RECONECTANDO...';
+        if(!resumeStartedAt){
+          resumeStartedAt=Date.now();
+          clearTimeout(resumeExpiryTimer);
+          resumeExpiryTimer=setTimeout(()=>{
+            if(!resumeStartedAt)return;
+            clearResumeSession();playerToken='';
+            alert('No se pudo recuperar la partida.');
+            returnToMainMenu(false);
+          },RESUME_WINDOW_MS+1500);
+        }
+        scheduleReconnect(500);
       }else{
         wakeStatus();
         scheduleReconnect();
@@ -456,7 +496,19 @@
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;lastVoicePlayersSig='';rebuildPreviousLookup(null);
-      roomCode=m.code;myIndex=m.index;isHost=m.t==='created';clearLobbyChat();updateLobbyStartButton(false);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
+      roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
+    }
+    else if(m.t==='resumed'){
+      roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;saveResumeSession();stopResumeWindow();
+      roomCodeEl.textContent=roomCode;if(roomMini)roomMini.textContent='';stopMusic();menu.classList.add('hidden');
+      if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);
+      if(m.started){lobby.classList.add('hidden');if(!inGame)beginGame();}
+      else if(!m.cpu){lobby.classList.remove('hidden');}
+    }
+    else if(m.t==='resume-failed'){
+      stopResumeWindow();clearResumeSession();playerToken='';
+      if(inGame||roomCode){alert(sinTildes(m.message||'No se pudo recuperar la partida.'));returnToMainMenu(false);}
+      else send({t:'public-rooms'});
     }
     else if(m.t==='lobby'){roomCode=m.code;syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);}
     else if(m.t==='start'){beginGame();playSound('start');}
@@ -495,7 +547,7 @@
     else if(m.t==='victory'){if(state)state.winner=m.winner;showVictory(m.winner);}
     else if(m.t==='restarted'){state=null;previousState=null;lastStateTime=0;previousStateTime=0;rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;crashScoreFxStart=0;crashScoreFxUntil=0;penaltyMessageUntil=0;victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){statusEl.textContent=sinTildes(m.message||'Error');}
-    else if(m.t==='closed'){alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
+    else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function beginGame(){stopMusic();inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
@@ -540,9 +592,10 @@
   window.addEventListener('orientationchange',scheduleCanvasResolution,{passive:true});
   scheduleCanvasResolution();
   startBtn.addEventListener('click',()=>send({t:'start'}));
-  function returnToMainMenu(){
-    if(roomCode)send({t:'leave'});
+  function returnToMainMenu(notifyServer=true){
+    if(notifyServer&&roomCode)send({t:'leave'});
     if(voice)voice.clearSession();
+    stopResumeWindow();clearResumeSession();playerToken='';
     inGame=false;state=null;previousState=null;lastStateTime=0;previousStateTime=0;
     roomCode='';myIndex=null;isHost=false;lastVoicePlayersSig='';rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
@@ -562,7 +615,7 @@
     if(!send({t:'restart'})){restartMatchBtn.disabled=false;restartMatchBtn.textContent='REPETIR PARTIDA';}
   });
   document.getElementById('back').addEventListener('click',returnToMainMenu);
-  window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'){if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}else if(inGame)location.reload();}});
+  window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'){if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}else if(inGame)returnToMainMenu();}});
   window.addEventListener('keyup',e=>keys.delete(e.code));
   // Si el navegador pierde el foco, puede no llegar el keyup de una tecla que
   // estaba pulsada. Limpiamos el estado para evitar giro/aceleracion/disparo
