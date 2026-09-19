@@ -1088,6 +1088,13 @@
       ctx.restore();
     }
   }
+  function hexToRgb(hex){
+    const v=String(hex||'').trim();
+    const m=/^#([0-9a-f]{6})$/i.exec(v);
+    if(!m)return {r:215,g:182,b:255};
+    const n=parseInt(m[1],16);
+    return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
+  }
   function drawGhostStatus(now){
     if(!state||!Array.isArray(state.players))return;
     const ghosts=state.players.filter(p=>Number(p&&p.camo)>0);
@@ -1109,22 +1116,25 @@
       ctx.textBaseline='middle';
       for(const p of ghosts){
         const color=playerColors[p.i]||'#d7b6ff';
-        // Pastilla semitransparente con un pulso muy suave.
-        const pulse=.52+.08*Math.sin(now*.0045+(p.i||0)*.9);
-        ctx.globalAlpha=pulse;
-        ctx.fillStyle=color;
-        ctx.strokeStyle=color;
+        // Alpha REAL en el propio color. Evita que Safari/iOS acumule visualmente
+        // relleno+borde+sombra y haga que la pastilla parezca opaca.
+        const rgb=hexToRgb(color);
+        const wave=.5+.5*Math.sin(now*.0045+(p.i||0)*.9);
+        const fillAlpha=.22+.08*wave;      // 22-30%: fondo claramente transparente
+        const borderAlpha=.34+.10*wave;    // 34-44%: borde visible sin endurecer la pastilla
+        const textAlpha=.52+.08*wave;      // 52-60%: FANTASMA legible pero semitransparente
+        ctx.globalAlpha=1;
+        ctx.shadowColor='transparent';
+        ctx.shadowBlur=0;
+        ctx.fillStyle=`rgba(${rgb.r},${rgb.g},${rgb.b},${fillAlpha.toFixed(3)})`;
+        ctx.strokeStyle=`rgba(${rgb.r},${rgb.g},${rgb.b},${borderAlpha.toFixed(3)})`;
         ctx.lineWidth=2;
-        ctx.shadowColor=color;
-        ctx.shadowBlur=8;
         ctx.beginPath();
         if(typeof ctx.roundRect==='function')ctx.roundRect(x-pillW/2,y-pillH/2,pillW,pillH,pillH/2);
         else ctx.rect(x-pillW/2,y-pillH/2,pillW,pillH);
         ctx.fill();
         ctx.stroke();
-        ctx.shadowBlur=0;
-        ctx.globalAlpha=.72;
-        ctx.fillStyle='#ffffff';
+        ctx.fillStyle=`rgba(255,255,255,${textAlpha.toFixed(3)})`;
         ctx.fillText('FANTASMA',x,y+1);
         x+=pillW+gap;
       }
