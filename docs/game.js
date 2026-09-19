@@ -957,6 +957,28 @@
       ctx.restore();
     }
   }
+  function drawMobileExitControl(){
+    if(!isMobile||!inGame)return;
+    const x=W/2,y=28;
+    ctx.save();
+    try{
+      // V16.4.5: el boton visible vive en el canvas, en la capa baja.
+      // La zona HTML sigue encima pero es invisible y solo sirve para pulsarlo.
+      ctx.globalAlpha=.50;
+      ctx.font='800 16px Arial,Helvetica,sans-serif';
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.lineWidth=1.5;
+      ctx.strokeStyle='rgba(255,255,255,.45)';
+      ctx.fillStyle='rgba(5,7,15,.48)';
+      const bw=78,bh=30,r=7;
+      ctx.beginPath();
+      ctx.roundRect(x-bw/2,y-bh/2,bw,bh,r);
+      ctx.fill();ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,.90)';
+      ctx.fillText('SALIR',x,y+1);
+    }finally{ctx.restore();}
+  }
   function drawMobileVoiceControl(){
     if(!isMobile||!inGame||!voice||!voice.enabled||voice.cpuMode)return;
     const x=W/2,y=H-72;
@@ -1009,6 +1031,7 @@
     // Capa de controles visuales movil: despues del fondo y antes de cualquier
     // objeto de juego, asi todos los elementos de la partida pasan por encima.
     drawMobileControlLabels();
+    drawMobileExitControl();
     drawMobileVoiceControl();
 
     for(const a of state.asteroids){
