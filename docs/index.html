@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#10051e">
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
-<link rel="stylesheet" href="style.css?v=perf-final-20260918-1">
-<link rel="stylesheet" href="menu-portada.css?v=menu-up-20260918-6">
-<link rel="stylesheet" href="voz.css?v=volumen-20260918-1-iphone-audio-fix-20260918-1">
+<link rel="stylesheet" href="style.css?v=V2-mobile-ui-20260919">
+<link rel="stylesheet" href="menu-portada.css?v=V2-mobile-ui-20260919">
+<link rel="stylesheet" href="voz.css?v=V2-mobile-ui-20260919">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
 #lobby.lobby-with-chat{width:min(620px,92vw);max-height:min(760px,88vh);overflow:hidden}
@@ -37,8 +37,13 @@
 /* El credito del autor solo se muestra en el menu principal. */
 #menu.submenu-open .menu-credit{display:none!important}
 </style>
+
+<style id="build-version-style">
+#buildVersion{position:fixed;z-index:99999;top:max(6px,env(safe-area-inset-top));right:8px;padding:4px 7px;border-radius:5px;background:rgba(0,0,0,.78);color:#7CFF7C;font:700 12px/1 Arial,sans-serif;letter-spacing:.08em;pointer-events:none;text-shadow:0 1px 2px #000}
+</style>
 </head>
 <body>
+<div id="buildVersion" aria-label="Version del juego">V2</div>
 <div id="app">
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
@@ -112,22 +117,20 @@
                 </div>
               </div>
             </div>
-            <div class="voice-setup" aria-label="Chat de voz y sonido">
-              <button id="enableVoice" type="button">ACTIVAR VOZ</button>
-              <label class="game-volume" for="gameVolume" title="Volumen de musica y efectos">
-                <span class="game-volume-icon" aria-hidden="true">&#128266;</span>
-                <input id="gameVolume" type="range" min="0" max="100" step="5" value="70" aria-label="Volumen del juego">
-              </label>
-              <span id="voiceStatus" class="voice-status" aria-live="polite">VOZ DESACTIVADA</span>
+            <div class="menu-control-tools">
+              <div class="voice-setup" aria-label="Chat de voz">
+                <button id="enableVoice" type="button">ACTIVAR VOZ</button>
+                <span id="voiceStatus" class="voice-status" aria-live="polite">VOZ DESACTIVADA</span>
+              </div>
+              <div id="mobileSetup" class="mobile-setup hidden">
+                <div class="mobile-row">
+                  <button id="enableMotion" type="button">ACTIVAR CONTROL MOVIL</button>
+                </div>
+                <p id="motionStatus" class="motion-status" aria-live="polite"></p>
+              </div>
             </div>
             <p class="help desktop-help menu-keys"><span>GIRAR <b>A / D</b> o flechas</span><i aria-hidden="true"></i><span>ACELERAR <b>W / ARRIBA</b></span><i aria-hidden="true"></i><span>DISPARAR <b>CTRL / ESPACIO</b></span></p>
-            <div id="mobileSetup" class="mobile-setup hidden">
-              <div class="mobile-row">
-                <button id="enableMotion" type="button">ACTIVAR CONTROL MOVIL</button>
-                <p class="help mobile-guide">Inclina para girar &middot; izquierda: disparo &middot; derecha: acelerar.</p>
-              </div>
-              <p id="motionStatus" class="motion-status" aria-live="polite"></p>
-            </div>
+            <p class="help mobile-guide mobile-guide-main">Inclina para girar &middot; izquierda: disparo &middot; derecha: acelerar.</p>
           </div>
           <footer class="menu-credit">BY <strong>JORGE LOPEZ DIAZ</strong></footer>
         </div>
@@ -164,10 +167,11 @@
     <div class="mobile-zone thrust-zone"><span>ACELERAR</span></div>
   </div>
   <button id="voicePtt" class="voice-ptt hidden" type="button" aria-label="Mantener para hablar">ACTIVAR VOZ</button>
+  <button id="mobileExit" class="mobile-exit hidden" type="button" aria-label="Salir de la partida y volver al inicio">SALIR</button>
 </div>
 <script src="config.js"></script>
-<script src="impactos.js?v=perf-final-20260918-1"></script>
-<script src="voz.js?v=ios-audiosession-fix-20260919-2"></script>
-<script src="game.js?v=ios-audiosession-fix-20260919-2"></script>
+<script src="impactos.js?v=V2-mobile-ui-20260919"></script>
+<script src="voz.js?v=V2-mobile-ui-20260919"></script>
+<script src="game.js?v=V2-mobile-ui-20260919"></script>
 </body>
 </html>

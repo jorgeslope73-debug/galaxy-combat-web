@@ -74,3 +74,22 @@
     opacity:.78!important;
   }
 }
+
+/* V2: boton SALIR discreto para partida movil. */
+.mobile-exit{display:none}
+@media (pointer:coarse),(max-width:900px){
+  .mobile-exit{
+    position:fixed;z-index:150;
+    top:max(8px,calc(env(safe-area-inset-top) + 5px));
+    left:max(8px,calc(env(safe-area-inset-left) + 7px));
+    width:auto!important;min-width:0!important;min-height:0!important;height:auto!important;
+    margin:0!important;padding:6px 9px!important;border-radius:6px!important;
+    border:1px solid rgba(255,255,255,.24)!important;
+    background:rgba(8,8,16,.38)!important;color:rgba(255,255,255,.74)!important;
+    -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+    font-family:'Flashback',Arial,sans-serif!important;font-size:9px!important;line-height:1!important;letter-spacing:.08em!important;
+    box-shadow:0 1px 8px rgba(0,0,0,.22)!important;touch-action:manipulation;
+  }
+  .mobile-exit:active{background:rgba(100,35,125,.56)!important;color:#fff!important}
+  .mobile-exit:not(.hidden){display:block!important}
+}

@@ -50,6 +50,7 @@
   }
   const mobileSetup=document.getElementById('mobileSetup'),enableMotionBtn=document.getElementById('enableMotion'),motionStatus=document.getElementById('motionStatus');
   const mobileControls=document.getElementById('mobileControls'),fireZone=document.querySelector('.fire-zone'),thrustZone=document.querySelector('.thrust-zone');
+  const mobileExit=document.getElementById('mobileExit');
   // En movil las zonas tactiles siguen por encima del canvas para recibir los toques,
   // pero sus textos HTML se ocultan: los dibujamos dentro del canvas justo encima
   // del fondo para que naves, meteoritos, balas y mejoras pasen visualmente por encima.
@@ -125,13 +126,9 @@
     pickup:{url:'assets/sonido/carga3.wav',size:3,volume:.75},
     start:{url:'assets/sonido/inicio.wav',size:1,volume:.75}
   };
-  const gameVolumeEl=document.getElementById('gameVolume');
-  const defaultGameVolume=isMobile?0.45:0.75;
-  let gameVolume=defaultGameVolume;
-  try{
-    const saved=localStorage.getItem('galaxyGameVolume');
-    if(saved!==null&&Number.isFinite(Number(saved)))gameVolume=clamp(Number(saved),0,1);
-  }catch(_){}
+  // V2: sin slider de volumen. Usamos un nivel fijo para evitar que un valor
+  // antiguo guardado en localStorage pueda dejar el juego mudo en el movil.
+  const gameVolume=isMobile?0.45:0.75;
   const soundPools={};
   for(const [key,def] of Object.entries(soundDefs)){
     const items=[];
@@ -155,21 +152,6 @@
     try{sounds.music.pause();sounds.music.currentTime=0;}catch(_){}
     musicStarted=false;
   }
-  function applyGameVolume(value,persist=true){
-    gameVolume=clamp(Number(value)||0,0,1);
-    for(const [key,pool] of Object.entries(soundPools)){
-      const base=soundDefs[key]?.volume??1;
-      for(const a of pool.items)a.volume=base*gameVolume;
-    }
-    if(sounds.music)sounds.music.volume=.35*gameVolume;
-    if(gameVolumeEl)gameVolumeEl.value=String(Math.round(gameVolume*100));
-    if(persist){try{localStorage.setItem('galaxyGameVolume',String(gameVolume));}catch(_){}}
-  }
-  if(gameVolumeEl){
-    applyGameVolume(gameVolume,false);
-    gameVolumeEl.addEventListener('input',()=>applyGameVolume(Number(gameVolumeEl.value)/100,true));
-  }
-
   function screenAngle(){
     if(screen.orientation&&Number.isFinite(screen.orientation.angle))return screen.orientation.angle;
     return Number.isFinite(window.orientation)?window.orientation:0;
@@ -508,8 +490,8 @@
     else if(m.t==='closed'){alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(){stopMusic();inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile)mobileControls.classList.remove('hidden');scheduleCanvasResolution();}
-  function showVictory(i){if(!inGame)return;inGame=false;leaderAnnouncement=null;topbar.classList.add('hidden');mobileControls.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?`GANA ${sinTildes(p.n)}`:`GANA J${i+1}`;victory.classList.remove('hidden');}
+  function beginGame(){stopMusic();inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
+  function showVictory(i){if(!inGame)return;inGame=false;leaderAnnouncement=null;topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?`GANA ${sinTildes(p.n)}`:`GANA J${i+1}`;victory.classList.remove('hidden');}
 
   menu.addEventListener('pointerdown',startMusic,{passive:true});
   menu.addEventListener('keydown',startMusic);
@@ -546,16 +528,21 @@
   window.addEventListener('orientationchange',scheduleCanvasResolution,{passive:true});
   scheduleCanvasResolution();
   startBtn.addEventListener('click',()=>send({t:'start'}));
-  document.getElementById('leaveRoom').addEventListener('click',()=>{
+  function returnToMainMenu(){
     if(roomCode)send({t:'leave'});
     if(voice)voice.clearSession();
     inGame=false;state=null;previousState=null;lastStateTime=0;previousStateTime=0;
     roomCode='';myIndex=null;isHost=false;lastVoicePlayersSig='';rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
-    mobileControls.classList.add('hidden');touchSides.clear();refreshTouchControls();
+    mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();
     roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';clearLobbyChat();updateLobbyStartButton(false);
     menu.classList.remove('hidden');startMusic();scheduleCanvasResolution();
-  });
+  }
+  document.getElementById('leaveRoom').addEventListener('click',returnToMainMenu);
+  if(mobileExit){
+    mobileExit.addEventListener('pointerdown',e=>{e.stopPropagation();},{passive:true});
+    mobileExit.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();returnToMainMenu();});
+  }
   document.getElementById('back').addEventListener('click',()=>location.reload());
   window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'){if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}else if(inGame)location.reload();}});
   window.addEventListener('keyup',e=>keys.delete(e.code));
