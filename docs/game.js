@@ -1103,29 +1103,39 @@
     const fontSize=isMobile?27:21;
     const pillH=isMobile?40:32;
     const pillW=isMobile?170:138;
-    const gap=isMobile?10:8;
-    const totalW=ghosts.length*pillW+(ghosts.length-1)*gap;
-    let x=W/2-totalW/2+pillW/2;
-    // Pegada al borde superior, con un margen minimo para no recortarla.
-    const y=(pillH/2)+8;
+    const hudScale=isMobile?1.60:1.12;
+    const panelW=128*hudScale;
+    const sideGap=isMobile?14:12;
+    const bottomHudMargin=isMobile?45:36;
 
     ctx.save();
     try{
       ctx.font=`800 ${fontSize}px Arial,Helvetica,sans-serif`;
       ctx.textAlign='center';
       ctx.textBaseline='middle';
+      ctx.globalAlpha=1;
+      ctx.shadowColor='transparent';
+      ctx.shadowBlur=0;
+
       for(const p of ghosts){
+        const left=p.i%2===0;
+        const top=p.i<2;
+        const panelX=left?10:W-10-panelW;
+        const panelY=top?5:H-bottomHudMargin-157*hudScale;
+
+        // La pastilla queda junto al HUD de su jugador, hacia el centro del campo,
+        // con margen suficiente para no pisar panel, nombre, municion ni velocidad.
+        const x=left
+          ? panelX+panelW+sideGap+pillW/2
+          : panelX-sideGap-pillW/2;
+        const y=panelY+pillH/2+6;
+
         const color=playerColors[p.i]||'#d7b6ff';
-        // Alpha REAL en el propio color. Evita que Safari/iOS acumule visualmente
-        // relleno+borde+sombra y haga que la pastilla parezca opaca.
         const rgb=hexToRgb(color);
         const wave=.5+.5*Math.sin(now*.0045+(p.i||0)*.9);
-        const fillAlpha=.22+.08*wave;      // 22-30%: fondo claramente transparente
-        const borderAlpha=.34+.10*wave;    // 34-44%: borde visible sin endurecer la pastilla
-        const textAlpha=.52+.08*wave;      // 52-60%: FANTASMA legible pero semitransparente
-        ctx.globalAlpha=1;
-        ctx.shadowColor='transparent';
-        ctx.shadowBlur=0;
+        const fillAlpha=.22+.08*wave;
+        const borderAlpha=.34+.10*wave;
+
         ctx.fillStyle=`rgba(${rgb.r},${rgb.g},${rgb.b},${fillAlpha.toFixed(3)})`;
         ctx.strokeStyle=`rgba(${rgb.r},${rgb.g},${rgb.b},${borderAlpha.toFixed(3)})`;
         ctx.lineWidth=2;
@@ -1134,9 +1144,10 @@
         else ctx.rect(x-pillW/2,y-pillH/2,pillW,pillH);
         ctx.fill();
         ctx.stroke();
-        ctx.fillStyle=`rgba(255,255,255,${textAlpha.toFixed(3)})`;
+
+        // Texto negro, sin sombra, para contrastar con el color del jugador.
+        ctx.fillStyle='#000';
         ctx.fillText('FANTASMA',x,y+1);
-        x+=pillW+gap;
       }
     }finally{
       ctx.restore();
