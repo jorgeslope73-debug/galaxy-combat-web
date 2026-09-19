@@ -842,6 +842,21 @@ function expireDisconnectedPlayers() {
   }
 }
 
+function rtcIceServers(){
+  const iceServers=[
+    {urls:'stun:stun.l.google.com:19302'},
+    {urls:'stun:stun1.l.google.com:19302'}
+  ];
+  const rawUrls=String(process.env.TURN_URLS||process.env.TURN_URL||'').trim();
+  const username=String(process.env.TURN_USERNAME||'').trim();
+  const credential=String(process.env.TURN_CREDENTIAL||'').trim();
+  if(rawUrls&&username&&credential){
+    const urls=rawUrls.split(',').map(x=>x.trim()).filter(Boolean);
+    if(urls.length)iceServers.push({urls:urls.length===1?urls[0]:urls,username,credential});
+  }
+  return iceServers;
+}
+
 const server=http.createServer((req,res)=>{
   res.setHeader('Access-Control-Allow-Origin','*');
   res.setHeader('Cache-Control','no-store');
@@ -849,6 +864,11 @@ const server=http.createServer((req,res)=>{
   if(url==='/health'){
     res.writeHead(200,{'Content-Type':'application/json; charset=utf-8'});
     res.end(JSON.stringify({ok:true,service:'Galaxy Combat WebSocket'}));
+    return;
+  }
+  if(url==='/rtc-config'){
+    res.writeHead(200,{'Content-Type':'application/json; charset=utf-8'});
+    res.end(JSON.stringify({iceServers:rtcIceServers()}));
     return;
   }
   res.writeHead(200,{'Content-Type':'text/plain; charset=utf-8'});
