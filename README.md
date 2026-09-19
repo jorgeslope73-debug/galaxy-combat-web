@@ -1,77 +1,51 @@
-# Galaxy Combat Web — V10
+# Galaxy Combat Web
 
-Juego web multijugador para PC, móvil y tablet.
+Repositorio preparado para separar el juego web del servidor de partidas.
 
-## Estructura
+## Carpetas
 
-- `docs/` — cliente web para GitHub Pages/PWA.
-- `server/` — servidor Node.js + WebSocket autoritativo.
-- `render.yaml` — configuración de despliegue del backend en Render.
-- `CAMBIOS_V10.md` — cambios y configuración de esta versión.
+- `docs/` — cliente web para GitHub Pages.
+- `server/` — servidor Node.js + WebSocket de las partidas.
+- `render.yaml` — despliegue opcional del backend en Render.
+- `.github/workflows/pages.yml` — despliegue automático de `docs/` en GitHub Pages.
 
-## Cliente
+## Configuración necesaria
 
-El cliente está dividido en módulos:
-
-- `game.js` — estado general y coordinación.
-- `input.js` — teclado y controles móviles.
-- `network.js` — conexión WebSocket.
-- `audio.js` — música y efectos.
-- `hud.js` — HUD de jugadores.
-- `render.js` — utilidades de render/interpolación.
-- `voz.js` — voz WebRTC.
-- `pwa.js` / `sw.js` — instalación PWA y caché.
-
-### Controles móviles
-
-Hay tres modos seleccionables desde el menú:
-
-- **INCLINAR** — inclinación para girar, izquierda dispara, derecha acelera.
-- **BOTONES** — botones de giro, disparo y aceleración.
-- **JOYSTICK** — joystick izquierdo para girar/acelerar y botón derecho para disparar.
-
-La selección se guarda en el dispositivo. En vertical aparece **GIRA EL MÓVIL** durante la partida. El juego intenta entrar en pantalla completa y bloquear horizontal cuando el navegador lo permite.
-
-## Servidor
-
-El servidor está dividido en:
-
-- `server.js` — HTTP, configuración RTC y bucle principal.
-- `room.js` — estado de la partida/sala.
-- `physics.js` — constantes y utilidades físicas.
-- `gameplay.js` — reglas/utilidades generales.
-- `network.js` — protocolo WebSocket y salas.
-- `security.js` — origen, payload y rate limits.
-- `transport.js` — envío/broadcast de mensajes.
-
-Los controles humanos caducan a los **300 ms** si dejan de llegar mensajes, evitando naves acelerando o disparando tras perder conexión/foco.
-
-## Backend
-
-`docs/config.js` debe apuntar al backend HTTPS:
+Antes de publicar, edita `docs/config.js` y pon la URL HTTPS del backend:
 
 ```js
 window.GALAXY_CONFIG = {
-  serverUrl: 'https://galaxy-combat-web.onrender.com'
+  serverUrl: 'https://TU-SERVIDOR.example.com'
 };
 ```
 
-El cliente convierte HTTPS en WSS y usa `/ws`.
+El juego convertirá automáticamente `https://` en `wss://` y usará `/ws`.
 
-## TURN para voz
 
-STUN funciona sin configuración adicional. Para añadir relay TURN en Render configura:
+SERVIDOR GRATUITO EN REPOSO
+- Si Render ha dormido el servicio, la web muestra "Despertando servidor".
+- El navegador reintenta la conexión automáticamente cada pocos segundos.
+- Los botones de jugar permanecen desactivados hasta que el servidor responde.
+- Cuando aparece "Servidor conectado · listo para jugar", ya se puede crear o unir a una sala.
+- No hace falta recargar la página manualmente.
 
-- `TURN_URL` o `TURN_URLS`
-- `TURN_USERNAME`
-- `TURN_CREDENTIAL`
 
-El cliente obtiene la configuración desde `/rtc-config`.
+## CONTROL MÓVIL
 
-## Orígenes permitidos
+Al abrir el juego desde móvil se muestra **ACTIVAR CONTROL MÓVIL**.
+En iPhone/iPad hay que aceptar el permiso de movimiento/orientación.
 
-Por defecto se permite `https://jorgeslope73-debug.github.io` y localhost para desarrollo. Para otro dominio configura `ALLOWED_ORIGINS` en Render con una lista separada por comas.
+Durante la partida:
+- inclinar el móvil a izquierda/derecha = giro de la nave;
+- mantener pulsada la mitad izquierda = disparar;
+- mantener pulsada la mitad derecha = acelerar;
+- se admiten dos dedos a la vez para acelerar y disparar simultáneamente;
+- el botón **RECALIBRAR GIRO** toma la posición actual como centro.
 
-## PWA
+Se recomienda jugar con el teléfono en horizontal.
 
-La carpeta `docs/` incluye manifest, service worker e iconos. En navegadores compatibles el juego puede instalarse como aplicación y abrirse en modo fullscreen/landscape.
+
+## Corrección de orientación
+Se ha corregido el sentido visual de las naves en navegador: la rotación del sprite usa el signo equivalente a Pygame, de modo que al acelerar la nave avanza hacia su morro.
+
+- Corregida la orientación visual de los PNG de las naves: ahora el morro coincide con la dirección real de avance.

@@ -9,14 +9,3 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 20
-      # Opcional: activa TURN para redes CGNAT/restrictivas.
-      # Configura estos valores en Render; no guardes credenciales reales en Git.
-      # - key: TURN_URL
-      #   value: turns:turn.tudominio.com:5349
-      # - key: TURN_USERNAME
-      #   sync: false
-      # - key: TURN_CREDENTIAL
-      #   sync: false
-      # Opcional: lista separada por comas de origenes web permitidos.
-      # - key: ALLOWED_ORIGINS
-      #   value: https://jorgeslope73-debug.github.io
