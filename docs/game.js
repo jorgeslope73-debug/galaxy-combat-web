@@ -20,6 +20,9 @@
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const serverButtons=['cpu','create','join'].map(id=>document.getElementById(id));
   const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+  // Tamano visual de las naves. Solo cambia el dibujo: fisica, colisiones y red quedan iguales.
+  const SHIP_DRAW_SIZE=isMobile?86:72;
+  const SHIELD_DRAW_RADIUS=isMobile?48:43;
   const voice=typeof window.GalaxyVoice==='function'?new window.GalaxyVoice({send:o=>send(o),isMobile}):null;
   function updateCanvasResolution(){
     const rect=canvas.getBoundingClientRect();
@@ -461,7 +464,7 @@
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;lastVoicePlayersSig='';rebuildPreviousLookup(null);
-      roomCode=m.code;myIndex=m.index;isHost=m.t==='created';clearLobbyChat();updateLobbyStartButton(false);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent=`SALA ${roomCode}`;stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
+      roomCode=m.code;myIndex=m.index;isHost=m.t==='created';clearLobbyChat();updateLobbyStartButton(false);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
     }
     else if(m.t==='lobby'){roomCode=m.code;syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);}
     else if(m.t==='start'){beginGame();playSound('start');}
@@ -627,7 +630,7 @@
     let alpha=1;
     if(p.camo>0&&local){alpha=.42;if(p.camo<=3)alpha=(Math.floor(now/160)%2===0)?.55:.22;}
     if(p.prot>0)alpha*=spawnProtectionAlpha(p.prot);
-    if(p.shield>0){ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='rgba(130,245,255,.95)';ctx.fillStyle='rgba(80,220,255,.12)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x,y,39,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();}
+    if(p.shield>0){ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='rgba(130,245,255,.95)';ctx.fillStyle='rgba(80,220,255,.12)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x,y,SHIELD_DRAW_RADIUS,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();}
     // Python: armado = balas > 0 y recarga terminada. El servidor confirma
     // ese estado; no cambiamos el movimiento ni el efecto de propulsion web.
     const shipKey=`ship${p.i+1}`;
@@ -641,7 +644,7 @@
     // La fisica usa rot=0 arriba, 90 izquierda, 180 abajo y 270 derecha.
     // Canvas gira en el sentido visual contrario a esa convencion, por eso
     // dibujamos con -rot. Asi el morro coincide exactamente con el avance.
-    drawImageCentered(im,x,y,null,-r,alpha);
+    drawImageCentered(im,x,y,SHIP_DRAW_SIZE,-r,alpha);
   }
   function drawHud(now){
     if(!state)return;
