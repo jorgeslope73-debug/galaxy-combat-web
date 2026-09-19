@@ -3,11 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#10051e">
+<meta name="theme-color" content="#050510">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest?v=V10-mobile-pwa-20260919">
+<link rel="apple-touch-icon" href="assets/icons/icon-192.png?v=V10-mobile-pwa-20260919">
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
-<link rel="stylesheet" href="style.css?v=V9-mobile-controls-20260919">
-<link rel="stylesheet" href="menu-portada.css?v=V9-mobile-controls-20260919">
-<link rel="stylesheet" href="voz.css?v=V9-mobile-controls-20260919">
+<link rel="stylesheet" href="style.css?v=V10-mobile-pwa-20260919">
+<link rel="stylesheet" href="menu-portada.css?v=V10-mobile-pwa-20260919">
+<link rel="stylesheet" href="voz.css?v=V10-mobile-pwa-20260919">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
 #lobby.lobby-with-chat{width:min(620px,92vw);max-height:min(760px,88vh);overflow:hidden}
@@ -44,7 +48,7 @@
 </head>
 <body>
 <div id="app">
-  <div id="buildVersion" aria-label="Version del juego">V9</div>
+  <div id="buildVersion" aria-label="Version del juego">V10</div>
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
@@ -128,6 +132,11 @@
                 </div>
               </div>
             </div>
+            <div class="mobile-control-mode" role="group" aria-label="Tipo de control movil">
+              <button type="button" data-control-mode="tilt">INCLINAR</button>
+              <button type="button" data-control-mode="buttons">BOTONES</button>
+              <button type="button" data-control-mode="joystick">JOYSTICK</button>
+            </div>
             <p class="help desktop-help menu-keys"><span>GIRAR <b>A / D</b> o flechas</span><i aria-hidden="true"></i><span>ACELERAR <b>W / ARRIBA</b></span><i aria-hidden="true"></i><span>DISPARAR <b>CTRL / ESPACIO</b></span></p>
             <p class="help mobile-guide mobile-guide-main">Inclina para girar &middot; izquierda: disparo &middot; derecha: acelerar.</p>
             <p id="motionStatus" class="motion-status mobile-motion-status" aria-live="polite"></p>
@@ -165,13 +174,38 @@
   <div id="mobileControls" class="mobile-controls hidden" aria-hidden="true">
     <div class="mobile-zone fire-zone"><span>DISPARO</span></div>
     <div class="mobile-zone thrust-zone"><span>ACELERAR</span></div>
+    <div id="buttonControls" class="mobile-button-controls hidden" aria-label="Controles por botones">
+      <div class="steer-buttons">
+        <button type="button" data-mobile-action="left" aria-label="Girar izquierda">&#9664;</button>
+        <button type="button" data-mobile-action="right" aria-label="Girar derecha">&#9654;</button>
+      </div>
+      <div class="action-buttons">
+        <button type="button" data-mobile-action="fire">DISPARO</button>
+        <button type="button" data-mobile-action="thrust">ACELERAR</button>
+      </div>
+    </div>
+    <div id="joystickControls" class="mobile-joystick-controls hidden" aria-label="Control por joystick">
+      <div id="joystickBase" class="joystick-base"><div id="joystickStick" class="joystick-stick"></div></div>
+      <button id="joystickFire" class="joystick-fire" type="button">DISPARO</button>
+    </div>
+  </div>
+  <div id="rotateDevice" class="rotate-device hidden" role="status" aria-live="polite">
+    <div class="rotate-icon" aria-hidden="true">&#8635;</div>
+    <strong>GIRA EL MOVIL</strong>
+    <span>Galaxy Combat esta pensado para jugar en horizontal.</span>
   </div>
   <button id="voicePtt" class="voice-ptt hidden" type="button" aria-label="Mantener para hablar">ACTIVAR VOZ</button>
   <button id="mobileExit" class="mobile-exit hidden" type="button" aria-label="Salir de la partida y volver al inicio">SALIR</button>
 </div>
-<script src="config.js"></script>
-<script src="impactos.js?v=V9-mobile-controls-20260919"></script>
-<script src="voz.js?v=V9-mobile-controls-20260919"></script>
-<script src="game.js?v=V9-mobile-controls-20260919"></script>
+<script src="config.js?v=V10-mobile-pwa-20260919"></script>
+<script src="audio.js?v=V10-mobile-pwa-20260919"></script>
+<script src="input.js?v=V10-mobile-pwa-20260919"></script>
+<script src="network.js?v=V10-mobile-pwa-20260919"></script>
+<script src="render.js?v=V10-mobile-pwa-20260919"></script>
+<script src="hud.js?v=V10-mobile-pwa-20260919"></script>
+<script src="impactos.js?v=V10-mobile-pwa-20260919"></script>
+<script src="voz.js?v=V10-mobile-pwa-20260919"></script>
+<script src="game.js?v=V10-mobile-pwa-20260919"></script>
+<script src="pwa.js?v=V10-mobile-pwa-20260919"></script>
 </body>
 </html>

@@ -8,7 +8,7 @@
   const roomTypeDialog=document.getElementById('roomTypeDialog'),publicRoomsDialog=document.getElementById('publicRoomsDialog'),publicRoomsList=document.getElementById('publicRoomsList'),joinCodeDialog=document.getElementById('joinCodeDialog');
   const W=1920,H=1080;
   const playerColors=['#5ae1ff','#ff50a5','#5aff78','#ffdc46'];
-  const images={},sounds={};
+  const images={};
   let state=null,previousState=null,myIndex=null,isHost=false,roomCode='',inGame=false,lastStateTime=0,previousStateTime=0;
   const NET_FRAME_MS=1000/30;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
@@ -18,9 +18,7 @@
   let crashScoreFxStart=0,crashScoreFxUntil=0;
   let penaltyMessageUntil=0;
   let publicRooms=[];
-  const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
-  let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const serverButtons=['cpu','create','join'].map(id=>document.getElementById(id));
   const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
   // Tamano visual de las naves. Solo cambia el dibujo: fisica, colisiones y red quedan iguales.
@@ -48,21 +46,15 @@
     if(resizeRaf)return;
     resizeRaf=requestAnimationFrame(()=>{resizeRaf=0;updateCanvasResolution();});
   }
-  const mobileSetup=document.getElementById('mobileSetup'),enableMotionBtn=document.getElementById('enableMotion'),motionStatus=document.getElementById('motionStatus');
-  const mobileControls=document.getElementById('mobileControls'),fireZone=document.querySelector('.fire-zone'),thrustZone=document.querySelector('.thrust-zone');
   const mobileExit=document.getElementById('mobileExit');
-  // En movil las zonas tactiles siguen por encima del canvas para recibir los toques,
-  // pero sus textos HTML se ocultan: los dibujamos dentro del canvas justo encima
-  // del fondo para que naves, meteoritos, balas y mejoras pasen visualmente por encima.
-  if(isMobile){
-    const fireLabel=fireZone&&fireZone.querySelector('span');
-    const thrustLabel=thrustZone&&thrustZone.querySelector('span');
-    if(fireLabel)fireLabel.style.visibility='hidden';
-    if(thrustLabel)thrustLabel.style.visibility='hidden';
-  }
-  let motionEnabled=false,motionTurn=0,motionNeutral=null,motionLastRaw=0;
-  let mobileFire=false,mobileThrust=false;
-  const touchSides=new Map();
+  const input=typeof window.GalaxyInput==='function'?new window.GalaxyInput({
+    isMobile,
+    onEscape:()=>{
+      if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden')))closeRoomDialogs();
+      else if(inGame)returnToMainMenu();
+    }
+  }):null;
+
 
   // Solo quitamos el acento de las vocales; se conserva la letra enie.
   // NFC admite nombres escritos o pegados con acentos combinados.
@@ -127,198 +119,32 @@
     im.src=url;
     images[k]=im;
   }
-  const soundDefs={
-    laser:{url:'assets/sonido/laser_1.mp3',size:8,volume:.55},
-    impact:{url:'assets/sonido/impacto1.mp3',size:5,volume:.75},
-    pickup:{url:'assets/sonido/carga3.wav',size:3,volume:.75},
-    start:{url:'assets/sonido/inicio.wav',size:1,volume:.75}
-  };
-  // V2: sin slider de volumen. Usamos un nivel fijo para evitar que un valor
-  // antiguo guardado en localStorage pueda dejar el juego mudo en el movil.
-  const gameVolume=isMobile?0.45:0.75;
-  const soundPools={};
-  for(const [key,def] of Object.entries(soundDefs)){
-    const items=[];
-    for(let i=0;i<def.size;i++){
-      const a=new Audio(def.url);a.preload='auto';a.volume=def.volume*gameVolume;items.push(a);
-    }
-    soundPools[key]={items,next:0};
-  }
-  sounds.music=new Audio('assets/sonido/musica.mp3');sounds.music.preload='auto';sounds.music.loop=true;sounds.music.volume=.35*gameVolume;
-  function playSound(k){
-    const pool=soundPools[k];if(!pool||!pool.items.length)return;
-    const a=pool.items[pool.next++%pool.items.length];
-    try{a.currentTime=0;const promise=a.play();if(promise&&promise.catch)promise.catch(()=>{});}catch(_){}
-  }
-  function startMusic(){
-    if(!menu||menu.classList.contains('hidden')||!sounds.music||!sounds.music.paused)return;
-    sounds.music.play().then(()=>{musicStarted=true;}).catch(()=>{musicStarted=false;});
-  }
-  function stopMusic(){
-    if(!sounds.music)return;
-    try{sounds.music.pause();sounds.music.currentTime=0;}catch(_){}
-    musicStarted=false;
-  }
-  function screenAngle(){
-    if(screen.orientation&&Number.isFinite(screen.orientation.angle))return screen.orientation.angle;
-    return Number.isFinite(window.orientation)?window.orientation:0;
-  }
-  function lateralTilt(ev){
-    const beta=Number(ev.beta)||0,gamma=Number(ev.gamma)||0;
-    let a=((screenAngle()%360)+360)%360;
-    if(a===90)return beta;
-    if(a===270)return -beta;
-    if(a===180)return -gamma;
-    return gamma;
-  }
-  function onDeviceOrientation(ev){
-    const raw=lateralTilt(ev);
-    motionLastRaw=raw;
-    if(motionNeutral===null)motionNeutral=raw;
-    let delta=raw-motionNeutral;
-    // Compensa el salto de -180/180 en sensores que lo necesiten.
-    if(delta>180)delta-=360;
-    if(delta<-180)delta+=360;
-    const dead=3.0;
-    if(Math.abs(delta)<=dead){motionTurn=0;return;}
-    const signed=delta>0?delta-dead:delta+dead;
-    motionTurn=-clamp(signed/22,-1,1);
-  }
-  async function enableMobileMotion(){
-    if(!isMobile)return true;
-    try{
-      if(typeof DeviceOrientationEvent==='undefined'){
-        motionStatus.textContent='Este navegador no ofrece sensor de orientacion.';
-        return false;
-      }
-      if(typeof DeviceOrientationEvent.requestPermission==='function'){
-        const result=await DeviceOrientationEvent.requestPermission();
-        if(result!=='granted')throw new Error('Permiso de movimiento denegado');
-      }
-      window.removeEventListener('deviceorientation',onDeviceOrientation);
-      window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});
-      motionNeutral=null;motionTurn=0;motionEnabled=true;
-      motionStatus.textContent='Control movil activo · giro corregido · posicion actual calibrada como centro.';
-      enableMotionBtn.textContent='RECALIBRAR GIRO';
-      return true;
-    }catch(err){
-      motionStatus.textContent='No se pudo activar el giro: '+sinTildes(err&&err.message?err.message:'permiso no disponible');
-      return false;
-    }
-  }
-  function refreshTouchControls(){
-    mobileFire=false;mobileThrust=false;
-    for(const side of touchSides.values()){
-      if(side==='fire')mobileFire=true;
-      if(side==='thrust')mobileThrust=true;
-    }
-    if(fireZone)fireZone.classList.toggle('active',mobileFire);
-    if(thrustZone)thrustZone.classList.toggle('active',mobileThrust);
-  }
-  function mobilePointerDown(e){
-    if(!isMobile||!inGame)return;
-    // Los controles ocupan las mitades izquierda/derecha de la pantalla.
-    const side=e.clientX<window.innerWidth/2?'fire':'thrust';
-    touchSides.set(e.pointerId,side);refreshTouchControls();
-    try{e.target.setPointerCapture&&e.target.setPointerCapture(e.pointerId);}catch(_){}
-    e.preventDefault();
-  }
-  function mobilePointerEnd(e){
-    if(touchSides.delete(e.pointerId))refreshTouchControls();
-    if(inGame)e.preventDefault();
-  }
+  const audio=typeof window.GalaxyAudio==='function'?new window.GalaxyAudio({isMobile,menu}):null;
+  const playSound=k=>audio&&audio.playSound(k);
+  const startMusic=()=>audio&&audio.startMusic();
+  const stopMusic=()=>audio&&audio.stopMusic();
+  const renderUtils=window.GalaxyRenderUtils&&window.GalaxyRenderUtils.create?window.GalaxyRenderUtils.create({ctx,W,H,reportImageFailure}):null;
+  const {imageReady,drawImageSafely,drawImageCentered,clamp,lerp,lerpAngle,lerpWrapped}=renderUtils;
+  const interpolationAlphaFor=(now)=>renderUtils.interpolationAlpha(previousState,state,lastStateTime,previousStateTime,now,NET_FRAME_MS);
+  const hudRenderer=window.GalaxyHud&&window.GalaxyHud.create?window.GalaxyHud.create({ctx,W,H,isMobile,images,playerColors,drawImageSafely,hudPlayerName,clamp}):null;
 
-  function websocketUrl(){
-    const configured=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').trim();
-    if(configured){
-      try{
-        const u=new URL(configured,location.href);
-        u.protocol=u.protocol==='https:'?'wss:':'ws:';
-        u.pathname='/ws';u.search='';u.hash='';
-        return u.toString();
-      }catch(_){return null;}
-    }
-    // En desarrollo/local puede compartir origen con Node. GitHub Pages no
-    // ejecuta WebSocket, por lo que alli hay que rellenar config.js.
-    if(location.hostname.endsWith('github.io'))return null;
-    const proto=location.protocol==='https:'?'wss:':'ws:';
-    return `${proto}//${location.host}/ws`;
-  }
+
+
+
   function setServerReady(ready){
     for(const b of serverButtons)b.disabled=!ready;
     statusEl.classList.toggle('ready',ready);
     statusEl.classList.toggle('waking',!ready);
     if(serverWait)serverWait.classList.toggle('hidden',ready);
   }
-  function wakeStatus(){
-    const secs=wakeStartedAt?Math.max(0,Math.floor((Date.now()-wakeStartedAt)/1000)):0;
-    const dots='.'.repeat((connectAttempt%3)+1);
-    const msg=secs<8
-      ? `Conectando con el servidor${dots} espera un momento.`
-      : `El servidor se esta iniciando${dots} Puede tardar hasta un minuto (${secs}s).`;
-    statusEl.textContent=msg;
-    if(serverWaitText)serverWaitText.textContent=msg;
+  function setNetworkStatus(text,final=false){
+    statusEl.textContent=text;if(serverWaitText)serverWaitText.textContent=text;
+    if(final&&text.startsWith('Falta'))statusEl.classList.remove('waking');
   }
-  function scheduleReconnect(delay=2200){
-    clearTimeout(reconnectTimer);
-    reconnectTimer=setTimeout(connect,delay);
-  }
-  function connect(){
-    const url=websocketUrl();
-    if(!url){
-      setServerReady(false);
-      statusEl.classList.remove('waking');
-      statusEl.textContent='Falta configurar el servidor de partida en config.js';
-      return;
-    }
-    if(ws&&(ws.readyState===WebSocket.OPEN||ws.readyState===WebSocket.CONNECTING))return;
-    if(!wakeStartedAt)wakeStartedAt=Date.now();
-    connectAttempt++;
-    setServerReady(false);
-    wakeStatus();
-    try{ws=new WebSocket(url);}catch(_){scheduleReconnect();return;}
-    ws.onopen=()=>{
-      clearTimeout(reconnectTimer);
-      connectAttempt=0;wakeStartedAt=0;
-      setServerReady(true);
-      statusEl.textContent='Servidor conectado · listo para jugar';
-      send({t:'public-rooms'});
-    };
-    ws.onclose=()=>{
-      setServerReady(false);
-      if(manualClose)return;
-      if(inGame){
-        statusEl.textContent='Se perdio la conexion con la partida';
-        setTimeout(()=>location.reload(),1500);
-      }else{
-        wakeStatus();
-        scheduleReconnect();
-      }
-    };
-    ws.onerror=()=>{
-      setServerReady(false);
-      wakeStatus();
-      // onclose programa el siguiente intento. No mostramos un error definitivo
-      // porque un Render gratuito puede estar arrancando todavia.
-    };
-    ws.onmessage=e=>{
-      let m;try{m=JSON.parse(e.data);}catch(_){return;}
-      if(voice&&voice.isSignal(m)){voice.handleSignal(m);return;}
-      handle(m);
-    };
-  }
-  function send(o){
-    if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(o));return true;}
-    if(!inGame){setServerReady(false);if(!wakeStartedAt)wakeStartedAt=Date.now();wakeStatus();connect();}
-    return false;
-  }
-  function sendControl(turn,thrust,fire){
-    if(!ws||ws.readyState!==WebSocket.OPEN)return false;
-    // Los controles caducan enseguida. Si la salida esta congestionada, es
-    // mejor omitir uno y mandar el mas reciente 33 ms despues que acumular lag.
-    if(Number(ws.bufferedAmount||0)>32*1024)return false;
-    try{ws.send(JSON.stringify({t:'ctrl',turn,thrust,fire}));return true;}catch(_){return false;}
-  }
+  let network=null;
+  function send(o){return network?network.send(o):false;}
+  function sendControl(turn,thrust,fire){return network?network.sendControl(turn,thrust,fire):false;}
+
   function uniqueLeaderFrom(players){
     if(!Array.isArray(players)||!players.length)return null;
     let max=0,leader=null,tied=false;
@@ -393,9 +219,7 @@
     if(publicRoomsDialog)publicRoomsDialog.classList.remove('hidden');
     renderPublicRooms();send({t:'public-rooms'});
   }
-  async function prepareMobileControls(){
-    if(isMobile&&!motionEnabled)await enableMobileMotion();
-  }
+  async function prepareMobileControls(){if(input)await input.prepareForGame();}
   async function createOnlineRoom(isPublic){
     startMusic();await prepareMobileControls();closeRoomDialogs();
     send({t:'create',name:sinTildes(campoNombre.value),public:!!isPublic});
@@ -497,14 +321,14 @@
     else if(m.t==='closed'){alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(){stopMusic();inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
-  function showVictory(i){if(!inGame)return;inGame=false;leaderAnnouncement=null;topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?`GANA ${sinTildes(p.n)}`:`GANA J${i+1}`;victory.classList.remove('hidden');}
+  function beginGame(){stopMusic();inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(input)input.enterGame();if(isMobile&&mobileExit)mobileExit.classList.remove('hidden');scheduleCanvasResolution();}
+  function showVictory(i){if(!inGame)return;inGame=false;leaderAnnouncement=null;topbar.classList.add('hidden');if(input)input.exitGame();if(mobileExit)mobileExit.classList.add('hidden');const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?`GANA ${sinTildes(p.n)}`:`GANA J${i+1}`;victory.classList.remove('hidden');}
 
   menu.addEventListener('pointerdown',startMusic,{passive:true});
   menu.addEventListener('keydown',startMusic);
 
   document.getElementById('create').addEventListener('click',()=>{startMusic();showRoomTypeDialog();});
-  document.getElementById('cpu').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'cpu',name:sinTildes(campoNombre.value),difficulty:document.getElementById('difficulty').value});});
+  document.getElementById('cpu').addEventListener('click',async()=>{startMusic();await prepareMobileControls();send({t:'cpu',name:sinTildes(campoNombre.value),difficulty:document.getElementById('difficulty').value});});
   document.getElementById('join').addEventListener('click',()=>{startMusic();showPublicRoomsDialog();});
   document.getElementById('createPublic').addEventListener('click',()=>createOnlineRoom(true));
   document.getElementById('createPrivate').addEventListener('click',()=>createOnlineRoom(false));
@@ -521,16 +345,7 @@
     e.stopPropagation();
   });
   if(lobbyChatInput)lobbyChatInput.addEventListener('keyup',e=>e.stopPropagation());
-  if(isMobile){
-    mobileSetup.classList.remove('hidden');
-    enableMotionBtn.addEventListener('click',enableMobileMotion);
-    document.getElementById('app').addEventListener('pointerdown',mobilePointerDown,{passive:false});
-    document.getElementById('app').addEventListener('pointerup',mobilePointerEnd,{passive:false});
-    document.getElementById('app').addEventListener('pointercancel',mobilePointerEnd,{passive:false});
-    document.getElementById('app').addEventListener('pointerleave',e=>{if(e.pointerType==='touch')mobilePointerEnd(e);},{passive:false});
-    window.addEventListener('orientationchange',()=>{motionNeutral=null;motionTurn=0;});
-    if(screen.orientation)screen.orientation.addEventListener?.('change',()=>{motionNeutral=null;motionTurn=0;});
-  }
+
   window.addEventListener('resize',scheduleCanvasResolution,{passive:true});
   window.addEventListener('orientationchange',scheduleCanvasResolution,{passive:true});
   scheduleCanvasResolution();
@@ -541,7 +356,7 @@
     inGame=false;state=null;previousState=null;lastStateTime=0;previousStateTime=0;
     roomCode='';myIndex=null;isHost=false;lastVoicePlayersSig='';rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
-    mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();
+    if(input)input.exitGame();if(mobileExit)mobileExit.classList.add('hidden');
     roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';clearLobbyChat();updateLobbyStartButton(false);
     menu.classList.remove('hidden');startMusic();scheduleCanvasResolution();
   }
@@ -550,82 +365,18 @@
     mobileExit.addEventListener('pointerdown',e=>{e.stopPropagation();},{passive:true});
     mobileExit.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();returnToMainMenu();});
   }
-  document.getElementById('back').addEventListener('click',()=>location.reload());
-  window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'){if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}else if(inGame)location.reload();}});
-  window.addEventListener('keyup',e=>keys.delete(e.code));
-  window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);if(voice)voice.shutdown(true);try{if(ws)ws.close();}catch(_){}});
+  document.getElementById('back').addEventListener('click',()=>returnToMainMenu());
+  window.addEventListener('beforeunload',()=>{if(voice)voice.shutdown(true);if(network)network.close();});
 
   setInterval(()=>{
-    if(!inGame)return;
-    const left=keys.has('KeyA')||keys.has('ArrowLeft'),right=keys.has('KeyD')||keys.has('ArrowRight');
-    const keyboardTurn=(left?1:0)-(right?1:0);
-    const turn=(isMobile&&motionEnabled)?motionTurn:keyboardTurn;
-    const thrust=(isMobile?mobileThrust:false)||keys.has('KeyW')||keys.has('ArrowUp');
-    const fire=(isMobile?mobileFire:false)||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
-    lastControlTurn=turn;
-    sendControl(turn,thrust,fire);
+    if(!inGame||!input)return;
+    const control=input.getControl();
+    lastControlTurn=control.turn;
+    sendControl(control.turn,control.thrust,control.fire);
   },1000/30);
 
-  function imageReady(im){
-    // complete is ALSO true after a failed download. Check decoded dimensions.
-    return Boolean(im&&im.complete&&im.naturalWidth>0&&im.naturalHeight>0);
-  }
-  function drawImageSafely(im,x,y,width,height){
-    if(!imageReady(im))return false;
-    try{
-      if(width===undefined){ctx.drawImage(im,x,y);}
-      else {ctx.drawImage(im,x,y,width,height);}
-      return true;
-    }catch(error){
-      reportImageFailure(im,error);
-      return false;
-    }
-  }
-  function drawImageCentered(im,x,y,size,rot=0,alpha=1){
-    if(!imageReady(im)||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(rot))return false;
-    ctx.save();
-    try{
-      ctx.globalAlpha=alpha;
-      ctx.translate(x,y);
-      ctx.rotate(rot*Math.PI/180);
-      if(size)return drawImageSafely(im,-size/2,-size/2,size,size);
-      return drawImageSafely(im,-im.naturalWidth/2,-im.naturalHeight/2);
-    }finally{
-      // An image error must never leave translate/rotate/alpha on the canvas.
-      ctx.restore();
-    }
-  }
-  const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed'};
-  function drawPickup(pk,x=pk.x,y=pk.y){
-    if(pickupSpriteMap[pk.type]){drawImageCentered(images[pickupSpriteMap[pk.type]],x,y,46);return;}
-    ctx.save();ctx.translate(x,y);
-    if(pk.type==='shield'){ctx.strokeStyle='#8ff5ff';ctx.lineWidth=4;ctx.globalAlpha=.9;ctx.beginPath();ctx.arc(0,0,20,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=.25;ctx.fillStyle='#5adfff';ctx.fill();}
-    else if(pk.type==='camo'){ctx.strokeStyle='#d1b4ff';ctx.fillStyle='rgba(160,100,255,.18)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,21,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.globalAlpha=.9;ctx.font='18px Arial';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('C',0,1);}
-    ctx.restore();
-  }
-  function spawnProtectionAlpha(secondsLeft){
-    if(!Number.isFinite(secondsLeft)||secondsLeft<=0)return 1;
-    // Six soft pulses over three seconds. The ship never disappears fully.
-    // Use the server timer, so all players see the same protection state.
-    const elapsed=Math.max(0,3-secondsLeft);
-    return .35+.65*(.5+.5*Math.cos(elapsed*Math.PI*4));
-  }
-  function lerp(a,b,t){return a+(b-a)*t;}
-  function lerpAngle(a,b,t){
-    const delta=((b-a+540)%360)-180;
-    return (a+delta*t+360)%360;
-  }
-  function lerpWrapped(a,b,size,t){
-    let delta=b-a;
-    if(delta>size/2)delta-=size;else if(delta<-size/2)delta+=size;
-    return (a+delta*t+size)%size;
-  }
-  function interpolationAlpha(now){
-    if(!previousState||previousState===state||!lastStateTime)return 1;
-    const measured=lastStateTime-previousStateTime;
-    const frameMs=clamp(Number.isFinite(measured)&&measured>0?measured:NET_FRAME_MS,20,80);
-    return clamp((now-lastStateTime)/frameMs,0,1);
-  }
+
+
   function drawShip(p,previous,blend,now){
     const local=p.i===myIndex;
     let x=p.x,y=p.y,r=p.r;
@@ -671,122 +422,8 @@
     // dibujamos con -rot. Asi el morro coincide exactamente con el avance.
     drawImageCentered(im,x,y,SHIP_DRAW_SIZE,-r,alpha);
   }
-  function drawHud(now){
-    if(!state)return;
-    let max=0,leader=null,tied=false;
-    for(const p of state.players){
-      const score=Number(p.k)||0;
-      if(score>max){max=score;leader=p.i;tied=false;}
-      else if(score===max&&score>0){tied=true;}
-    }
-    if(max<=0||tied)leader=null;
-    state.players.forEach(p=>{
-      // En movil ampliamos solo el HUD para que siga siendo legible al mostrar
-      // todo el campo 16:9. En PC la escala es 1 y conserva exactamente el
-      // tamano y las posiciones originales.
-      const hudScale=isMobile?1.48:1;
-      const panelW=128*hudScale,panelH=153*hudScale;
-      const left=p.i%2===0,top=p.i<2;
-      const px=left?10:W-88-panelW;
-      const py=top?5:H-33-157*hudScale;
-      const color=playerColors[p.i];
-      const localKillFlash=p.i===myIndex&&now<killHudFlashUntil;
-      const flashElapsed=localKillFlash?Math.max(0,now-killHudFlashStart):0;
-      const localKillScoreFx=p.i===myIndex&&now>=killScoreFxStart&&now<killScoreFxUntil;
-      const scoreFxElapsed=localKillScoreFx?Math.max(0,now-killScoreFxStart):0;
-      const localCrashScoreFx=p.i===myIndex&&now>=crashScoreFxStart&&now<crashScoreFxUntil;
-      const crashFxElapsed=localCrashScoreFx?Math.max(0,now-crashScoreFxStart):0;
-      const panel=images[left?'pantA':'pantB'];
-      if(localKillFlash){
-        const flash=1-flashElapsed/450;
-        ctx.save();
-        ctx.shadowColor=color;
-        ctx.shadowBlur=34*flash*hudScale;
-        ctx.globalAlpha=1;
-        drawImageSafely(panel,px,py,panelW,panelH);
-        ctx.globalCompositeOperation='screen';
-        ctx.globalAlpha=.32*flash;
-        drawImageSafely(panel,px,py,panelW,panelH);
-        ctx.restore();
-      }else{
-        drawImageSafely(panel,px,py,panelW,panelH);
-      }
-      const rightHud=p.i===1||p.i===3;
-      const nameX=rightHud?px+panelW-4*hudScale:px+4*hudScale;
-      ctx.font=isMobile?`800 ${22*hudScale}px Arial,Helvetica,sans-serif`:`${20*hudScale}px Flashback,Arial`;ctx.fillStyle=color;ctx.textAlign=rightHud?'right':'left';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(hudPlayerName(p),nameX,py+157*hudScale);ctx.globalAlpha=1;
-      const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;if(isMobile)ctx.font=`800 ${23*hudScale}px Arial,Helvetica,sans-serif`;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);
-      const killText=`${p.k}/${state.scoreToWin}`;
-      if(localCrashScoreFx){
-        // Explosion local del contador cuando una colision propia resta una baja.
-        // El nuevo valor ya viene del servidor; aqui solo reforzamos visualmente
-        // la penalizacion sin alterar puntuacion, fisica ni red.
-        const duration=950;
-        const t=clamp(crashFxElapsed/duration,0,1);
-        const envelope=1-t;
-        const burst=Math.sin(Math.min(1,t*2.4)*Math.PI);
-        const kx=tx,ky=py+115*hudScale;
-        const shake=envelope*5*hudScale;
-        const sx=Math.sin(crashFxElapsed*.12)*shake;
-        const sy=Math.cos(crashFxElapsed*.10)*shake*.55;
-        ctx.save();
-        ctx.translate(kx+sx,ky+sy);
-        const scoreScale=1+0.72*burst*envelope;
-        ctx.scale(scoreScale,scoreScale);
-        ctx.shadowColor='rgba(255,70,20,.95)';
-        ctx.shadowBlur=(18+42*envelope)*hudScale;
-        ctx.fillStyle='#ff5b2d';
-        ctx.globalAlpha=.75+.25*envelope;
-        ctx.fillText(killText,0,0);
-        ctx.restore();
+  function drawHud(now){if(hudRenderer)hudRenderer.draw({state,now,myIndex,fx:{killHudFlashStart,killHudFlashUntil,killScoreFxStart,killScoreFxUntil,crashScoreFxStart,crashScoreFxUntil}});}
 
-        // Onda expansiva y chispas alrededor del contador.
-        ctx.save();
-        ctx.translate(kx,ky+7*hudScale);
-        ctx.globalAlpha=Math.max(0,envelope);
-        ctx.strokeStyle='#ff7a2f';
-        ctx.lineWidth=3*hudScale;
-        ctx.shadowColor='rgba(255,80,20,.9)';
-        ctx.shadowBlur=14*hudScale*envelope;
-        ctx.beginPath();
-        ctx.arc(0,0,(10+42*t)*hudScale,0,Math.PI*2);
-        ctx.stroke();
-        for(let n=0;n<12;n++){
-          const a=(Math.PI*2*n/12)+0.18;
-          const inner=(12+28*t)*hudScale;
-          const outer=(24+58*t)*hudScale;
-          ctx.beginPath();
-          ctx.moveTo(Math.cos(a)*inner,Math.sin(a)*inner);
-          ctx.lineTo(Math.cos(a)*outer,Math.sin(a)*outer);
-          ctx.stroke();
-        }
-        ctx.restore();
-      }else if(localKillScoreFx){
-        // Dos segundos despues de la baja, el marcador hace un efecto muy
-        // evidente: entrada rapida, gran escala, dos pulsos y brillo fuerte.
-        // La animacion completa dura dos segundos.
-        const t=clamp(scoreFxElapsed/2000,0,1);
-        const appear=clamp(scoreFxElapsed/220,0,1);
-        const settle=1-Math.pow(1-t,2);
-        const pulse=.5+.5*Math.sin(scoreFxElapsed*.012);
-        const envelope=(1-t);
-        const scale=(.72+1.05*appear) + .48*envelope*pulse - .17*settle;
-        const kx=tx,ky=py+115*hudScale;
-        ctx.save();
-        ctx.translate(kx,ky);
-        ctx.scale(scale,scale);
-        ctx.shadowColor=color;
-        ctx.shadowBlur=(22+48*envelope*(.55+.45*pulse))*hudScale;
-        ctx.fillStyle=color;
-        ctx.globalAlpha=.9+.1*pulse;
-        ctx.fillText(killText,0,0);
-        ctx.restore();
-      }else{
-        ctx.fillText(killText,tx,py+115*hudScale);
-      }
-      ctx.fillStyle='#be0000';ctx.fillRect(tx,py+53*hudScale,Math.max(0,(30-p.cad)*2.3*hudScale),7*hudScale);ctx.fillRect(tx,py+105*hudScale,67*clamp((p.spd-1),0,1)*hudScale,7*hudScale);
-    });
-  }
-  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
 
   function drawPenaltyAnnouncement(now){
     if(!penaltyMessageUntil||now>=penaltyMessageUntil)return;
@@ -850,9 +487,11 @@
       ctx.shadowColor='rgba(0,0,0,.65)';
       ctx.shadowBlur=4;
       // En reposo siguen discretos; al pulsar se hacen bastante mas visibles.
-      ctx.globalAlpha=mobileFire?.78:.32;
+      const visual=input?input.getVisualState():{fire:false,thrust:false,mode:'tilt'};
+      if(visual.mode!=='tilt')return;
+      ctx.globalAlpha=visual.fire?.78:.32;
       ctx.fillText('DISPARO',W*.24,H-72);
-      ctx.globalAlpha=mobileThrust?.78:.32;
+      ctx.globalAlpha=visual.thrust?.78:.32;
       ctx.fillText('ACELERAR',W*.76,H-72);
     }finally{
       ctx.restore();
@@ -904,7 +543,7 @@
     if(!state)return;
 
     const now=performance.now();
-    const blend=interpolationAlpha(now);
+    const blend=interpolationAlphaFor(now);
     const prev=previousState||state;
 
     // Capa de controles visuales movil: despues del fondo y antes de cualquier
@@ -963,5 +602,12 @@
       ctx.restore();
     }
   }
-  connect();render();
+  network=typeof window.GalaxyNetwork==='function'?new window.GalaxyNetwork({
+    onMessage:m=>{if(voice&&voice.isSignal(m)){voice.handleSignal(m);return;}handle(m);},
+    onReady:setServerReady,
+    onWakeStatus:setNetworkStatus,
+    onDisconnect:()=>{statusEl.textContent='Se perdio la conexion con la partida';setTimeout(()=>location.reload(),1500);},
+    isInGame:()=>inGame
+  }):null;
+  if(network)network.connect();render();
 })();

@@ -31,6 +31,10 @@
       this.keyVDown=false;
       this.talking=false;
       this.remoteTalking=new Set();
+      this.iceServers=[
+        {urls:'stun:stun.l.google.com:19302'},
+        {urls:'stun:stun1.l.google.com:19302'}
+      ];
 
       this.enableButton=document.getElementById('enableVoice');
       this.statusEl=document.getElementById('voiceStatus');
@@ -39,7 +43,26 @@
       this.talkerEl=document.getElementById('voiceTalker');
 
       this.bindUI();
+      this.iceConfigPromise=this.loadIceServers();
       this.refreshUI();
+    }
+
+
+    async loadIceServers(){
+      const base=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').trim();
+      if(!base)return;
+      try{
+        const url=new URL('/rtc-config',base).toString();
+        const controller=typeof AbortController==='function'?new AbortController():null;
+        const timeout=controller?setTimeout(()=>controller.abort(),2500):null;
+        const res=await fetch(url,{cache:'no-store',mode:'cors',signal:controller?controller.signal:undefined});
+        if(timeout)clearTimeout(timeout);
+        if(!res.ok)return;
+        const data=await res.json();
+        if(Array.isArray(data&&data.iceServers)&&data.iceServers.length)this.iceServers=data.iceServers;
+      }catch(err){
+        console.warn('[Galaxy Combat Voice] No se pudo cargar la configuracion TURN; se usara STUN.',err);
+      }
     }
 
     bindUI(){
@@ -104,6 +127,7 @@
       this.enabling=true;
       this.setStatus('SOLICITANDO MICROFONO...');
       try{
+        if(this.iceConfigPromise)await this.iceConfigPromise;
         const stream=await navigator.mediaDevices.getUserMedia({
           audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
           video:false
@@ -222,12 +246,7 @@
     makePeer(id){
       if(this.peers.has(id))return this.peers.get(id);
       if(!this.enabled||!this.localStream)return null;
-      const pc=new RTCPeerConnection({
-        iceServers:[
-          {urls:'stun:stun.l.google.com:19302'},
-          {urls:'stun:stun1.l.google.com:19302'}
-        ]
-      });
+      const pc=new RTCPeerConnection({iceServers:this.iceServers});
       this.localStream.getTracks().forEach(track=>pc.addTrack(track,this.localStream));
       pc.onicecandidate=e=>{
         if(e.candidate)this.send({t:'voice-ice',to:id,data:e.candidate.toJSON?e.candidate.toJSON():e.candidate});
