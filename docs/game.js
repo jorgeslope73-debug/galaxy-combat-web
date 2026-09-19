@@ -949,9 +949,9 @@
       ctx.shadowBlur=4;
       // En movil los textos son solo una guia tenue. Al mantener pulsada
       // una zona, su texto desaparece para no tapar la accion.
-      ctx.globalAlpha=mobileFire?0:.20;
+      ctx.globalAlpha=mobileFire?0:.50;
       ctx.fillText('DISPARO',W*.24,H-72);
-      ctx.globalAlpha=mobileThrust?0:.20;
+      ctx.globalAlpha=mobileThrust?0:.50;
       ctx.fillText('ACELERAR',W*.76,H-72);
     }finally{
       ctx.restore();
