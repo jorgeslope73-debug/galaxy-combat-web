@@ -18,6 +18,7 @@ const IDLE_CONTROL = Object.freeze({turn:0, thrust:false, fire:false});
 const SCORE_TO_WIN = 5;
 const MAX_PLAYERS = 4;
 const RECONNECT_GRACE_MS = 30000;
+const BRUTAL_SHOT_DISTANCE = 850;
 
 const SHIP_RADIUS = 24;
 const ASTEROID_RADIUS = 45;
@@ -566,7 +567,7 @@ class GameRoom {
       const vmax=330*p.speed; const sp=Math.hypot(p.vx,p.vy); if(sp>vmax){p.vx=p.vx/sp*vmax;p.vy=p.vy/sp*vmax;}
       p.x=(p.x+p.vx*dt+W)%W; p.y=(p.y+p.vy*dt+H)%H;
       if(c.fire && p.bullets>0 && p.reload<=0){
-        this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*this.bulletSpeed(p),vy:d.y*this.bulletSpeed(p),age:0});
+        this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*this.bulletSpeed(p),vy:d.y*this.bulletSpeed(p),age:0,travel:0});
         p.bullets--; p.reload=Math.max(0.125,p.cadence/8); emitSound(this,'laser');
       }
     }
@@ -610,15 +611,19 @@ class GameRoom {
   }
 
   updateBullets(dt){
-    for(const b of this.bullets) { b.x+=b.vx*dt;b.y+=b.vy*dt;b.age+=dt; }
+    for(const b of this.bullets) { b.x+=b.vx*dt;b.y+=b.vy*dt;b.age+=dt;b.travel=(b.travel||0)+Math.hypot(b.vx,b.vy)*dt; }
     for(let i=this.bullets.length-1;i>=0;i--){
       const b=this.bullets[i]; let remove=b.age>3||b.x<-20||b.y<-20||b.x>W+20||b.y>H+20;
       if(!remove){
         for(const p of this.players){
           if(p.index===b.owner||p.dead||p.protection>0)continue;
           if(circles(b,BULLET_RADIUS,p,SHIP_RADIUS)){
-            if(p.shield<=0) this.destroyShip(p,this.players.find(q=>q.index===b.owner)||null);
-            else this.emitShipImpact(p,b,false);
+            const attacker=this.players.find(q=>q.index===b.owner)||null;
+            if(p.shield<=0){
+              const brutal=attacker&&attacker!==p&&(b.travel||0)>=BRUTAL_SHOT_DISTANCE;
+              if(brutal)sendToPlayer(this,attacker.index,{t:'brutal',distance:Math.round(b.travel||0)});
+              this.destroyShip(p,attacker);
+            }else this.emitShipImpact(p,b,false);
             remove=true;break;
           }
         }
