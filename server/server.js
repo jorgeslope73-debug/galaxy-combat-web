@@ -27,15 +27,16 @@ const SMALL_METEOR_RADIUS = 14;
 const SPAWN_PROTECTION_SECONDS = 3;
 
 // The HUD is drawn at (10 / W-216, 5 / H-190), size 128 x 153.
-// Reserve the name line too. Spawns stay under the top panels and above
-// the bottom panels, in the game canvas (not in the black screen bands).
+// Reserve the name line too. Leave extra breathing room so the ships do not
+// start visually glued to the HUD, including the larger mobile HUD. Spawns
+// stay under the top panels and above the bottom panels.
 function spawnArea(index) {
   const left = index % 2 === 0;
   const top = index < 2;
   const panelX = left ? 10 : W - 216;
   const panelY = top ? 5 : H - 190;
   const centerX = panelX + 64;
-  const gap = 50;
+  const gap = 90;
   const spreadY = 100;
   const nearY = top
     ? panelY + 153 + 28 + SHIP_RADIUS + gap
