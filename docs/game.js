@@ -765,6 +765,21 @@
     const frameMs=clamp(Number.isFinite(measured)&&measured>0?measured:NET_FRAME_MS,20,80);
     return clamp((now-lastStateTime)/frameMs,0,1);
   }
+  function ghostRevealState(p,now){
+    const camo=Number(p&&p.camo)||0;
+    if(camo<=0)return {revealed:false,alpha:0};
+    // El camuflaje dura 10 s. Para los rivales, la nave se revela brevemente
+    // cada 4 s (aprox. en los segundos 4 y 8) con fundido de entrada/salida.
+    const elapsed=Math.max(0,10-camo);
+    if(elapsed<4)return {revealed:false,alpha:0};
+    const phase=elapsed%4;
+    const window=1.0;
+    if(phase>=window)return {revealed:false,alpha:0};
+    let alpha=1;
+    if(phase<0.25)alpha=phase/0.25;
+    else if(phase>0.75)alpha=(window-phase)/0.25;
+    return {revealed:true,alpha:Math.max(0,Math.min(1,alpha))};
+  }
   function drawShip(p,previous,blend,now){
     const local=p.i===myIndex;
     let x=p.x,y=p.y,r=p.r;
@@ -781,8 +796,13 @@
     }
     // The short explosion is drawn by impactFX, never from a PNG download.
     if(p.dead)return;
-    if(p.camo>0&&!local)return;
     let alpha=1;
+    if(p.camo>0&&!local){
+      const reveal=ghostRevealState(p,now);
+      if(!reveal.revealed)return;
+      // Revelacion encadenada: aparece y desaparece suavemente.
+      alpha=.78*reveal.alpha;
+    }
     if(p.camo>0&&local){alpha=.42;if(p.camo<=3)alpha=(Math.floor(now/160)%2===0)?.55:.22;}
     if(p.prot>0)alpha*=spawnProtectionAlpha(p.prot);
     if(p.shield>0){
@@ -1068,6 +1088,56 @@
       ctx.restore();
     }
   }
+  function drawGhostStatus(now){
+    if(!state||!Array.isArray(state.players))return;
+    const ghosts=state.players.filter(p=>{
+      if(!(Number(p&&p.camo)>0))return false;
+      // La pastilla solo se ve mientras la nave esta realmente oculta.
+      // Durante la revelacion periodica desaparece para no duplicar la pista.
+      if(p.i!==myIndex&&ghostRevealState(p,now).revealed)return false;
+      return true;
+    });
+    if(!ghosts.length)return;
+
+    const fontSize=isMobile?27:21;
+    const pillH=isMobile?40:32;
+    const pillW=isMobile?170:138;
+    const gap=isMobile?10:8;
+    const totalW=ghosts.length*pillW+(ghosts.length-1)*gap;
+    let x=W/2-totalW/2+pillW/2;
+    const y=232;
+
+    ctx.save();
+    try{
+      ctx.font=`800 ${fontSize}px Arial,Helvetica,sans-serif`;
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      for(const p of ghosts){
+        const color=playerColors[p.i]||'#d7b6ff';
+        // Parpadeo muy suave entre ~58% y ~78% de opacidad.
+        const pulse=.68+.10*Math.sin(now*.0045+(p.i||0)*.9);
+        ctx.globalAlpha=pulse;
+        ctx.fillStyle=color;
+        ctx.strokeStyle=color;
+        ctx.lineWidth=2;
+        ctx.shadowColor=color;
+        ctx.shadowBlur=8;
+        ctx.beginPath();
+        if(typeof ctx.roundRect==='function')ctx.roundRect(x-pillW/2,y-pillH/2,pillW,pillH,pillH/2);
+        else ctx.rect(x-pillW/2,y-pillH/2,pillW,pillH);
+        ctx.fill();
+        ctx.stroke();
+        ctx.shadowBlur=0;
+        ctx.globalAlpha=.92;
+        ctx.fillStyle='#ffffff';
+        ctx.fillText('FANTASMA',x,y+1);
+        x+=pillW+gap;
+      }
+    }finally{
+      ctx.restore();
+    }
+  }
+
   function drawMobileControlLabels(){
     if(!isMobile||!inGame)return;
     ctx.save();
@@ -1220,6 +1290,7 @@
     drawHud(now);
     drawPenaltyAnnouncement(now);
     drawLeaderAnnouncement(now);
+    drawGhostStatus(now);
     drawBrutalAnnouncement(now);
     if(state.shower>0){
       const pulse=.58+.42*(.5+.5*Math.sin(performance.now()*.005));
