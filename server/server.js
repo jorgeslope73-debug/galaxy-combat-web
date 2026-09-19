@@ -14,7 +14,7 @@ const SNAP_EVERY_TICKS = Math.max(1, Math.round(TICK_HZ / NET_HZ));
 const DRAG_PER_TICK = Math.pow(0.35, DT);
 const MAX_STATE_BUFFER = 128 * 1024;
 const IDLE_CONTROL = Object.freeze({turn:0, thrust:false, fire:false});
-const SCORE_TO_WIN = 10;
+const SCORE_TO_WIN = 5;
 const MAX_PLAYERS = 4;
 
 const SHIP_RADIUS = 24;
