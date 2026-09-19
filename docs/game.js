@@ -940,19 +940,19 @@
     if(!isMobile||!inGame)return;
     ctx.save();
     try{
-      // Tipografia solida y legible en movil, manteniendo el aspecto semitransparente.
+      // El alpha va directamente en el color para que la transparencia sea
+      // inequívoca en Safari/iOS. Sin sombra, que hacía parecer el texto más opaco.
       ctx.font='800 30px Arial,Helvetica,sans-serif';
       ctx.textAlign='center';
       ctx.textBaseline='middle';
-      ctx.fillStyle='rgba(255,255,255,1)';
-      ctx.shadowColor='rgba(0,0,0,.65)';
-      ctx.shadowBlur=4;
-      // En movil los textos son solo una guia tenue. Al mantener pulsada
-      // una zona, su texto desaparece para no tapar la accion.
-      ctx.globalAlpha=mobileFire?0:.50;
-      ctx.fillText('DISPARO',W*.24,H-72);
-      ctx.globalAlpha=mobileThrust?0:.50;
-      ctx.fillText('ACELERAR',W*.76,H-72);
+      ctx.globalAlpha=1;
+      ctx.shadowColor='transparent';
+      ctx.shadowBlur=0;
+      ctx.fillStyle='rgba(255,255,255,0.50)';
+      // Al pulsar una zona no reducimos el alpha: simplemente no dibujamos
+      // ese texto, así desaparece completamente.
+      if(!mobileFire)ctx.fillText('DISPARO',W*.24,H-72);
+      if(!mobileThrust)ctx.fillText('ACELERAR',W*.76,H-72);
     }finally{
       ctx.restore();
     }

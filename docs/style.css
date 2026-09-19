@@ -23,3 +23,7 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   #game{touch-action:none}
   #topbar{font-size:12px;top:4px}
 }
+
+/* V16.4.3: las zonas tactiles son invisibles; sus rotulos se dibujan solo en canvas. */
+#mobileControls .mobile-zone{color:transparent!important;text-shadow:none!important;font-size:0!important;}
+#mobileControls .mobile-zone::before,#mobileControls .mobile-zone::after{content:none!important;display:none!important;}
