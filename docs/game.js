@@ -14,6 +14,7 @@
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
   let lastControlTurn=0,lastVoicePlayersSig='',renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
+  let killHudEffectStart=0,killHudEffectUntil=0;
   let publicRooms=[];
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
@@ -472,6 +473,14 @@
       const now=performance.now();
       if(impactFX)impactFX.consume(m,myIndex,now);
       updateLeaderAnnouncement(m,now);
+      const oldLocal=state&&Array.isArray(state.players)?state.players.find(p=>p.i===myIndex):null;
+      const newLocal=Array.isArray(m.players)?m.players.find(p=>p.i===myIndex):null;
+      if(oldLocal&&newLocal&&Number(newLocal.k)>Number(oldLocal.k)){
+        // Confirmacion visual local de baja: no se envia por red y solo la ve
+        // el jugador que acaba de sumar una muerte.
+        killHudEffectStart=now;
+        killHudEffectUntil=now+2000;
+      }
       previousState=state;
       previousStateTime=lastStateTime;
       rebuildPreviousLookup(previousState);
@@ -674,9 +683,44 @@
       const px=left?10:W-88-panelW;
       const py=top?5:H-33-157*hudScale;
       const color=playerColors[p.i];
-      const panel=images[left?'pantA':'pantB'];drawImageSafely(panel,px,py,panelW,panelH);
+      const localKillFx=p.i===myIndex&&now<killHudEffectUntil;
+      const fxElapsed=localKillFx?Math.max(0,now-killHudEffectStart):0;
+      const panel=images[left?'pantA':'pantB'];
+      if(localKillFx&&fxElapsed<450){
+        const flash=1-fxElapsed/450;
+        ctx.save();
+        ctx.shadowColor=color;
+        ctx.shadowBlur=34*flash*hudScale;
+        ctx.globalAlpha=1;
+        drawImageSafely(panel,px,py,panelW,panelH);
+        ctx.globalCompositeOperation='screen';
+        ctx.globalAlpha=.32*flash;
+        drawImageSafely(panel,px,py,panelW,panelH);
+        ctx.restore();
+      }else{
+        drawImageSafely(panel,px,py,panelW,panelH);
+      }
       ctx.font=`${20*hudScale}px Flashback,Arial`;ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(`J${p.i+1} · ${sinTildes(p.n)}`,px+64*hudScale,py+157*hudScale);ctx.globalAlpha=1;
-      const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);ctx.fillText(`${p.k}/${state.scoreToWin}`,tx,py+115*hudScale);
+      const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);
+      const killText=`${p.k}/${state.scoreToWin}`;
+      if(localKillFx){
+        // Durante dos segundos el marcador de bajas pulsa, crece y emite brillo.
+        const t=clamp(fxElapsed/2000,0,1);
+        const envelope=1-t;
+        const pulse=.55+.45*(.5+.5*Math.sin(fxElapsed*.014));
+        const scale=1+.28*envelope*pulse;
+        const kx=tx,ky=py+115*hudScale;
+        ctx.save();
+        ctx.translate(kx,ky);
+        ctx.scale(scale,scale);
+        ctx.shadowColor=color;
+        ctx.shadowBlur=(10+20*envelope*pulse)*hudScale;
+        ctx.fillStyle=color;
+        ctx.fillText(killText,0,0);
+        ctx.restore();
+      }else{
+        ctx.fillText(killText,tx,py+115*hudScale);
+      }
       ctx.fillStyle='#be0000';ctx.fillRect(tx,py+53*hudScale,Math.max(0,(30-p.cad)*2.3*hudScale),7*hudScale);ctx.fillRect(tx,py+105*hudScale,67*clamp((p.spd-1),0,1)*hudScale,7*hudScale);
     });
   }
