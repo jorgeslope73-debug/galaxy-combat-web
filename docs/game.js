@@ -14,7 +14,7 @@
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
   let lastControlTurn=0,lastVoicePlayersSig='',renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
-  let killHudEffectStart=0,killHudEffectUntil=0;
+  let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
   let publicRooms=[];
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
@@ -478,8 +478,12 @@
       if(oldLocal&&newLocal&&Number(newLocal.k)>Number(oldLocal.k)){
         // Confirmacion visual local de baja: no se envia por red y solo la ve
         // el jugador que acaba de sumar una muerte.
-        killHudEffectStart=now;
-        killHudEffectUntil=now+2000;
+        killHudFlashStart=now;
+        killHudFlashUntil=now+450;
+        // El marcador espera dos segundos desde la baja y luego hace un pulso
+        // grande durante otros dos segundos. Solo existe en este cliente.
+        killScoreFxStart=now+2000;
+        killScoreFxUntil=killScoreFxStart+2000;
       }
       previousState=state;
       previousStateTime=lastStateTime;
@@ -683,11 +687,13 @@
       const px=left?10:W-88-panelW;
       const py=top?5:H-33-157*hudScale;
       const color=playerColors[p.i];
-      const localKillFx=p.i===myIndex&&now<killHudEffectUntil;
-      const fxElapsed=localKillFx?Math.max(0,now-killHudEffectStart):0;
+      const localKillFlash=p.i===myIndex&&now<killHudFlashUntil;
+      const flashElapsed=localKillFlash?Math.max(0,now-killHudFlashStart):0;
+      const localKillScoreFx=p.i===myIndex&&now>=killScoreFxStart&&now<killScoreFxUntil;
+      const scoreFxElapsed=localKillScoreFx?Math.max(0,now-killScoreFxStart):0;
       const panel=images[left?'pantA':'pantB'];
-      if(localKillFx&&fxElapsed<450){
-        const flash=1-fxElapsed/450;
+      if(localKillFlash){
+        const flash=1-flashElapsed/450;
         ctx.save();
         ctx.shadowColor=color;
         ctx.shadowBlur=34*flash*hudScale;
@@ -703,19 +709,24 @@
       ctx.font=`${20*hudScale}px Flashback,Arial`;ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(`J${p.i+1} · ${sinTildes(p.n)}`,px+64*hudScale,py+157*hudScale);ctx.globalAlpha=1;
       const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);
       const killText=`${p.k}/${state.scoreToWin}`;
-      if(localKillFx){
-        // Durante dos segundos el marcador de bajas pulsa, crece y emite brillo.
-        const t=clamp(fxElapsed/2000,0,1);
-        const envelope=1-t;
-        const pulse=.55+.45*(.5+.5*Math.sin(fxElapsed*.014));
-        const scale=1+.28*envelope*pulse;
+      if(localKillScoreFx){
+        // Dos segundos despues de la baja, el marcador hace un efecto muy
+        // evidente: entrada rapida, gran escala, dos pulsos y brillo fuerte.
+        // La animacion completa dura dos segundos.
+        const t=clamp(scoreFxElapsed/2000,0,1);
+        const appear=clamp(scoreFxElapsed/220,0,1);
+        const settle=1-Math.pow(1-t,2);
+        const pulse=.5+.5*Math.sin(scoreFxElapsed*.012);
+        const envelope=(1-t);
+        const scale=(.72+1.05*appear) + .48*envelope*pulse - .17*settle;
         const kx=tx,ky=py+115*hudScale;
         ctx.save();
         ctx.translate(kx,ky);
         ctx.scale(scale,scale);
         ctx.shadowColor=color;
-        ctx.shadowBlur=(10+20*envelope*pulse)*hudScale;
+        ctx.shadowBlur=(22+48*envelope*(.55+.45*pulse))*hudScale;
         ctx.fillStyle=color;
+        ctx.globalAlpha=.9+.1*pulse;
         ctx.fillText(killText,0,0);
         ctx.restore();
       }else{
