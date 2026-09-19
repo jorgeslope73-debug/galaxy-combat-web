@@ -690,14 +690,12 @@
   const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed'};
   function pickupExpiryAlpha(pk){
     const left=Number(pk&&pk.expiresIn);
+    // Durante toda su vida permanece al 100%. Solo en los ultimos 2 segundos
+    // parpadea de forma regular entre 50% y 100% de opacidad.
     if(!Number.isFinite(left)||left>2)return 1;
     const now=performance.now()/1000;
-    // Ultimos 2 s: parpadeo suave. En los ultimos 0,7 s acelera para dejar
-    // claro que la mejora esta a punto de desaparecer.
-    const hz=left<=0.7?6:3;
-    const pulse=.5+.5*Math.sin(now*Math.PI*2*hz);
-    const minAlpha=left<=0.7?.12:.32;
-    return minAlpha+(1-minAlpha)*pulse;
+    const pulse=.5+.5*Math.sin(now*Math.PI*2*3);
+    return .5+.5*pulse;
   }
   function drawPickup(pk,x=pk.x,y=pk.y){
     const alpha=pickupExpiryAlpha(pk);
