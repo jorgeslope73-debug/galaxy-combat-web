@@ -35,7 +35,7 @@ function spawnArea(index) {
   const panelX = left ? 10 : W - 216;
   const panelY = top ? 5 : H - 190;
   const centerX = panelX + 64;
-  const gap = 22;
+  const gap = 50;
   const spreadY = 100;
   const nearY = top
     ? panelY + 153 + 28 + SHIP_RADIUS + gap
