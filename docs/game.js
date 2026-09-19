@@ -711,7 +711,9 @@
       }else{
         drawImageSafely(panel,px,py,panelW,panelH);
       }
-      ctx.font=isMobile?`800 ${22*hudScale}px Arial,Helvetica,sans-serif`:`${20*hudScale}px Flashback,Arial`;ctx.fillStyle=color;ctx.textAlign=left?'center':'right';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(hudPlayerName(p),left?px+64*hudScale:px+panelW,py+157*hudScale);ctx.globalAlpha=1;
+      const rightHud=p.i===1||p.i===3;
+      const nameX=rightHud?px+panelW-4*hudScale:px+64*hudScale;
+      ctx.font=isMobile?`800 ${22*hudScale}px Arial,Helvetica,sans-serif`:`${20*hudScale}px Flashback,Arial`;ctx.fillStyle=color;ctx.textAlign=rightHud?'right':'center';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(hudPlayerName(p),nameX,py+157*hudScale);ctx.globalAlpha=1;
       const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;if(isMobile)ctx.font=`800 ${23*hudScale}px Arial,Helvetica,sans-serif`;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);
       const killText=`${p.k}/${state.scoreToWin}`;
       if(localCrashScoreFx){
