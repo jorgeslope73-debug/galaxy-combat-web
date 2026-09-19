@@ -677,7 +677,7 @@
       // En movil ampliamos solo el HUD para que siga siendo legible al mostrar
       // todo el campo 16:9. En PC la escala es 1 y conserva exactamente el
       // tamano y las posiciones originales.
-      const hudScale=isMobile?1.30:1;
+      const hudScale=isMobile?1.40:1;
       const panelW=128*hudScale,panelH=153*hudScale;
       const left=p.i%2===0,top=p.i<2;
       const px=left?10:W-88-panelW;
