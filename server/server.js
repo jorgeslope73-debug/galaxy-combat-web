@@ -56,6 +56,7 @@ const ASTEROID_STARTS = [
 ];
 
 const rooms = new Map();
+const activeRoomByIp = new Map();
 const clientInfo = new WeakMap();
 let nextEntityId = 1;
 
@@ -86,6 +87,43 @@ function safeName(v, fallback='JUGADOR') {
   const s = String(v || '').replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0,16);
   return s || fallback;
 }
+function normalizeClientIp(value) {
+  let ip = String(value || '').trim();
+  if (!ip) return 'unknown';
+  if (ip.includes(',')) ip = ip.split(',')[0].trim();
+  if (ip.startsWith('::ffff:')) ip = ip.slice(7);
+  if (ip === '::1') ip = '127.0.0.1';
+  if (ip.startsWith('[') && ip.endsWith(']')) ip = ip.slice(1,-1);
+  return ip || 'unknown';
+}
+function clientIpFromRequest(req) {
+  const forwarded = req && req.headers ? req.headers['x-forwarded-for'] : '';
+  const raw = Array.isArray(forwarded) ? forwarded[0] : (forwarded || (req && req.socket && req.socket.remoteAddress));
+  return normalizeClientIp(raw);
+}
+function activeRoomForIp(ip) {
+  const code = activeRoomByIp.get(ip);
+  if (!code) return null;
+  const room = rooms.get(code);
+  if (!room) { activeRoomByIp.delete(ip); return null; }
+  return room;
+}
+function registerRoomCreator(room, ip) {
+  room.creatorIp = ip;
+  activeRoomByIp.set(ip, room.code);
+}
+function releaseRoomCreator(room) {
+  if (!room || !room.creatorIp) return;
+  if (activeRoomByIp.get(room.creatorIp) === room.code) activeRoomByIp.delete(room.creatorIp);
+}
+function deleteRoom(code) {
+  const room = rooms.get(code);
+  if (!room) return false;
+  releaseRoomCreator(room);
+  rooms.delete(code);
+  return true;
+}
+
 function safeChatText(v) {
   return String(v || '')
     .replace(/[\x00-\x1f\x7f]/g, ' ')
@@ -168,6 +206,7 @@ class GameRoom {
     this.nextGiant = rand(50,80);
     this.controls = new Map();
     this.createdAt = Date.now();
+    this.creatorIp = '';
     this.resetAsteroids();
   }
 
@@ -686,7 +725,7 @@ function removePlayer(ws) {
   const p=room.players.find(x=>x.ws===ws); if(!p)return;
   if(p.voiceReady)broadcastVoicePresence(room,p.index,'voice-left');
   room.players=room.players.filter(x=>x!==p);room.controls.delete(p.index);
-  if(p.isHost){broadcast(room,{t:'closed',reason:'El anfitrión cerró la sala.'});rooms.delete(room.code);}
+  if(p.isHost){broadcast(room,{t:'closed',reason:'El anfitrión cerró la sala.'});deleteRoom(room.code);}
   else broadcast(room,{t:'lobby',code:room.code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});
   broadcastPublicRooms();
 }
@@ -705,15 +744,18 @@ const server=http.createServer((req,res)=>{
 });
 
 const wss=new WebSocketServer({server,path:'/ws',perMessageDeflate:false});
-wss.on('connection',ws=>{
+wss.on('connection',(ws,req)=>{
+  const clientIp=clientIpFromRequest(req);
   send(ws,{t:'hello'});
   sendPublicRooms(ws);
   ws.on('message',raw=>{
     let msg;try{msg=JSON.parse(String(raw));}catch(_){return;}
     if(msg.t==='create'){
-      const code=roomCode();const room=new GameRoom(code,'online','medio',!!msg.public);rooms.set(code,room);const p=room.addHuman(ws,msg.name,true);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,public:room.isPublic});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
+      if(activeRoomForIp(clientIp)){send(ws,{t:'error',message:'YA TIENES UNA SALA ACTIVA.'});return;}
+      const code=roomCode();const room=new GameRoom(code,'online','medio',!!msg.public);rooms.set(code,room);registerRoomCreator(room,clientIp);const p=room.addHuman(ws,msg.name,true);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,public:room.isPublic});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
     } else if(msg.t==='cpu'){
-      const code=roomCode();const room=new GameRoom(code,'cpu',String(msg.difficulty||'dificil'));rooms.set(code,room);const p=room.addHuman(ws,msg.name,true);room.addCpu('CPU',room.difficulty);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,cpu:true});room.start();
+      if(activeRoomForIp(clientIp)){send(ws,{t:'error',message:'YA TIENES UNA SALA ACTIVA.'});return;}
+      const code=roomCode();const room=new GameRoom(code,'cpu',String(msg.difficulty||'dificil'));rooms.set(code,room);registerRoomCreator(room,clientIp);const p=room.addHuman(ws,msg.name,true);room.addCpu('CPU',room.difficulty);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,cpu:true});room.start();
     } else if(msg.t==='join'){
       const code=String(msg.code||'').trim().toUpperCase();const room=rooms.get(code);if(!room||room.started||room.mode!=='online'){send(ws,{t:'error',message:'Sala no disponible.'});return;}const p=room.addHuman(ws,msg.name,false);if(!p){send(ws,{t:'error',message:'Sala llena.'});return;}clientInfo.set(ws,{code,index:p.index});send(ws,{t:'joined',code,index:p.index,public:room.isPublic});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
     } else if(msg.t==='start'){
@@ -776,7 +818,7 @@ function gameLoop(){
   setTimeout(gameLoop,delay);
 }
 setTimeout(gameLoop,STEP_MS);
-setInterval(()=>{const now=Date.now();let changed=false;for(const [code,room] of rooms){if(room.players.length===0||now-room.createdAt>12*60*60*1000){rooms.delete(code);changed=true;}}if(changed)broadcastPublicRooms();},30000);
+setInterval(()=>{const now=Date.now();let changed=false;for(const [code,room] of rooms){if(room.players.length===0||now-room.createdAt>12*60*60*1000){deleteRoom(code);changed=true;}}if(changed)broadcastPublicRooms();},30000);
 
 server.listen(PORT,'0.0.0.0',()=>{
   console.log(`Galaxy Combat WebSocket server online on port ${PORT}`);
