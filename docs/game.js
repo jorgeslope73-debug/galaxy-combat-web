@@ -26,16 +26,30 @@
   const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   const AudioCtx=window.AudioContext||window.webkitAudioContext;
   let sharedAudioContext=null;
+  let iosAudioSessionMode='playback';
+  function setIOSAudioSession(mode='playback'){
+    iosAudioSessionMode=mode;
+    if(!isIOS||!navigator.audioSession)return false;
+    try{
+      navigator.audioSession.type=mode;
+      return true;
+    }catch(err){
+      console.warn('[Galaxy Combat] No se pudo configurar la sesion de audio de iOS.',err);
+      return false;
+    }
+  }
   function getSharedAudioContext(){
     if(!AudioCtx)return null;
-    if(!sharedAudioContext)sharedAudioContext=new AudioCtx();
+    if(isIOS)setIOSAudioSession(iosAudioSessionMode);
+    if(!sharedAudioContext||sharedAudioContext.state==='closed')sharedAudioContext=new AudioCtx();
     return sharedAudioContext;
   }
   async function resumeSharedAudioContext(){
+    if(isIOS)setIOSAudioSession(iosAudioSessionMode);
     const audioCtx=getSharedAudioContext();
     if(!audioCtx)return false;
     try{
-      if(audioCtx.state==='suspended')await audioCtx.resume();
+      if(audioCtx.state!=='running'&&audioCtx.state!=='closed')await audioCtx.resume();
       return audioCtx.state==='running';
     }catch(err){
       console.warn('[Galaxy Combat] No se pudo activar Web Audio.',err);
@@ -47,7 +61,8 @@
   // de controles multimedia de iOS.
   window.GalaxyAudioBridge={
     getContext:getSharedAudioContext,
-    resume:resumeSharedAudioContext
+    resume:resumeSharedAudioContext,
+    setSession:setIOSAudioSession
   };
   // Tamano visual de las naves. Solo cambia el dibujo: fisica, colisiones y red quedan iguales.
   const SHIP_DRAW_SIZE=isMobile?86:72;
@@ -204,6 +219,7 @@
   }
 
   if(useIOSWebAudio){
+    setIOSAudioSession('playback');
     primeIOSAudio();
   }else{
     for(const [key,def] of Object.entries(soundDefs)){
@@ -633,10 +649,19 @@
   menu.addEventListener('pointerdown',startMusic,{passive:true});
   menu.addEventListener('keydown',startMusic);
   if(useIOSWebAudio){
-    const recoverIOSAudio=()=>{resumeSharedAudioContext();if(!menu.classList.contains('hidden'))startMusic();};
+    const recoverIOSAudio=()=>{
+      setIOSAudioSession(iosAudioSessionMode);
+      resumeSharedAudioContext();
+      if(!menu.classList.contains('hidden'))startMusic();
+    };
     document.addEventListener('pointerdown',recoverIOSAudio,{passive:true});
     document.addEventListener('touchend',recoverIOSAudio,{passive:true});
-    document.addEventListener('visibilitychange',()=>{if(!document.hidden)recoverIOSAudio();});
+    document.addEventListener('visibilitychange',()=>{
+      if(document.hidden){
+        const ctx=sharedAudioContext;
+        if(ctx&&ctx.state==='running')ctx.suspend().catch(()=>{});
+      }else recoverIOSAudio();
+    });
     window.addEventListener('pageshow',recoverIOSAudio,{passive:true});
   }
 

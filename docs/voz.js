@@ -121,6 +121,7 @@
         // necesita un elemento <audio>, que puede activar interfaz multimedia
         // del sistema o quedarse bloqueado despues de volver de segundo plano.
         if(this.isIOS&&window.GalaxyAudioBridge){
+          window.GalaxyAudioBridge.setSession?.(this.enabled||this.enabling?'play-and-record':'playback');
           this.audioContext=window.GalaxyAudioBridge.getContext();
           return await window.GalaxyAudioBridge.resume();
         }
@@ -205,6 +206,7 @@
         return false;
       }
       this.enabling=true;
+      if(this.isIOS&&window.GalaxyAudioBridge)window.GalaxyAudioBridge.setSession?.('play-and-record');
       this.setStatus('SOLICITANDO MICROFONO...');
       try{
         // Se ejecuta directamente desde el toque/click de ACTIVAR VOZ. En
@@ -249,6 +251,10 @@
       this.localTrack=null;
       this.localStream=null;
       this.closeAllPeers();
+      if(this.isIOS&&window.GalaxyAudioBridge){
+        window.GalaxyAudioBridge.setSession?.('playback');
+        window.GalaxyAudioBridge.resume?.();
+      }
       this.setStatus('VOZ DESACTIVADA');
       this.refreshUI();
     }
