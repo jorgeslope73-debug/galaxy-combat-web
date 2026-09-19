@@ -52,25 +52,42 @@
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const serverButtons=['cpu','create','join'].map(id=>document.getElementById(id));
   const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
   // Tamano visual de las naves. Solo cambia el dibujo: fisica, colisiones y red quedan iguales.
   const SHIP_DRAW_SIZE=isMobile?86:72;
   const SHIELD_DRAW_RADIUS=isMobile?48:43;
   const voice=typeof window.GalaxyVoice==='function'?new window.GalaxyVoice({send:o=>send(o),isMobile}):null;
+  let backgroundCache=null,backgroundCacheW=0,backgroundCacheH=0;
+  function rebuildBackgroundCache(){
+    const bg=images.bg;
+    if(!imageReady(bg)||!canvas.width||!canvas.height)return;
+    if(backgroundCacheW===canvas.width&&backgroundCacheH===canvas.height&&backgroundCache)return;
+    const cached=document.createElement('canvas');
+    cached.width=canvas.width;cached.height=canvas.height;
+    const c=cached.getContext('2d',{alpha:false});
+    if(!c)return;
+    c.imageSmoothingEnabled=true;
+    try{c.drawImage(bg,0,0,cached.width,cached.height);}catch(_){return;}
+    backgroundCache=cached;backgroundCacheW=cached.width;backgroundCacheH=cached.height;
+  }
   function updateCanvasResolution(){
     const rect=canvas.getBoundingClientRect();
     if(!rect.width||!rect.height)return;
-    // En movil 720p de buffer es suficiente para una pantalla pequena y reduce
-    // a menos de la mitad los pixeles que Canvas debe repintar cada frame.
-    const maxWidth=isMobile?1280:W;
-    const dpr=Math.min(window.devicePixelRatio||1,isMobile?1.35:1.6);
+    // iOS/Safari agradece un buffer algo menor: en una pantalla de telefono
+    // 1.2 pixeles internos por pixel CSS mantiene buena nitidez y reduce el
+    // trabajo de rasterizado por frame. El mundo/fisica sigue en 1920x1080.
+    const maxWidth=isIOS?1152:(isMobile?1280:W);
+    const dpr=Math.min(window.devicePixelRatio||1,isIOS?1.20:(isMobile?1.35:1.6));
     const fitScale=Math.min(1,maxWidth/W,(rect.width*dpr)/W,(rect.height*dpr)/H);
     const safeScale=Math.max(1/3,fitScale);
     const targetW=Math.max(640,Math.min(maxWidth,Math.round((W*safeScale)/2)*2));
     const targetH=Math.round(targetW*H/W);
     if(canvas.width!==targetW||canvas.height!==targetH){
       canvas.width=targetW;canvas.height=targetH;
+      backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;
     }
     renderScale=canvas.width/W;
+    rebuildBackgroundCache();
   }
   let resizeRaf=0;
   function scheduleCanvasResolution(){
@@ -152,7 +169,10 @@
     const im=new Image();
     im.decoding='async';
     im.onerror=()=>reportImageFailure(im);
-    im.onload=()=>{if(typeof im.decode==='function')im.decode().catch(()=>{});};
+    im.onload=()=>{
+      if(typeof im.decode==='function')im.decode().catch(()=>{});
+      if(k==='bg'){backgroundCache=null;backgroundCacheW=0;backgroundCacheH=0;rebuildBackgroundCache();}
+    };
     im.src=url;
     images[k]=im;
   }
@@ -1124,9 +1144,16 @@
     // 1920x1080. En movil el buffer puede ser 1280x720 sin cambiar la fisica.
     ctx.setTransform(1,0,0,1,0,0);
     ctx.globalAlpha=1;
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // El fondo movil se reescala una sola vez al cambiar la resolucion, no en
+    // cada frame. Esto elimina una operacion grande y reduce picos en Safari.
+    if(backgroundCache&&backgroundCacheW===canvas.width&&backgroundCacheH===canvas.height){
+      ctx.drawImage(backgroundCache,0,0);
+    }else{
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.fillStyle='#020714';ctx.fillRect(0,0,canvas.width,canvas.height);
+    }
     ctx.setTransform(renderScale,0,0,renderScale,0,0);
-    if(!drawImageSafely(images.bg,0,0,W,H)){ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);}
+    if(!backgroundCache&&!drawImageSafely(images.bg,0,0,W,H)){ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);}
     if(!state)return;
 
     const now=performance.now();
