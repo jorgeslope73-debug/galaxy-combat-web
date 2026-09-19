@@ -41,6 +41,9 @@
   // La puntuacion real del servidor sigue actualizandose al instante.
   let killScoreHeldValue=null,killScorePendingValue=null;
   let crashScoreFxStart=0,crashScoreFxUntil=0;
+  // En penalizacion mantenemos el valor anterior hasta que termina el aviso.
+  // Entonces aparece la resta junto con el efecto de escala/explosion del HUD.
+  let crashScoreHeldValue=null,crashScorePendingValue=null;
   let penaltyMessageUntil=0;
   let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0;
   let publicRooms=[];
@@ -539,12 +542,14 @@
       } else if(oldLocal&&newLocal&&Number(newLocal.k)<Number(oldLocal.k)){
         killScoreHeldValue=null;
         killScorePendingValue=null;
-        // Penalizacion por estrellarse: el servidor ya ha descontado la baja.
-        // Esta explosion del marcador es exclusivamente local y solo la ve
-        // el jugador al que se le acaba de restar el punto.
-        crashScoreFxStart=now;
-        crashScoreFxUntil=now+950;
+        // El servidor descuenta la baja inmediatamente, pero visualmente primero
+        // mostramos PENALIZACION -1. Durante ese aviso se conserva el valor
+        // anterior; al terminar, aparece la resta con el efecto del HUD.
+        crashScoreHeldValue=Number(oldLocal.k)||0;
+        crashScorePendingValue=Number(newLocal.k)||0;
         penaltyMessageUntil=now+2000;
+        crashScoreFxStart=penaltyMessageUntil;
+        crashScoreFxUntil=crashScoreFxStart+950;
       }
       previousState=state;
       previousStateTime=lastStateTime;
@@ -557,7 +562,7 @@
     else if(m.t==='brutal'){brutalFxStart=performance.now();brutalFxUntil=brutalFxStart+1650;brutalDistance=Number(m.distance)||0;}
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;showVictory(m.winner);}
-    else if(m.t==='restarted'){state=null;previousState=null;lastStateTime=0;previousStateTime=0;rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;victory.classList.add('hidden');beginGame();}
+    else if(m.t==='restarted'){state=null;previousState=null;lastStateTime=0;previousStateTime=0;rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){statusEl.textContent=sinTildes(m.message||'Error');}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
   }
@@ -815,6 +820,19 @@
           }
         }
       }
+      if(p.i===myIndex&&crashScorePendingValue!==null){
+        if(now<crashScoreFxStart){
+          // Mientras se ve PENALIZACION -1, el HUD conserva el valor anterior.
+          displayedKills=crashScoreHeldValue===null?displayedKills:crashScoreHeldValue;
+        }else{
+          // La resta aparece exactamente cuando comienza el efecto del HUD.
+          displayedKills=crashScorePendingValue;
+          if(now>=crashScoreFxUntil){
+            crashScoreHeldValue=null;
+            crashScorePendingValue=null;
+          }
+        }
+      }
       const killText=`${displayedKills}/${state.scoreToWin}`;
       if(localCrashScoreFx){
         // Explosion local del contador cuando una colision propia resta una baja.
@@ -961,7 +979,9 @@
       ctx.textAlign='center';
       ctx.textBaseline='middle';
       ctx.font=isMobile?'900 72px Arial Black,Arial,sans-serif':'900 64px Arial Black,Arial,sans-serif';
-      ctx.globalAlpha=alpha;
+      // BRUTAL conserva el fade de entrada/salida, pero nunca llega a ser
+      // completamente opaco para que no tape la accion.
+      ctx.globalAlpha=alpha*.82;
       ctx.lineWidth=10;
       ctx.strokeStyle='rgba(0,0,0,.86)';
       ctx.shadowColor='rgba(255,85,20,.95)';
@@ -973,7 +993,9 @@
         ctx.shadowBlur=10;
         ctx.font=isMobile?'800 24px Arial,Helvetica,sans-serif':'800 20px Arial,Helvetica,sans-serif';
         ctx.fillStyle='#ffffff';
-        ctx.fillText(Math.round(brutalDistance)+' px',0,58);
+        // Escala fisica del juego: diametro de colision de nave = 48 px = 8 m.
+        const brutalMeters=brutalDistance*(8/48);
+        ctx.fillText(Math.round(brutalMeters)+' m',0,58);
       }
     }finally{ctx.restore();}
   }
