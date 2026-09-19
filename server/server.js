@@ -206,7 +206,7 @@ class GameRoom {
       ws:null, isHost:false, x:0,y:0,rot:0,vx:0,vy:0,
       bullets:1, cadence:30, speed:1, kills:0, deaths:0,
       reload:0, shield:0, camo:0, protection:SPAWN_PROTECTION_SECONDS,
-      dead:false, respawn:0, fireLatch:false, voiceReady:false, lastChatAt:0
+      dead:false, respawn:0, fireLatch:false, voiceReady:false, lastChatAt:0, lastControlAt:Date.now()
     };
   }
 
@@ -448,7 +448,8 @@ class GameRoom {
         if (p.respawn<=0) this.respawnPlayer(p);
         continue;
       }
-      const c=p.cpu ? this.chooseCpuControls(p) : (this.controls.get(p.index)||IDLE_CONTROL);
+      const storedControl=this.controls.get(p.index)||IDLE_CONTROL;
+      const c=p.cpu ? this.chooseCpuControls(p) : ((Date.now()-(p.lastControlAt||0)<=300) ? storedControl : IDLE_CONTROL);
       p.rot=(p.rot+c.turn*240*dt+360)%360;
       const d=dirFromRot(p.rot);
       if(c.thrust){ p.vx+=d.x*(240*p.speed)*dt; p.vy+=d.y*(240*p.speed)*dt; }
@@ -729,7 +730,7 @@ wss.on('connection',ws=>{
       if(room.chatMessages.length>24)room.chatMessages.splice(0,room.chatMessages.length-24);
       broadcast(room,chat);
     } else if(msg.t==='ctrl'){
-      const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);if(!room||!room.started)return;room.controls.set(info.index,{turn:clamp(Number(msg.turn)||0,-1,1),thrust:!!msg.thrust,fire:!!msg.fire});
+      const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);if(!room||!room.started)return;const p=room.players.find(x=>x.index===info.index&&x.ws===ws);if(!p||p.cpu)return;p.lastControlAt=Date.now();room.controls.set(info.index,{turn:clamp(Number(msg.turn)||0,-1,1),thrust:!!msg.thrust,fire:!!msg.fire});
     } else if(msg.t==='voice-ready'){
       const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);const p=room&&room.players.find(x=>x.index===info.index&&x.ws===ws);if(!room||!p||p.cpu)return;
       p.voiceReady=true;
