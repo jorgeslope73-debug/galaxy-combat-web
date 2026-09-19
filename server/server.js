@@ -216,7 +216,7 @@ class GameRoom {
     this.giant = null;
     this.asteroids = [];
     this.nextPickup = 1;
-    this.firstShower = rand(120,300);
+    this.firstShower = rand(120,180);
     this.showerLeft = 0;
     this.nextMeteor = 0;
     this.nextShower = 0;
@@ -297,7 +297,7 @@ class GameRoom {
     this.meteors = [];
     this.giant = null;
     this.nextPickup = 1;
-    this.firstShower = rand(120,300);
+    this.firstShower = rand(120,180);
     this.showerLeft = 0;
     this.nextMeteor = 0;
     this.nextShower = 0;
@@ -683,7 +683,7 @@ class GameRoom {
         this.meteors.push({id:uid(),type:randint(1,3),x:left?-40:W+40,y:rand(40,H-40),vx,vy,angle:rand(0,360)});
         this.nextMeteor+=rand(0.28,0.42);
       }
-      if(this.showerLeft<=0)this.nextShower=rand(120,300);
+      if(this.showerLeft<=0)this.nextShower=rand(120,180);
     }
   }
 
