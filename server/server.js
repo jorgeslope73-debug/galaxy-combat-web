@@ -111,6 +111,20 @@ function activeRoomForIp(ip) {
   if (!room) { activeRoomByIp.delete(ip); return null; }
   return room;
 }
+// Si el creador perdio su WebSocket, conservamos la sala durante la ventana
+// de reconexion. Pero una peticion explicita para CREAR desde la misma IP
+// significa que el usuario ha abandonado esa sesion y quiere empezar otra.
+// En ese caso cerramos la sala huerfana y liberamos la IP inmediatamente.
+function releaseAbandonedRoomForIp(ip) {
+  const room = activeRoomForIp(ip);
+  if (!room) return false;
+  const host = room.players.find(p => !p.cpu && p.isHost);
+  if (!host || host.ws || !host.disconnectedAt) return false;
+  broadcast(room,{t:'closed',reason:'La sala anterior fue reemplazada por una nueva sesion.'});
+  deleteRoom(room.code);
+  broadcastPublicRooms();
+  return true;
+}
 function registerRoomCreator(room, ip) {
   room.creatorIp = ip;
   activeRoomByIp.set(ip, room.code);
@@ -844,9 +858,11 @@ wss.on('connection',(ws,req)=>{
   ws.on('message',raw=>{
     let msg;try{msg=JSON.parse(String(raw));}catch(_){return;}
     if(msg.t==='create'){
+      releaseAbandonedRoomForIp(clientIp);
       if(activeRoomForIp(clientIp)){send(ws,{t:'error',message:'YA TIENES UNA SALA ACTIVA.'});return;}
       const code=roomCode();const room=new GameRoom(code,'online','medio',!!msg.public);rooms.set(code,room);registerRoomCreator(room,clientIp);const p=room.addHuman(ws,msg.name,true);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,public:room.isPublic,playerToken:p.playerToken});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
     } else if(msg.t==='cpu'){
+      releaseAbandonedRoomForIp(clientIp);
       if(activeRoomForIp(clientIp)){send(ws,{t:'error',message:'YA TIENES UNA SALA ACTIVA.'});return;}
       const code=roomCode();const room=new GameRoom(code,'cpu',String(msg.difficulty||'dificil'));rooms.set(code,room);registerRoomCreator(room,clientIp);const p=room.addHuman(ws,msg.name,true);room.addCpu('CPU',room.difficulty);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,cpu:true,playerToken:p.playerToken});room.start();
     } else if(msg.t==='join'){
