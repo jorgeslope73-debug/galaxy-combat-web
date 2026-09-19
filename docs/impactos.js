@@ -67,7 +67,17 @@
         this.reset(); this.room = snapshot.code;
       }
       if (Number.isFinite(snapshot.seq)) {
-        if (snapshot.seq <= this.lastSeq) return;
+        // WebSocket preserves message order. A lower sequence therefore means
+        // the room started a new match/epoch (restart() resets seq and fx ids).
+        // Clear the dedup history immediately so new impacts are not mistaken
+        // for old events from the previous match.
+        if (snapshot.seq < this.lastSeq) {
+          this.bursts = [];
+          this.seen.clear();
+          this.previousPlayers.clear();
+          this.lastSeq = -1;
+        }
+        if (snapshot.seq === this.lastSeq) return;
         this.lastSeq = snapshot.seq;
       }
       const serverExplosions = new Set();
