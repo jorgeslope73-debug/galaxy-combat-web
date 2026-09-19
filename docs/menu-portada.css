@@ -498,6 +498,6 @@
   #menu #enableVoice,#menu #enableMotion{width:100%!important;min-width:0!important;max-width:none!important;height:38px!important;min-height:38px!important;margin:0!important;padding:5px 7px!important;font-size:10px!important;line-height:1.15!important;white-space:normal!important}
   #menu .voice-status{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap}
   #menu .mobile-setup .mobile-row{display:block;width:100%}
-  #menu .mobile-setup .motion-status{position:absolute;width:min(92vw,380px);left:50%;transform:translateX(-50%);margin-top:5px;text-align:center;font-size:10px;pointer-events:none}
-  #menu .mobile-guide-main{display:block;font-size:10px!important}
+  #menu .mobile-guide-main{display:block;font-size:10px!important;margin-bottom:0}
+  #menu .mobile-motion-status{position:static!important;width:min(92vw,380px);margin:3px auto 0!important;transform:none!important;text-align:center;font-size:10px!important;line-height:1.25!important;pointer-events:none;color:#e1c5f2}
 }

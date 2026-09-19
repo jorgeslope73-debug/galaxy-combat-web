@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#10051e">
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
-<link rel="stylesheet" href="style.css?v=V4-hud-rightnames-20260919">
-<link rel="stylesheet" href="menu-portada.css?v=V4-hud-rightnames-20260919">
-<link rel="stylesheet" href="voz.css?v=V4-hud-rightnames-20260919">
+<link rel="stylesheet" href="style.css?v=V5-calibration-below-guide-20260919">
+<link rel="stylesheet" href="menu-portada.css?v=V5-calibration-below-guide-20260919">
+<link rel="stylesheet" href="voz.css?v=V5-calibration-below-guide-20260919">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
 #lobby.lobby-with-chat{width:min(620px,92vw);max-height:min(760px,88vh);overflow:hidden}
@@ -44,7 +44,7 @@
 </head>
 <body>
 <div id="app">
-  <div id="buildVersion" aria-label="Version del juego">V4</div>
+  <div id="buildVersion" aria-label="Version del juego">V5</div>
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
@@ -126,11 +126,11 @@
                 <div class="mobile-row">
                   <button id="enableMotion" type="button">ACTIVAR CONTROL MOVIL</button>
                 </div>
-                <p id="motionStatus" class="motion-status" aria-live="polite"></p>
               </div>
             </div>
             <p class="help desktop-help menu-keys"><span>GIRAR <b>A / D</b> o flechas</span><i aria-hidden="true"></i><span>ACELERAR <b>W / ARRIBA</b></span><i aria-hidden="true"></i><span>DISPARAR <b>CTRL / ESPACIO</b></span></p>
             <p class="help mobile-guide mobile-guide-main">Inclina para girar &middot; izquierda: disparo &middot; derecha: acelerar.</p>
+            <p id="motionStatus" class="motion-status mobile-motion-status" aria-live="polite"></p>
           </div>
           <footer class="menu-credit">BY <strong>JORGE LOPEZ DIAZ</strong></footer>
         </div>
@@ -170,8 +170,8 @@
   <button id="mobileExit" class="mobile-exit hidden" type="button" aria-label="Salir de la partida y volver al inicio">SALIR</button>
 </div>
 <script src="config.js"></script>
-<script src="impactos.js?v=V4-hud-rightnames-20260919"></script>
-<script src="voz.js?v=V4-hud-rightnames-20260919"></script>
-<script src="game.js?v=V4-hud-rightnames-20260919"></script>
+<script src="impactos.js?v=V5-calibration-below-guide-20260919"></script>
+<script src="voz.js?v=V5-calibration-below-guide-20260919"></script>
+<script src="game.js?v=V5-calibration-below-guide-20260919"></script>
 </body>
 </html>
