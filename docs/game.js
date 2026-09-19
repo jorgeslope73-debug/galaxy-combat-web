@@ -66,7 +66,14 @@
     cached.width=canvas.width;cached.height=canvas.height;
     const c=cached.getContext('2d',{alpha:false});
     if(!c)return;
+    c.setTransform(1,0,0,1,0,0);
+    c.globalAlpha=1;
+    c.globalCompositeOperation='source-over';
     c.imageSmoothingEnabled=true;
+    // Cubrir siempre todo el backing canvas antes de cachear el fondo. Esto
+    // evita que Safari/iPadOS pueda conservar pixeles de un buffer anterior.
+    c.fillStyle='#020714';
+    c.fillRect(0,0,cached.width,cached.height);
     try{c.drawImage(bg,0,0,cached.width,cached.height);}catch(_){return;}
     backgroundCache=cached;backgroundCacheW=cached.width;backgroundCacheH=cached.height;
   }
@@ -1144,12 +1151,21 @@
     // 1920x1080. En movil el buffer puede ser 1280x720 sin cambiar la fisica.
     ctx.setTransform(1,0,0,1,0,0);
     ctx.globalAlpha=1;
+    ctx.globalCompositeOperation='source-over';
+    ctx.filter='none';
+    ctx.shadowColor='rgba(0,0,0,0)';
+    ctx.shadowBlur=0;
+    ctx.shadowOffsetX=0;
+    ctx.shadowOffsetY=0;
+    // Safari/iPadOS puede conservar restos visuales si solo cubrimos el frame
+    // anterior con otra imagen. Limpiamos SIEMPRE el backing canvas completo
+    // en coordenadas fisicas antes de dibujar el nuevo frame.
+    ctx.clearRect(0,0,canvas.width,canvas.height);
     // El fondo movil se reescala una sola vez al cambiar la resolucion, no en
-    // cada frame. Esto elimina una operacion grande y reduce picos en Safari.
+    // cada frame. El cache tiene exactamente el tamano del backing canvas.
     if(backgroundCache&&backgroundCacheW===canvas.width&&backgroundCacheH===canvas.height){
-      ctx.drawImage(backgroundCache,0,0);
+      ctx.drawImage(backgroundCache,0,0,canvas.width,canvas.height);
     }else{
-      ctx.clearRect(0,0,canvas.width,canvas.height);
       ctx.fillStyle='#020714';ctx.fillRect(0,0,canvas.width,canvas.height);
     }
     ctx.setTransform(renderScale,0,0,renderScale,0,0);
