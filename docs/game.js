@@ -1090,13 +1090,7 @@
   }
   function drawGhostStatus(now){
     if(!state||!Array.isArray(state.players))return;
-    const ghosts=state.players.filter(p=>{
-      if(!(Number(p&&p.camo)>0))return false;
-      // La pastilla solo se ve mientras la nave esta realmente oculta.
-      // Durante la revelacion periodica desaparece para no duplicar la pista.
-      if(p.i!==myIndex&&ghostRevealState(p,now).revealed)return false;
-      return true;
-    });
+    const ghosts=state.players.filter(p=>Number(p&&p.camo)>0);
     if(!ghosts.length)return;
 
     const fontSize=isMobile?27:21;
@@ -1105,7 +1099,8 @@
     const gap=isMobile?10:8;
     const totalW=ghosts.length*pillW+(ghosts.length-1)*gap;
     let x=W/2-totalW/2+pillW/2;
-    const y=232;
+    // Pegada al borde superior, con un margen minimo para no recortarla.
+    const y=(pillH/2)+8;
 
     ctx.save();
     try{
