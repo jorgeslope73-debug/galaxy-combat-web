@@ -630,7 +630,16 @@
     let alpha=1;
     if(p.camo>0&&local){alpha=.42;if(p.camo<=3)alpha=(Math.floor(now/160)%2===0)?.55:.22;}
     if(p.prot>0)alpha*=spawnProtectionAlpha(p.prot);
-    if(p.shield>0){ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle='rgba(130,245,255,.95)';ctx.fillStyle='rgba(80,220,255,.12)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x,y,SHIELD_DRAW_RADIUS,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();}
+    if(p.shield>0){
+      let shieldAlpha=alpha;
+      // Aviso visual en los ultimos 3 segundos: el escudo parpadea suavemente
+      // sin modificar su duracion ni la proteccion real en el servidor.
+      if(p.shield<=3){
+        const shieldPulse=.38+.62*(.5+.5*Math.sin(now*.012));
+        shieldAlpha*=shieldPulse;
+      }
+      ctx.save();ctx.globalAlpha=shieldAlpha;ctx.strokeStyle='rgba(130,245,255,.95)';ctx.fillStyle='rgba(80,220,255,.12)';ctx.lineWidth=4;ctx.beginPath();ctx.arc(x,y,SHIELD_DRAW_RADIUS,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.restore();
+    }
     // Python: armado = balas > 0 y recarga terminada. El servidor confirma
     // ese estado; no cambiamos el movimiento ni el efecto de propulsion web.
     const shipKey=`ship${p.i+1}`;
