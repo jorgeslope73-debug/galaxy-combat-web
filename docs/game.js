@@ -656,11 +656,19 @@
     }
     if(max<=0||tied)leader=null;
     state.players.forEach(p=>{
-      const left=p.i%2===0,top=p.i<2;const px=left?10:W-216,py=top?5:H-190;const color=playerColors[p.i];
-      const panel=images[left?'pantA':'pantB'];drawImageSafely(panel,px,py,128,153);
-      ctx.font='20px Flashback,Arial';ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(`J${p.i+1} · ${sinTildes(p.n)}`,px+64,py+157);ctx.globalAlpha=1;
-      const tx=left?60:W-170;ctx.textAlign='left';ctx.fillStyle=color;ctx.fillText(String(p.ammo),tx,py+15);ctx.fillText('x'+p.spd,tx,py+80);ctx.fillText(`${p.k}/${state.scoreToWin}`,tx,py+115);
-      ctx.fillStyle='#be0000';ctx.fillRect(tx,py+53,Math.max(0,(30-p.cad)*2.3),7);ctx.fillRect(tx,py+105,67*clamp((p.spd-1),0,1),7);
+      // En movil ampliamos solo el HUD para que siga siendo legible al mostrar
+      // todo el campo 16:9. En PC la escala es 1 y conserva exactamente el
+      // tamano y las posiciones originales.
+      const hudScale=isMobile?1.30:1;
+      const panelW=128*hudScale,panelH=153*hudScale;
+      const left=p.i%2===0,top=p.i<2;
+      const px=left?10:W-88-panelW;
+      const py=top?5:H-33-157*hudScale;
+      const color=playerColors[p.i];
+      const panel=images[left?'pantA':'pantB'];drawImageSafely(panel,px,py,panelW,panelH);
+      ctx.font=`${20*hudScale}px Flashback,Arial`;ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(`J${p.i+1} · ${sinTildes(p.n)}`,px+64*hudScale,py+157*hudScale);ctx.globalAlpha=1;
+      const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);ctx.fillText(`${p.k}/${state.scoreToWin}`,tx,py+115*hudScale);
+      ctx.fillStyle='#be0000';ctx.fillRect(tx,py+53*hudScale,Math.max(0,(30-p.cad)*2.3*hudScale),7*hudScale);ctx.fillRect(tx,py+105*hudScale,67*clamp((p.spd-1),0,1)*hudScale,7*hudScale);
     });
   }
   function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
