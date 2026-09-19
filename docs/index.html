@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#10051e">
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
 <link rel="stylesheet" href="style.css?v=perf-final-20260918-1">
@@ -27,10 +27,11 @@
 #lobby #lobbyChatSend{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:0!important;max-width:max-content!important;flex:none!important;min-height:36px!important;height:36px!important;padding:5px 10px!important;margin:0!important;font-size:10px!important;white-space:nowrap!important}
 .lobby-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:5px}
 @media (max-width:760px){
+  html,body{touch-action:manipulation;overscroll-behavior:none}
   #lobby.lobby-with-chat{width:min(96vw,620px);max-height:92vh;padding:12px}
   .lobby-chat{margin-top:8px}.lobby-chat-log{height:112px;padding:7px 8px}
   .lobby-chat-line{font-size:11px;margin-bottom:4px}.lobby-chat-title{font-size:10px}
-  #lobby #lobbyChatInput{height:33px!important;font-size:10px!important}#lobby .lobby-chat-compose{gap:5px!important}#lobby #lobbyChatSend{height:33px!important;min-height:33px!important;padding:4px 8px!important;font-size:8px!important}
+  #lobby #lobbyChatInput{height:38px!important;font-size:16px!important;line-height:1.2!important;touch-action:manipulation!important}#lobby .lobby-chat-compose{gap:5px!important;touch-action:manipulation!important}#lobby #lobbyChatSend{height:38px!important;min-height:38px!important;padding:4px 8px!important;font-size:9px!important;touch-action:manipulation!important}
 }
 
 /* El credito del autor solo se muestra en el menu principal. */
