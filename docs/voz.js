@@ -117,6 +117,13 @@
       const Ctx=window.AudioContext||window.webkitAudioContext;
       if(!Ctx)return false;
       try{
+        // En iOS compartimos el AudioContext del juego. Asi la voz remota no
+        // necesita un elemento <audio>, que puede activar interfaz multimedia
+        // del sistema o quedarse bloqueado despues de volver de segundo plano.
+        if(this.isIOS&&window.GalaxyAudioBridge){
+          this.audioContext=window.GalaxyAudioBridge.getContext();
+          return await window.GalaxyAudioBridge.resume();
+        }
         if(!this.audioContext)this.audioContext=new Ctx();
         if(this.audioContext.state==='suspended')await this.audioContext.resume();
         return this.audioContext.state==='running';
@@ -163,6 +170,15 @@
     }
 
     async retryRemotePlayback(){
+      // iPhone/iPad: una sola ruta de salida, Web Audio. No creamos ni
+      // reintentamos elementos <audio>, evitando duplicados y bloqueos.
+      if(this.isIOS){
+        for(const [id,stream] of this.remoteStreams){
+          if(this.ensureWebAudioRemote(id,stream))this.playbackBlocked.delete(id);
+          else this.playbackBlocked.add(id);
+        }
+        return;
+      }
       for(const [id,audio] of this.remoteAudio){
         if(!audio||!audio.srcObject)continue;
         try{
@@ -391,7 +407,35 @@
 
     attachRemoteAudio(id,stream){
       if(!stream)return;
+
+      // Si cambia el MediaStream de un peer, desconectamos la fuente anterior.
+      const oldStream=this.remoteStreams.get(id);
+      if(oldStream&&oldStream!==stream){
+        const node=this.remoteAudioNodes.get(id);
+        if(node){try{node.source.disconnect();}catch(_){}try{node.gain.disconnect();}catch(_){}this.remoteAudioNodes.delete(id);}
+      }
       this.remoteStreams.set(id,stream);
+
+      // iOS: Web Audio es la unica salida. Esto evita que Safari abra o
+      // mantenga interfaz multimedia por un <audio> oculto y elimina la
+      // carrera entre audio.play() y createMediaStreamSource().
+      if(this.isIOS){
+        if(this.ensureWebAudioRemote(id,stream)){
+          this.playbackBlocked.delete(id);
+        }else{
+          this.playbackBlocked.add(id);
+          this.resumeAudioOutput().then(ok=>{
+            if(ok&&this.ensureWebAudioRemote(id,stream)){
+              this.playbackBlocked.delete(id);
+              if(this.enabled)this.setStatus('VOZ ACTIVADA');
+            }else{
+              this.setStatus('TOCA LA PANTALLA PARA ACTIVAR EL AUDIO');
+            }
+          });
+        }
+        return;
+      }
+
       let audio=this.remoteAudio.get(id);
       if(!audio){
         audio=document.createElement('audio');
@@ -411,8 +455,6 @@
       }
       if(audio.srcObject!==stream)audio.srcObject=stream;
 
-      // Camino normal. Si Safari lo bloquea, el AudioContext ya preparado al
-      // pulsar ACTIVAR VOZ reproduce el mismo MediaStream como respaldo.
       try{
         const p=audio.play();
         if(p&&typeof p.then==='function'){
@@ -422,9 +464,7 @@
             if(node){try{node.source.disconnect();}catch(_){}try{node.gain.disconnect();}catch(_){}this.remoteAudioNodes.delete(id);}
           }).catch(()=>{
             this.playbackBlocked.add(id);
-            if(!this.ensureWebAudioRemote(id,stream)){
-              this.setStatus('TOCA LA PANTALLA PARA ACTIVAR EL AUDIO');
-            }
+            if(!this.ensureWebAudioRemote(id,stream))this.setStatus('TOCA LA PANTALLA PARA ACTIVAR EL AUDIO');
           });
         }
       }catch(_){
