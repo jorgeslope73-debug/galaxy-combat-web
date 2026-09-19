@@ -333,7 +333,35 @@ class GameRoom {
     let seekPickup=null;
 
     const dangerousCamo = rival.shield>0;
-    if (dangerousCamo) {
+    const difficultNoAmmo = cpu.difficulty==='dificil' && cpu.bullets===0;
+
+    // En DIFICIL, quedarse sin balas cambia por completo la prioridad:
+    // 1) buscar la municion mas cercana; 2) mantenerse lejos del rival.
+    // No persigue otras mejoras hasta volver a estar armado.
+    if (difficultNoAmmo) {
+      let bestD2=Infinity;
+      for(const pk of this.pickups){
+        if(!pk.type.startsWith('ammo'))continue;
+        const d2=dist2(cpu,pk);
+        if(d2<bestD2){bestD2=d2;seekPickup=pk;}
+      }
+      if (seekPickup) {
+        desiredX=seekPickup.x;
+        desiredY=seekPickup.y;
+        // Si el rival esta cerca, sesga la ruta hacia el lado contrario sin
+        // dejar de tener la municion como objetivo principal.
+        if(distance<700){
+          const inv=1/(distance||1);
+          const flee=(700-distance)*0.75;
+          desiredX+=(cpu.x-rival.x)*inv*flee;
+          desiredY+=(cpu.y-rival.y)*inv*flee;
+        }
+      } else {
+        // Si no hay municion flotando, huye hasta que aparezca alguna.
+        desiredX=cpu.x-dx*2;
+        desiredY=cpu.y-dy*2;
+      }
+    } else if (dangerousCamo) {
       let bestD2=Infinity;
       for(const pk of this.pickups){
         if(pk.type!=='shield'&&!pk.type.startsWith('ammo'))continue;
