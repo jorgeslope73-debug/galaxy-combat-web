@@ -898,7 +898,7 @@
     try{
       ctx.translate(W/2,105);
       ctx.scale(pulse,pulse);
-      ctx.font='26px Flashback,Arial';
+      ctx.font=isMobile?'34px Flashback,Arial':'26px Flashback,Arial';
       ctx.textAlign='center';
       ctx.textBaseline='middle';
       ctx.globalAlpha=alpha;
@@ -921,7 +921,7 @@
     const color=playerColors[leaderAnnouncement.i]||'#fff';
     ctx.save();
     try{
-      ctx.font='27px Flashback,Arial';
+      ctx.font=isMobile?'36px Flashback,Arial':'27px Flashback,Arial';
       ctx.textAlign='center';
       ctx.textBaseline='middle';
       ctx.fillStyle=color;
@@ -942,13 +942,13 @@
     try{
       // El alpha va directamente en el color para que la transparencia sea
       // inequívoca en Safari/iOS. Sin sombra, que hacía parecer el texto más opaco.
-      ctx.font='800 30px Arial,Helvetica,sans-serif';
+      ctx.font='800 36px Arial,Helvetica,sans-serif';
       ctx.textAlign='center';
       ctx.textBaseline='middle';
       ctx.globalAlpha=1;
       ctx.shadowColor='transparent';
       ctx.shadowBlur=0;
-      ctx.fillStyle='rgba(255,255,255,0.50)';
+      ctx.fillStyle='rgba(255,255,255,0.20)';
       // Al pulsar una zona no reducimos el alpha: simplemente no dibujamos
       // ese texto, así desaparece completamente.
       if(!mobileFire)ctx.fillText('DISPARO',W*.24,H-72);
@@ -1053,7 +1053,7 @@
       const pulse=.58+.42*(.5+.5*Math.sin(performance.now()*.005));
       ctx.save();
       ctx.globalAlpha=pulse;
-      ctx.font='22px Flashback,Arial';
+      ctx.font=isMobile?'30px Flashback,Arial':'22px Flashback,Arial';
       ctx.textAlign='center';
       ctx.fillStyle='rgb(255,170,70)';
       ctx.shadowColor='rgba(255,135,35,.65)';
