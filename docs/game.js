@@ -42,6 +42,7 @@
   let killScoreHeldValue=null,killScorePendingValue=null;
   let crashScoreFxStart=0,crashScoreFxUntil=0;
   let penaltyMessageUntil=0;
+  let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0;
   let publicRooms=[];
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
@@ -553,9 +554,10 @@
       syncVoicePlayers(m.players);
       if(!inGame&&m.started&&!m.finished)beginGame();
     }
+    else if(m.t==='brutal'){brutalFxStart=performance.now();brutalFxUntil=brutalFxStart+1650;brutalDistance=Number(m.distance)||0;}
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;showVictory(m.winner);}
-    else if(m.t==='restarted'){state=null;previousState=null;lastStateTime=0;previousStateTime=0;rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;penaltyMessageUntil=0;victory.classList.add('hidden');beginGame();}
+    else if(m.t==='restarted'){state=null;previousState=null;lastStateTime=0;previousStateTime=0;rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){statusEl.textContent=sinTildes(m.message||'Error');}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
   }
@@ -863,21 +865,44 @@
         // evidente: entrada rapida, gran escala, dos pulsos y brillo fuerte.
         // La animacion completa dura dos segundos.
         const t=clamp(scoreFxElapsed/2000,0,1);
-        const appear=clamp(scoreFxElapsed/220,0,1);
-        const settle=1-Math.pow(1-t,2);
-        const pulse=.5+.5*Math.sin(scoreFxElapsed*.012);
-        const envelope=(1-t);
-        const scale=(.72+1.05*appear) + .48*envelope*pulse - .17*settle;
+        const intro=clamp(scoreFxElapsed/160,0,1);
+        const after=clamp((scoreFxElapsed-160)/1840,0,1);
+        const introEase=1-Math.pow(1-intro,3);
+        // V16.4.6: pop mucho mas exagerado. El numero entra pequeno y salta
+        // hasta unas 3 veces su tamano antes de asentarse con rebotes visibles.
+        let scale=.42+2.58*introEase;
+        if(scoreFxElapsed>=160){
+          const elastic=Math.exp(-after*4.1)*(0.55+0.45*Math.cos(after*18));
+          scale=1+2.0*elastic;
+        }
+        const pulse=.5+.5*Math.sin(scoreFxElapsed*.018);
+        const envelope=1-t;
         const kx=tx,ky=py+115*hudScale;
         ctx.save();
         ctx.translate(kx,ky);
         ctx.scale(scale,scale);
         ctx.shadowColor=color;
-        ctx.shadowBlur=(22+48*envelope*(.55+.45*pulse))*hudScale;
+        ctx.shadowBlur=(34+74*envelope*(.55+.45*pulse))*hudScale;
         ctx.fillStyle=color;
-        ctx.globalAlpha=.9+.1*pulse;
+        ctx.globalAlpha=.94+.06*pulse;
         ctx.fillText(killText,0,0);
         ctx.restore();
+
+        // Anillo expansivo adicional para remarcar el momento exacto del cambio.
+        if(scoreFxElapsed<720){
+          const rt=clamp(scoreFxElapsed/720,0,1);
+          ctx.save();
+          ctx.translate(kx,ky+7*hudScale);
+          ctx.globalAlpha=(1-rt)*.72;
+          ctx.strokeStyle=color;
+          ctx.lineWidth=3*hudScale;
+          ctx.shadowColor=color;
+          ctx.shadowBlur=22*hudScale*(1-rt);
+          ctx.beginPath();
+          ctx.arc(0,0,(12+58*rt)*hudScale,0,Math.PI*2);
+          ctx.stroke();
+          ctx.restore();
+        }
       }else{
         ctx.fillText(killText,tx,py+115*hudScale);
       }
@@ -913,6 +938,44 @@
     }finally{
       ctx.restore();
     }
+  }
+
+  function drawBrutalAnnouncement(now){
+    if(!brutalFxUntil||now>=brutalFxUntil)return;
+    const age=now-brutalFxStart;
+    const total=1650;
+    const t=clamp(age/total,0,1);
+    const fadeIn=clamp(age/120,0,1);
+    const fadeOut=clamp((total-age)/320,0,1);
+    const alpha=Math.min(fadeIn,fadeOut);
+    const intro=clamp(age/180,0,1);
+    const introEase=1-Math.pow(1-intro,3);
+    const wobble=Math.sin(age*.035)*Math.max(0,1-t)*.055;
+    const scale=(.28+1.72*introEase)*(1+wobble);
+    const y=H*.43-Math.min(32,age*.025);
+    ctx.save();
+    try{
+      ctx.translate(W/2,y);
+      ctx.rotate(Math.sin(age*.025)*.025*(1-t));
+      ctx.scale(scale,scale);
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.font=isMobile?'900 72px Arial Black,Arial,sans-serif':'900 64px Arial Black,Arial,sans-serif';
+      ctx.globalAlpha=alpha;
+      ctx.lineWidth=10;
+      ctx.strokeStyle='rgba(0,0,0,.86)';
+      ctx.shadowColor='rgba(255,85,20,.95)';
+      ctx.shadowBlur=34+28*(1-t);
+      ctx.fillStyle='#ffdb35';
+      ctx.strokeText('BRUTAL',0,0);
+      ctx.fillText('BRUTAL',0,0);
+      if(brutalDistance>0){
+        ctx.shadowBlur=10;
+        ctx.font=isMobile?'800 24px Arial,Helvetica,sans-serif':'800 20px Arial,Helvetica,sans-serif';
+        ctx.fillStyle='#ffffff';
+        ctx.fillText(Math.round(brutalDistance)+' px',0,58);
+      }
+    }finally{ctx.restore();}
   }
 
   function drawLeaderAnnouncement(now){
@@ -1072,6 +1135,7 @@
     drawHud(now);
     drawPenaltyAnnouncement(now);
     drawLeaderAnnouncement(now);
+    drawBrutalAnnouncement(now);
     if(state.shower>0){
       const pulse=.58+.42*(.5+.5*Math.sin(performance.now()*.005));
       ctx.save();
