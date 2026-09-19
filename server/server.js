@@ -261,6 +261,58 @@ class GameRoom {
     return true;
   }
 
+
+  restart() {
+    if (!this.finished || !this.canStart()) return false;
+
+    this.started = false;
+    this.finished = false;
+    this.winner = null;
+    this.seq = 0;
+    this.fxClock = 0;
+    this.fxSeq = 0;
+    this.fxEvents = [];
+    this.fxLastHit.clear();
+    this.bullets = [];
+    this.pickups = [];
+    this.meteors = [];
+    this.giant = null;
+    this.nextPickup = 1;
+    this.firstShower = rand(30,40);
+    this.showerLeft = 0;
+    this.nextMeteor = 0;
+    this.nextShower = 0;
+    this.noDeathTime = 0;
+    this.nextGiant = rand(50,80);
+    this.resetAsteroids();
+
+    // Marcamos a todos temporalmente como muertos para que el primer spawn
+    // no considere las posiciones antiguas de los demas jugadores.
+    for (const p of this.players) p.dead = true;
+    for (const p of this.players) {
+      p.bullets = 1;
+      p.cadence = 30;
+      p.speed = 1;
+      p.kills = 0;
+      p.deaths = 0;
+      p.reload = 0;
+      p.shield = 0;
+      p.camo = 0;
+      p.protection = SPAWN_PROTECTION_SECONDS;
+      p.respawn = 0;
+      p.fireLatch = false;
+      p.lastControlAt = Date.now();
+      p.lastSpawn = null;
+      this.controls.set(p.index, { turn:0, thrust:false, fire:false });
+      this.placeAtSpawn(p);
+      p.dead = false;
+    }
+
+    this.started = true;
+    broadcast(this, { t:'restarted', code:this.code });
+    return true;
+  }
+
   emitShipImpact(player, source=null, destroyed=false) {
     if (!player || !Number.isFinite(player.x) || !Number.isFinite(player.y)) return;
     if (player.dead && !destroyed) return;
@@ -760,6 +812,9 @@ wss.on('connection',(ws,req)=>{
       const code=String(msg.code||'').trim().toUpperCase();const room=rooms.get(code);if(!room||room.started||room.mode!=='online'){send(ws,{t:'error',message:'Sala no disponible.'});return;}const p=room.addHuman(ws,msg.name,false);if(!p){send(ws,{t:'error',message:'Sala llena.'});return;}clientInfo.set(ws,{code,index:p.index});send(ws,{t:'joined',code,index:p.index,public:room.isPublic});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
     } else if(msg.t==='start'){
       const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);const p=room&&room.players.find(x=>x.ws===ws);if(room&&p&&p.isHost&&room.start())broadcastPublicRooms();
+    } else if(msg.t==='restart'){
+      const info=clientInfo.get(ws);const room=info&&rooms.get(info.code);const p=room&&room.players.find(x=>x.index===info.index&&x.ws===ws);
+      if(room&&p&&!p.cpu&&room.finished&&room.restart())broadcastPublicRooms();
     } else if(msg.t==='public-rooms'){
       sendPublicRooms(ws);
     } else if(msg.t==='chat'){
