@@ -257,6 +257,10 @@ class GameRoom {
     victim.respawn = 0.7;
     victim.vx = victim.vy = 0;
     victim.deaths++;
+    // Castigo por estrellarse o morir contra un peligro del escenario:
+    // pierde una baja conseguida, pero la puntuacion nunca baja de cero.
+    // Si existe un atacante real, la muerte sigue contando de la forma normal.
+    if (!attacker || attacker === victim) victim.kills = Math.max(0, victim.kills - 1);
     victim.bullets = 0;
     victim.cadence = 30;
     victim.speed = 1;
