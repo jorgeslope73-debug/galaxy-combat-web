@@ -20,7 +20,12 @@
   let publicRooms=[];
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
   const serverButtons=['cpu','create','join'].map(id=>document.getElementById(id));
-  const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+  const ua=String(navigator.userAgent||'');
+  const isIOS=/iPhone|iPad|iPod/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  const isAndroid=/Android/i.test(ua);
+  const uaDataMobile=Boolean(navigator.userAgentData&&navigator.userAgentData.mobile===true);
+  const isMobile=isIOS||isAndroid||uaDataMobile;
+  document.documentElement.classList.toggle('mobile-device',isMobile);
   // Tamano visual de las naves. Solo cambia el dibujo: fisica, colisiones y red quedan iguales.
   const SHIP_DRAW_SIZE=isMobile?86:72;
   const SHIELD_DRAW_RADIUS=isMobile?48:43;
@@ -123,10 +128,28 @@
   const playSound=k=>audio&&audio.playSound(k);
   const startMusic=()=>audio&&audio.startMusic();
   const stopMusic=()=>audio&&audio.stopMusic();
-  const renderUtils=window.GalaxyRenderUtils&&window.GalaxyRenderUtils.create?window.GalaxyRenderUtils.create({ctx,W,H,reportImageFailure}):null;
-  const {imageReady,drawImageSafely,drawImageCentered,clamp,lerp,lerpAngle,lerpWrapped}=renderUtils;
-  const interpolationAlphaFor=(now)=>renderUtils.interpolationAlpha(previousState,state,lastStateTime,previousStateTime,now,NET_FRAME_MS);
-  const hudRenderer=window.GalaxyHud&&window.GalaxyHud.create?window.GalaxyHud.create({ctx,W,H,isMobile,images,playerColors,drawImageSafely,hudPlayerName,clamp}):null;
+  function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+  function imageReady(im){return Boolean(im&&im.complete&&im.naturalWidth>0&&im.naturalHeight>0);}
+  function drawImageSafely(im,x,y,width,height){
+    if(!imageReady(im))return false;
+    try{if(width===undefined)ctx.drawImage(im,x,y);else ctx.drawImage(im,x,y,width,height);return true;}
+    catch(error){reportImageFailure(im,error);return false;}
+  }
+  function drawImageCentered(im,x,y,size,rot=0,alpha=1){
+    if(!imageReady(im)||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(rot))return false;
+    ctx.save();
+    try{ctx.globalAlpha=alpha;ctx.translate(x,y);ctx.rotate(rot*Math.PI/180);if(size)return drawImageSafely(im,-size/2,-size/2,size,size);return drawImageSafely(im,-im.naturalWidth/2,-im.naturalHeight/2);}
+    finally{ctx.restore();}
+  }
+  function lerp(a,b,t){return a+(b-a)*t;}
+  function lerpAngle(a,b,t){const delta=((b-a+540)%360)-180;return (a+delta*t+360)%360;}
+  function lerpWrapped(a,b,size,t){let delta=b-a;if(delta>size/2)delta-=size;else if(delta<-size/2)delta+=size;return (a+delta*t+size)%size;}
+  function interpolationAlphaFor(now){
+    if(!previousState||previousState===state||!lastStateTime)return 1;
+    const measured=lastStateTime-previousStateTime;
+    const frameMs=clamp(Number.isFinite(measured)&&measured>0?measured:NET_FRAME_MS,20,80);
+    return clamp((now-lastStateTime)/frameMs,0,1);
+  }
 
 
 
@@ -422,7 +445,121 @@
     // dibujamos con -rot. Asi el morro coincide exactamente con el avance.
     drawImageCentered(im,x,y,SHIP_DRAW_SIZE,-r,alpha);
   }
-  function drawHud(now){if(hudRenderer)hudRenderer.draw({state,now,myIndex,fx:{killHudFlashStart,killHudFlashUntil,killScoreFxStart,killScoreFxUntil,crashScoreFxStart,crashScoreFxUntil}});}
+  function drawHud(now){
+    if(!state)return;
+    let max=0,leader=null,tied=false;
+    for(const p of state.players){
+      const score=Number(p.k)||0;
+      if(score>max){max=score;leader=p.i;tied=false;}
+      else if(score===max&&score>0){tied=true;}
+    }
+    if(max<=0||tied)leader=null;
+    state.players.forEach(p=>{
+      // En movil ampliamos solo el HUD para que siga siendo legible al mostrar
+      // todo el campo 16:9. En PC la escala es 1 y conserva exactamente el
+      // tamano y las posiciones originales.
+      const hudScale=isMobile?1.48:1;
+      const panelW=128*hudScale,panelH=153*hudScale;
+      const left=p.i%2===0,top=p.i<2;
+      const px=left?10:W-88-panelW;
+      const py=top?5:H-33-157*hudScale;
+      const color=playerColors[p.i];
+      const localKillFlash=p.i===myIndex&&now<killHudFlashUntil;
+      const flashElapsed=localKillFlash?Math.max(0,now-killHudFlashStart):0;
+      const localKillScoreFx=p.i===myIndex&&now>=killScoreFxStart&&now<killScoreFxUntil;
+      const scoreFxElapsed=localKillScoreFx?Math.max(0,now-killScoreFxStart):0;
+      const localCrashScoreFx=p.i===myIndex&&now>=crashScoreFxStart&&now<crashScoreFxUntil;
+      const crashFxElapsed=localCrashScoreFx?Math.max(0,now-crashScoreFxStart):0;
+      const panel=images[left?'pantA':'pantB'];
+      if(localKillFlash){
+        const flash=1-flashElapsed/450;
+        ctx.save();
+        ctx.shadowColor=color;
+        ctx.shadowBlur=34*flash*hudScale;
+        ctx.globalAlpha=1;
+        drawImageSafely(panel,px,py,panelW,panelH);
+        ctx.globalCompositeOperation='screen';
+        ctx.globalAlpha=.32*flash;
+        drawImageSafely(panel,px,py,panelW,panelH);
+        ctx.restore();
+      }else{
+        drawImageSafely(panel,px,py,panelW,panelH);
+      }
+      const rightHud=p.i===1||p.i===3;
+      const nameX=rightHud?px+panelW-4*hudScale:px+4*hudScale;
+      ctx.font=isMobile?`800 ${22*hudScale}px Arial,Helvetica,sans-serif`:`${20*hudScale}px Flashback,Arial`;ctx.fillStyle=color;ctx.textAlign=rightHud?'right':'left';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(hudPlayerName(p),nameX,py+157*hudScale);ctx.globalAlpha=1;
+      const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;if(isMobile)ctx.font=`800 ${23*hudScale}px Arial,Helvetica,sans-serif`;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);
+      const killText=`${p.k}/${state.scoreToWin}`;
+      if(localCrashScoreFx){
+        // Explosion local del contador cuando una colision propia resta una baja.
+        // El nuevo valor ya viene del servidor; aqui solo reforzamos visualmente
+        // la penalizacion sin alterar puntuacion, fisica ni red.
+        const duration=950;
+        const t=clamp(crashFxElapsed/duration,0,1);
+        const envelope=1-t;
+        const burst=Math.sin(Math.min(1,t*2.4)*Math.PI);
+        const kx=tx,ky=py+115*hudScale;
+        const shake=envelope*5*hudScale;
+        const sx=Math.sin(crashFxElapsed*.12)*shake;
+        const sy=Math.cos(crashFxElapsed*.10)*shake*.55;
+        ctx.save();
+        ctx.translate(kx+sx,ky+sy);
+        const scoreScale=1+0.72*burst*envelope;
+        ctx.scale(scoreScale,scoreScale);
+        ctx.shadowColor='rgba(255,70,20,.95)';
+        ctx.shadowBlur=(18+42*envelope)*hudScale;
+        ctx.fillStyle='#ff5b2d';
+        ctx.globalAlpha=.75+.25*envelope;
+        ctx.fillText(killText,0,0);
+        ctx.restore();
+
+        // Onda expansiva y chispas alrededor del contador.
+        ctx.save();
+        ctx.translate(kx,ky+7*hudScale);
+        ctx.globalAlpha=Math.max(0,envelope);
+        ctx.strokeStyle='#ff7a2f';
+        ctx.lineWidth=3*hudScale;
+        ctx.shadowColor='rgba(255,80,20,.9)';
+        ctx.shadowBlur=14*hudScale*envelope;
+        ctx.beginPath();
+        ctx.arc(0,0,(10+42*t)*hudScale,0,Math.PI*2);
+        ctx.stroke();
+        for(let n=0;n<12;n++){
+          const a=(Math.PI*2*n/12)+0.18;
+          const inner=(12+28*t)*hudScale;
+          const outer=(24+58*t)*hudScale;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a)*inner,Math.sin(a)*inner);
+          ctx.lineTo(Math.cos(a)*outer,Math.sin(a)*outer);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }else if(localKillScoreFx){
+        // Dos segundos despues de la baja, el marcador hace un efecto muy
+        // evidente: entrada rapida, gran escala, dos pulsos y brillo fuerte.
+        // La animacion completa dura dos segundos.
+        const t=clamp(scoreFxElapsed/2000,0,1);
+        const appear=clamp(scoreFxElapsed/220,0,1);
+        const settle=1-Math.pow(1-t,2);
+        const pulse=.5+.5*Math.sin(scoreFxElapsed*.012);
+        const envelope=(1-t);
+        const scale=(.72+1.05*appear) + .48*envelope*pulse - .17*settle;
+        const kx=tx,ky=py+115*hudScale;
+        ctx.save();
+        ctx.translate(kx,ky);
+        ctx.scale(scale,scale);
+        ctx.shadowColor=color;
+        ctx.shadowBlur=(22+48*envelope*(.55+.45*pulse))*hudScale;
+        ctx.fillStyle=color;
+        ctx.globalAlpha=.9+.1*pulse;
+        ctx.fillText(killText,0,0);
+        ctx.restore();
+      }else{
+        ctx.fillText(killText,tx,py+115*hudScale);
+      }
+      ctx.fillStyle='#be0000';ctx.fillRect(tx,py+53*hudScale,Math.max(0,(30-p.cad)*2.3*hudScale),7*hudScale);ctx.fillRect(tx,py+105*hudScale,67*clamp((p.spd-1),0,1)*hudScale,7*hudScale);
+    });
+  }
 
 
   function drawPenaltyAnnouncement(now){

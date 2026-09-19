@@ -42,54 +42,44 @@
 .voice-ptt::before{display:none!important;content:none!important}
 .voice-ptt.talking{background:transparent!important;border:0!important;box-shadow:none!important}
 .voice-ptt:active{transform:translateX(-50%)}
-@media (pointer:fine){.voice-ptt{display:none!important}}
+html:not(.mobile-device) .voice-ptt{display:none!important}
 @media (max-width:760px){
   .voice-setup{gap:7px;margin-top:4px}#enableVoice{font-size:9px!important;padding:5px 8px!important;min-height:27px!important}.voice-status{font-size:8px}
 }
 
 /* En movil, los textos tactiles quedan discretos para no tapar la partida. */
-@media (pointer:coarse){
-  #mobileControls .mobile-zone span{
-    font-size:10px!important;
-    line-height:1!important;
-    letter-spacing:.04em!important;
-    opacity:.58!important;
-    transform:scale(.92)!important;
-    transform-origin:center!important;
-  }
+html.mobile-device #mobileControls .mobile-zone span{
+  font-size:10px!important;
+  line-height:1!important;
+  letter-spacing:.04em!important;
+  opacity:.58!important;
+  transform:scale(.92)!important;
+  transform-origin:center!important;
 }
 
 /* Controles tactiles: texto y zonas semitransparentes en movil. */
-@media (pointer:coarse){
-  #mobileControls .fire-zone{
-    background:linear-gradient(to top,rgba(255,80,165,.035),transparent 62%)!important;
-  }
-  #mobileControls .thrust-zone{
-    background:linear-gradient(to top,rgba(90,225,255,.035),transparent 62%)!important;
-  }
-  #mobileControls .mobile-zone span{
-    opacity:.36!important;
-  }
-  #mobileControls .mobile-zone.active span{
-    opacity:.78!important;
-  }
+html.mobile-device #mobileControls .fire-zone{
+  background:linear-gradient(to top,rgba(255,80,165,.035),transparent 62%)!important;
 }
+html.mobile-device #mobileControls .thrust-zone{
+  background:linear-gradient(to top,rgba(90,225,255,.035),transparent 62%)!important;
+}
+html.mobile-device #mobileControls .mobile-zone span{opacity:.36!important}
+html.mobile-device #mobileControls .mobile-zone.active span{opacity:.78!important}
 
 /* V2: boton SALIR discreto para partida movil. */
 .mobile-exit{display:none}
-@media (pointer:coarse),(max-width:900px){
-  .mobile-exit{
-    position:fixed;z-index:150;
-    top:max(8px,calc(env(safe-area-inset-top) + 5px));
-    left:50%;transform:translateX(-50%);
-    width:auto!important;min-width:0!important;min-height:0!important;height:auto!important;
-    margin:0!important;padding:6px 9px!important;border-radius:6px!important;
-    border:1px solid rgba(255,255,255,.24)!important;
-    background:rgba(8,8,16,.38)!important;color:rgba(255,255,255,.74)!important;
-    -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
-    font-family:'Flashback',Arial,sans-serif!important;font-size:9px!important;line-height:1!important;letter-spacing:.08em!important;
-    box-shadow:0 1px 8px rgba(0,0,0,.22)!important;touch-action:manipulation;
-  }
-  .mobile-exit:active{background:rgba(100,35,125,.56)!important;color:#fff!important}
-  .mobile-exit:not(.hidden){display:block!important}
+html.mobile-device .mobile-exit{
+  position:fixed;z-index:150;
+  top:max(8px,calc(env(safe-area-inset-top) + 5px));
+  left:50%;transform:translateX(-50%);
+  width:auto!important;min-width:0!important;min-height:0!important;height:auto!important;
+  margin:0!important;padding:6px 9px!important;border-radius:6px!important;
+  border:1px solid rgba(255,255,255,.24)!important;
+  background:rgba(8,8,16,.38)!important;color:rgba(255,255,255,.74)!important;
+  -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+  font-family:'Flashback',Arial,sans-serif!important;font-size:9px!important;line-height:1!important;letter-spacing:.08em!important;
+  box-shadow:0 1px 8px rgba(0,0,0,.22)!important;touch-action:manipulation;
 }
+html.mobile-device .mobile-exit:active{background:rgba(100,35,125,.56)!important;color:#fff!important}
+html.mobile-device .mobile-exit:not(.hidden){display:block!important}

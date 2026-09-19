@@ -92,8 +92,8 @@
       this.mobileControls?.classList.toggle('mode-tilt',this.mode==='tilt');
       this.mobileControls?.classList.toggle('mode-buttons',this.mode==='buttons');
       this.mobileControls?.classList.toggle('mode-joystick',this.mode==='joystick');
-      this.buttonPad?.classList.toggle('hidden',!(this.inGame&&this.mode==='buttons'));
-      this.joystickPad?.classList.toggle('hidden',!(this.inGame&&this.mode==='joystick'));
+      this.buttonPad?.classList.toggle('hidden',!(this.isMobile&&this.inGame&&this.mode==='buttons'));
+      this.joystickPad?.classList.toggle('hidden',!(this.isMobile&&this.inGame&&this.mode==='joystick'));
       if(this.motionStatus&&this.mode!=='tilt')this.motionStatus.textContent='';
     }
     screenAngle(){if(screen.orientation&&Number.isFinite(screen.orientation.angle))return screen.orientation.angle;return Number.isFinite(window.orientation)?window.orientation:0;}
@@ -151,7 +151,7 @@
     isPortrait(){return this.isMobile&&window.innerHeight>window.innerWidth;}
     updateOrientationPrompt(){if(!this.rotateOverlay)return;this.rotateOverlay.classList.toggle('hidden',!(this.isMobile&&this.inGame&&this.isPortrait()));}
     orientationChanged(){this.recalibrate();this.updateOrientationPrompt();}
-    enterGame(){this.inGame=true;this.mobileControls?.classList.remove('hidden');this.applyMode();this.updateOrientationPrompt();}
+    enterGame(){this.inGame=true;if(this.isMobile)this.mobileControls?.classList.remove('hidden');else this.mobileControls?.classList.add('hidden');this.applyMode();this.updateOrientationPrompt();}
     exitGame(){this.inGame=false;this.mobileControls?.classList.add('hidden');this.rotateOverlay?.classList.add('hidden');this.resetMobileState();this.applyMode();}
     resetMobileState(){this.tiltTouches.clear();this.mobileFire=false;this.mobileThrust=false;this.btnLeft=this.btnRight=this.btnFire=this.btnThrust=false;this.joyPointer=null;this.joyX=this.joyY=0;this.joyFire=false;this.refreshTilt();this.paintJoy();document.querySelectorAll('[data-mobile-action].active,#joystickFire.active').forEach(e=>e.classList.remove('active'));}
     getControl(){

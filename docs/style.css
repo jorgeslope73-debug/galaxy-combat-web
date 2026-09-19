@@ -17,12 +17,11 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
 .fire-zone{left:0;justify-content:flex-start;background:linear-gradient(to top,rgba(255,80,165,.08),transparent 62%)}
 .thrust-zone{right:0;justify-content:flex-end;background:linear-gradient(to top,rgba(90,225,255,.08),transparent 62%)}
 .mobile-zone.active{color:rgba(255,255,255,.9)}
-@media (pointer:coarse),(max-width:900px){
-  .desktop-help,.desktop-only{display:none!important}
-  #app{touch-action:none;-webkit-user-select:none;user-select:none}
-  #game{touch-action:none}
-  #topbar{font-size:12px;top:4px}
-}
+html.mobile-device .desktop-help,html.mobile-device .desktop-only{display:none!important}
+html.mobile-device #app{touch-action:none;-webkit-user-select:none;user-select:none}
+html.mobile-device #game{touch-action:none}
+html.mobile-device #topbar{font-size:12px;top:4px}
+html:not(.mobile-device) .mobile-controls,html:not(.mobile-device) .mobile-button-controls,html:not(.mobile-device) .mobile-joystick-controls{display:none!important}
 
 /* V10: modos alternativos de control movil. */
 .mobile-controls.mode-buttons .mobile-zone,.mobile-controls.mode-joystick .mobile-zone{display:none!important}
