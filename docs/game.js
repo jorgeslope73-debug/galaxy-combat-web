@@ -842,14 +842,17 @@
     if(!isMobile||!inGame)return;
     ctx.save();
     try{
-      ctx.font='24px Flashback,Arial';
+      // Tipografia solida y legible en movil, manteniendo el aspecto semitransparente.
+      ctx.font='800 30px Arial,Helvetica,sans-serif';
       ctx.textAlign='center';
       ctx.textBaseline='middle';
       ctx.fillStyle='rgba(255,255,255,1)';
-      // Muy discretos en reposo y algo mas visibles mientras se pulsa la zona.
-      ctx.globalAlpha=mobileFire?.42:.22;
+      ctx.shadowColor='rgba(0,0,0,.65)';
+      ctx.shadowBlur=4;
+      // En reposo siguen discretos; al pulsar se hacen bastante mas visibles.
+      ctx.globalAlpha=mobileFire?.78:.32;
       ctx.fillText('DISPARO',W*.24,H-72);
-      ctx.globalAlpha=mobileThrust?.42:.22;
+      ctx.globalAlpha=mobileThrust?.78:.32;
       ctx.fillText('ACELERAR',W*.76,H-72);
     }finally{
       ctx.restore();
