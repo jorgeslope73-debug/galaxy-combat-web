@@ -76,6 +76,13 @@
       letra=>vocalesSinTilde[letra]
     );
   }
+  function hudPlayerName(p){
+    const raw=sinTildes(p&&p.n!=null?p.n:'').trim();
+    const upper=raw.toUpperCase();
+    const defaultNumber=`JUGADOR ${Number(p&&p.i)+1}`;
+    if(!raw||upper==='JUGADOR'||upper===defaultNumber)return `J${Number(p&&p.i)+1}`;
+    return raw;
+  }
   const campoNombre=document.getElementById('name');
   function normalizarNombreVisible(){
     const anterior=campoNombre.value,nuevo=sinTildes(anterior);
@@ -677,7 +684,7 @@
       // En movil ampliamos solo el HUD para que siga siendo legible al mostrar
       // todo el campo 16:9. En PC la escala es 1 y conserva exactamente el
       // tamano y las posiciones originales.
-      const hudScale=isMobile?1.40:1;
+      const hudScale=isMobile?1.48:1;
       const panelW=128*hudScale,panelH=153*hudScale;
       const left=p.i%2===0,top=p.i<2;
       const px=left?10:W-88-panelW;
@@ -704,8 +711,8 @@
       }else{
         drawImageSafely(panel,px,py,panelW,panelH);
       }
-      ctx.font=`${20*hudScale}px Flashback,Arial`;ctx.fillStyle=color;ctx.textAlign=left?'center':'right';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(`J${p.i+1} · ${sinTildes(p.n)}`,left?px+64*hudScale:px+panelW,py+157*hudScale);ctx.globalAlpha=1;
-      const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);
+      ctx.font=isMobile?`800 ${22*hudScale}px Arial,Helvetica,sans-serif`:`${20*hudScale}px Flashback,Arial`;ctx.fillStyle=color;ctx.textAlign=left?'center':'right';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(hudPlayerName(p),left?px+64*hudScale:px+panelW,py+157*hudScale);ctx.globalAlpha=1;
+      const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;if(isMobile)ctx.font=`800 ${23*hudScale}px Arial,Helvetica,sans-serif`;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);
       const killText=`${p.k}/${state.scoreToWin}`;
       if(localCrashScoreFx){
         // Explosion local del contador cuando una colision propia resta una baja.
