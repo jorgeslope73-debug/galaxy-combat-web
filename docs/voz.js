@@ -1,5 +1,9 @@
 'use strict';
 (() => {
+  const DEFAULT_ICE_SERVERS = [
+    {urls:'stun:stun.l.google.com:19302'},
+    {urls:'stun:stun1.l.google.com:19302'}
+  ];
   const SIGNAL_TYPES = new Set([
     'voice-ready','voice-peers','voice-offline','voice-left',
     'voice-offer','voice-answer','voice-ice','voice-talking'
@@ -31,6 +35,8 @@
       this.keyVDown=false;
       this.talking=false;
       this.remoteTalking=new Set();
+      this.iceServers=DEFAULT_ICE_SERVERS.map(x=>({...x}));
+      this.iceConfigPromise=this.loadIceServers();
 
       this.enableButton=document.getElementById('enableVoice');
       this.statusEl=document.getElementById('voiceStatus');
@@ -94,6 +100,34 @@
       window.addEventListener('pagehide',()=>this.shutdown(false));
     }
 
+    async loadIceServers(){
+      const base=String(window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl||'').replace(/\/$/,'');
+      if(!base)return this.iceServers;
+      const controller=typeof AbortController==='function'?new AbortController():null;
+      const timer=controller?setTimeout(()=>controller.abort(),2500):null;
+      try{
+        const response=await fetch(`${base}/rtc-config`,{
+          cache:'no-store',
+          signal:controller?controller.signal:undefined
+        });
+        if(!response.ok)throw new Error(`HTTP ${response.status}`);
+        const data=await response.json();
+        if(Array.isArray(data&&data.iceServers)&&data.iceServers.length){
+          this.iceServers=data.iceServers;
+        }
+      }catch(err){
+        console.warn('[Galaxy Combat Voice] TURN/STUN remoto no disponible; se usa STUN por defecto.',err);
+      }finally{
+        if(timer)clearTimeout(timer);
+      }
+      return this.iceServers;
+    }
+
+    async ensureIceServers(){
+      try{await this.iceConfigPromise;}catch(_){}
+      return this.iceServers;
+    }
+
     async enable(){
       if(this.enabled)return true;
       if(this.enabling)return false;
@@ -104,6 +138,7 @@
       this.enabling=true;
       this.setStatus('SOLICITANDO MICROFONO...');
       try{
+        await this.ensureIceServers();
         const stream=await navigator.mediaDevices.getUserMedia({
           audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
           video:false
@@ -222,12 +257,7 @@
     makePeer(id){
       if(this.peers.has(id))return this.peers.get(id);
       if(!this.enabled||!this.localStream)return null;
-      const pc=new RTCPeerConnection({
-        iceServers:[
-          {urls:'stun:stun.l.google.com:19302'},
-          {urls:'stun:stun1.l.google.com:19302'}
-        ]
-      });
+      const pc=new RTCPeerConnection({iceServers:this.iceServers});
       this.localStream.getTracks().forEach(track=>pc.addTrack(track,this.localStream));
       pc.onicecandidate=e=>{
         if(e.candidate)this.send({t:'voice-ice',to:id,data:e.candidate.toJSON?e.candidate.toJSON():e.candidate});
