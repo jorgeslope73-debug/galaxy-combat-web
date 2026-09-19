@@ -688,11 +688,29 @@
     }
   }
   const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed'};
+  function pickupExpiryAlpha(pk){
+    const left=Number(pk&&pk.expiresIn);
+    if(!Number.isFinite(left)||left>2)return 1;
+    const now=performance.now()/1000;
+    // Ultimos 2 s: parpadeo suave. En los ultimos 0,7 s acelera para dejar
+    // claro que la mejora esta a punto de desaparecer.
+    const hz=left<=0.7?6:3;
+    const pulse=.5+.5*Math.sin(now*Math.PI*2*hz);
+    const minAlpha=left<=0.7?.12:.32;
+    return minAlpha+(1-minAlpha)*pulse;
+  }
   function drawPickup(pk,x=pk.x,y=pk.y){
-    if(pickupSpriteMap[pk.type]){drawImageCentered(images[pickupSpriteMap[pk.type]],x,y,46);return;}
+    const alpha=pickupExpiryAlpha(pk);
+    if(pickupSpriteMap[pk.type]){drawImageCentered(images[pickupSpriteMap[pk.type]],x,y,46,0,alpha);return;}
     ctx.save();ctx.translate(x,y);
-    if(pk.type==='shield'){ctx.strokeStyle='#8ff5ff';ctx.lineWidth=4;ctx.globalAlpha=.9;ctx.beginPath();ctx.arc(0,0,20,0,Math.PI*2);ctx.stroke();ctx.globalAlpha=.25;ctx.fillStyle='#5adfff';ctx.fill();}
-    else if(pk.type==='camo'){ctx.strokeStyle='#d1b4ff';ctx.fillStyle='rgba(160,100,255,.18)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,21,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.globalAlpha=.9;ctx.font='18px Arial';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('C',0,1);}
+    if(pk.type==='shield'){
+      ctx.strokeStyle='#8ff5ff';ctx.lineWidth=4;ctx.globalAlpha=.9*alpha;ctx.beginPath();ctx.arc(0,0,20,0,Math.PI*2);ctx.stroke();
+      ctx.globalAlpha=.25*alpha;ctx.fillStyle='#5adfff';ctx.fill();
+    }
+    else if(pk.type==='camo'){
+      ctx.globalAlpha=alpha;ctx.strokeStyle='#d1b4ff';ctx.fillStyle='rgba(160,100,255,.18)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,21,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.globalAlpha=.9*alpha;ctx.font='18px Arial';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('C',0,1);
+    }
     ctx.restore();
   }
   function spawnProtectionAlpha(secondsLeft){
