@@ -4,10 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#10051e">
+<script>
+(() => {
+  const ua=navigator.userAgent||'';
+  const handheld=/Android|iPhone|iPad|iPod|Mobile/i.test(ua)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+  if(handheld)document.documentElement.classList.add('handheld-device');
+})();
+</script>
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
-<link rel="stylesheet" href="style.css?v=V10-control-timeout-20260919">
-<link rel="stylesheet" href="menu-portada.css?v=V10-control-timeout-20260919">
-<link rel="stylesheet" href="voz.css?v=V10-control-timeout-20260919">
+<link rel="stylesheet" href="style.css?v=V11-landscape-focus-20260919">
+<link rel="stylesheet" href="menu-portada.css?v=V11-landscape-focus-20260919">
+<link rel="stylesheet" href="voz.css?v=V11-landscape-focus-20260919">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
 #lobby.lobby-with-chat{width:min(620px,92vw);max-height:min(760px,88vh);overflow:hidden}
@@ -41,10 +48,25 @@
 <style id="build-version-style">
 #buildVersion{position:fixed!important;z-index:2147483647!important;top:calc(env(safe-area-inset-top,0px) + 7px)!important;right:8px!important;display:block!important;visibility:visible!important;opacity:1!important;padding:5px 8px!important;border:1px solid rgba(124,255,124,.7)!important;border-radius:6px!important;background:rgba(0,0,0,.82)!important;color:#7CFF7C!important;font:700 12px/1 Arial,sans-serif!important;letter-spacing:.08em!important;pointer-events:none!important;text-shadow:0 1px 2px #000!important;transform:none!important}
 </style>
+<style id="orientation-gate-style">
+.orientation-gate{display:none;position:fixed;inset:0;z-index:2147483646;align-items:center;justify-content:center;padding:28px;background:radial-gradient(circle at 50% 45%,rgba(31,14,55,.98),rgba(3,2,12,.995) 68%);color:#fff;text-align:center;pointer-events:auto;touch-action:none;-webkit-user-select:none;user-select:none}
+.orientation-gate-card{width:min(430px,88vw);padding:28px 24px;border:1px solid rgba(126,225,255,.58);border-radius:16px;background:rgba(3,8,22,.86);box-shadow:0 0 36px rgba(59,186,255,.2)}
+.orientation-gate-icon{display:block;margin:0 auto 14px;font:900 48px/1 Arial,Helvetica,sans-serif;color:#7fe5ff;transform:rotate(90deg);text-shadow:0 0 18px rgba(90,225,255,.45)}
+.orientation-gate-title{margin:0 0 10px;font:900 clamp(24px,7vw,36px)/1 Arial,Helvetica,sans-serif;letter-spacing:.035em}
+.orientation-gate-copy{margin:0;color:rgba(239,245,255,.82);font:700 15px/1.35 Arial,Helvetica,sans-serif}
+@media (orientation:portrait){html.handheld-device .orientation-gate{display:flex}}
+</style>
 </head>
 <body>
 <div id="app">
-  <div id="buildVersion" aria-label="Version del juego">V10</div>
+  <div id="buildVersion" aria-label="Version del juego">V11</div>
+  <div id="orientationGate" class="orientation-gate" role="alert" aria-live="assertive">
+    <div class="orientation-gate-card">
+      <span class="orientation-gate-icon" aria-hidden="true">&#8596;</span>
+      <p class="orientation-gate-title">GIRA EL MÓVIL</p>
+      <p class="orientation-gate-copy">Galaxy Combat se juega en horizontal.</p>
+    </div>
+  </div>
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
@@ -170,8 +192,8 @@
   <button id="mobileExit" class="mobile-exit hidden" type="button" aria-label="Salir de la partida y volver al inicio">SALIR</button>
 </div>
 <script src="config.js"></script>
-<script src="impactos.js?v=V10-control-timeout-20260919"></script>
-<script src="voz.js?v=V10-control-timeout-20260919"></script>
-<script src="game.js?v=V10-control-timeout-20260919"></script>
+<script src="impactos.js?v=V11-landscape-focus-20260919"></script>
+<script src="voz.js?v=V11-landscape-focus-20260919"></script>
+<script src="game.js?v=V11-landscape-focus-20260919"></script>
 </body>
 </html>

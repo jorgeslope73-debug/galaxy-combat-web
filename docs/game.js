@@ -528,7 +528,11 @@
     document.getElementById('app').addEventListener('pointerup',mobilePointerEnd,{passive:false});
     document.getElementById('app').addEventListener('pointercancel',mobilePointerEnd,{passive:false});
     document.getElementById('app').addEventListener('pointerleave',e=>{if(e.pointerType==='touch')mobilePointerEnd(e);},{passive:false});
-    window.addEventListener('orientationchange',()=>{motionNeutral=null;motionTurn=0;});
+    window.addEventListener('orientationchange',()=>{
+      motionNeutral=null;motionTurn=0;
+      touchSides.clear();refreshTouchControls();
+      keys.clear();
+    });
     if(screen.orientation)screen.orientation.addEventListener?.('change',()=>{motionNeutral=null;motionTurn=0;});
   }
   window.addEventListener('resize',scheduleCanvasResolution,{passive:true});
@@ -553,6 +557,16 @@
   document.getElementById('back').addEventListener('click',()=>location.reload());
   window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'){if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}else if(inGame)location.reload();}});
   window.addEventListener('keyup',e=>keys.delete(e.code));
+  // Si el navegador pierde el foco, puede no llegar el keyup de una tecla que
+  // estaba pulsada. Limpiamos el estado para evitar giro/aceleracion/disparo
+  // pegados al volver a la ventana.
+  function clearHeldKeys(){
+    keys.clear();
+    lastControlTurn=0;
+    if(inGame&&!isMobile)sendControl(0,false,false);
+  }
+  window.addEventListener('blur',clearHeldKeys);
+  document.addEventListener('visibilitychange',()=>{if(document.hidden)clearHeldKeys();});
   window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);if(voice)voice.shutdown(true);try{if(ws)ws.close();}catch(_){}});
 
   setInterval(()=>{
