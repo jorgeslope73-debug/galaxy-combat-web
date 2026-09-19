@@ -70,25 +70,35 @@
         if (snapshot.seq <= this.lastSeq) return;
         this.lastSeq = snapshot.seq;
       }
+      const serverExplosions = new Set();
       if (snapshot.fxVersion === 1 && Array.isArray(snapshot.fx)) {
         for (const event of snapshot.fx.slice(-MAX_BURSTS)) {
           if (!event || !Number.isSafeInteger(event.id) || event.id < 1) continue;
           if (!Number.isInteger(event.i) || event.i < 0 || event.i > 3) continue;
           if (event.kind !== 'explosion' && event.kind !== 'hit') continue;
+          // Record only still-visible explosion events. If one was lost/delayed,
+          // the state transition fallback below will recreate the death burst.
+          if (event.kind === 'explosion') {
+            const age = Number.isFinite(event.age) ? Math.max(0, event.age) : 0;
+            if (age < durationFor('explosion')) serverExplosions.add(event.i);
+          }
           this.enqueue(event, 'fx:' + event.id, localIndex, now);
         }
-      } else {
-        // Compatibility with the existing server while the new one deploys.
-        // Deaths/collisions still show a burst; nonfatal hits need the new server.
-        for (const player of snapshot.players) {
-          if (!player || !Number.isInteger(player.i)) continue;
-          const previous = this.previousPlayers.get(player.i);
-          const deathCount = Number.isFinite(player.d) ? player.d : 0;
-          if (player.dead && (!previous || !previous.dead || previous.deaths < deathCount)) {
-            const age = Number.isFinite(player.respawn) ? Math.max(0, (0.7 - player.respawn) * 1000) : 0;
-            this.enqueue({i: player.i, x: player.x, y: player.y,
-              kind: 'explosion', age}, 'death:' + player.i + ':' + deathCount + ':' + (snapshot.seq || now), localIndex, now);
-          }
+      }
+
+      // Robust death fallback: even with fxVersion=1, a transient WebSocket/state
+      // hiccup must not make the ship vanish without exploding. If a player has
+      // just changed from alive to dead and this snapshot carries no usable
+      // explosion event for that player, create the same short burst locally.
+      for (const player of snapshot.players) {
+        if (!player || !Number.isInteger(player.i)) continue;
+        const previous = this.previousPlayers.get(player.i);
+        const deathCount = Number.isFinite(player.d) ? player.d : 0;
+        const justDied = player.dead && (!previous || !previous.dead || previous.deaths < deathCount);
+        if (justDied && !serverExplosions.has(player.i)) {
+          const age = Number.isFinite(player.respawn) ? Math.max(0, (0.7 - player.respawn) * 1000) : 0;
+          this.enqueue({i: player.i, x: player.x, y: player.y,
+            kind: 'explosion', age}, 'death-fallback:' + (snapshot.code || '') + ':' + player.i + ':' + deathCount, localIndex, now);
         }
       }
       this.previousPlayers.clear();
