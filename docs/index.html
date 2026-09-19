@@ -5,9 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#10051e">
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
-<link rel="stylesheet" href="style.css?v=V2-mobile-ui-20260919">
-<link rel="stylesheet" href="menu-portada.css?v=V2-mobile-ui-20260919">
-<link rel="stylesheet" href="voz.css?v=V2-mobile-ui-20260919">
+<link rel="stylesheet" href="style.css?v=V3-version-badge-20260919">
+<link rel="stylesheet" href="menu-portada.css?v=V3-version-badge-20260919">
+<link rel="stylesheet" href="voz.css?v=V3-version-badge-20260919">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
 #lobby.lobby-with-chat{width:min(620px,92vw);max-height:min(760px,88vh);overflow:hidden}
@@ -39,12 +39,12 @@
 </style>
 
 <style id="build-version-style">
-#buildVersion{position:fixed;z-index:99999;top:max(6px,env(safe-area-inset-top));right:8px;padding:4px 7px;border-radius:5px;background:rgba(0,0,0,.78);color:#7CFF7C;font:700 12px/1 Arial,sans-serif;letter-spacing:.08em;pointer-events:none;text-shadow:0 1px 2px #000}
+#buildVersion{position:fixed!important;z-index:2147483647!important;top:calc(env(safe-area-inset-top,0px) + 7px)!important;right:8px!important;display:block!important;visibility:visible!important;opacity:1!important;padding:5px 8px!important;border:1px solid rgba(124,255,124,.7)!important;border-radius:6px!important;background:rgba(0,0,0,.82)!important;color:#7CFF7C!important;font:700 12px/1 Arial,sans-serif!important;letter-spacing:.08em!important;pointer-events:none!important;text-shadow:0 1px 2px #000!important;transform:none!important}
 </style>
 </head>
 <body>
-<div id="buildVersion" aria-label="Version del juego">V2</div>
 <div id="app">
+  <div id="buildVersion" aria-label="Version del juego">V3</div>
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
@@ -170,8 +170,8 @@
   <button id="mobileExit" class="mobile-exit hidden" type="button" aria-label="Salir de la partida y volver al inicio">SALIR</button>
 </div>
 <script src="config.js"></script>
-<script src="impactos.js?v=V2-mobile-ui-20260919"></script>
-<script src="voz.js?v=V2-mobile-ui-20260919"></script>
-<script src="game.js?v=V2-mobile-ui-20260919"></script>
+<script src="impactos.js?v=V3-version-badge-20260919"></script>
+<script src="voz.js?v=V3-version-badge-20260919"></script>
+<script src="game.js?v=V3-version-badge-20260919"></script>
 </body>
 </html>
