@@ -1046,7 +1046,7 @@
     const color=playerColors[leaderAnnouncement.i]||'#fff';
     ctx.save();
     try{
-      ctx.font=isMobile?'36px Flashback,Arial':'27px Flashback,Arial';
+      ctx.font=isMobile?'44px Flashback,Arial':'34px Flashback,Arial';
       ctx.textAlign='center';
       ctx.textBaseline='middle';
       ctx.fillStyle=color;
@@ -1209,7 +1209,7 @@
       const pulse=.58+.42*(.5+.5*Math.sin(performance.now()*.005));
       ctx.save();
       ctx.globalAlpha=pulse;
-      ctx.font=isMobile?'30px Flashback,Arial':'22px Flashback,Arial';
+      ctx.font=isMobile?'38px Flashback,Arial':'28px Flashback,Arial';
       ctx.textAlign='center';
       ctx.fillStyle='rgb(255,170,70)';
       ctx.shadowColor='rgba(255,135,35,.65)';
