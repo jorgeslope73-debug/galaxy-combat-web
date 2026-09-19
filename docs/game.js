@@ -15,6 +15,7 @@
   let lastControlTurn=0,lastVoicePlayersSig='',renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
+  let crashScoreFxStart=0,crashScoreFxUntil=0;
   let publicRooms=[];
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
@@ -484,6 +485,12 @@
         // grande durante otros dos segundos. Solo existe en este cliente.
         killScoreFxStart=now+2000;
         killScoreFxUntil=killScoreFxStart+2000;
+      } else if(oldLocal&&newLocal&&Number(newLocal.k)<Number(oldLocal.k)){
+        // Penalizacion por estrellarse: el servidor ya ha descontado la baja.
+        // Esta explosion del marcador es exclusivamente local y solo la ve
+        // el jugador al que se le acaba de restar el punto.
+        crashScoreFxStart=now;
+        crashScoreFxUntil=now+950;
       }
       previousState=state;
       previousStateTime=lastStateTime;
@@ -691,6 +698,8 @@
       const flashElapsed=localKillFlash?Math.max(0,now-killHudFlashStart):0;
       const localKillScoreFx=p.i===myIndex&&now>=killScoreFxStart&&now<killScoreFxUntil;
       const scoreFxElapsed=localKillScoreFx?Math.max(0,now-killScoreFxStart):0;
+      const localCrashScoreFx=p.i===myIndex&&now>=crashScoreFxStart&&now<crashScoreFxUntil;
+      const crashFxElapsed=localCrashScoreFx?Math.max(0,now-crashScoreFxStart):0;
       const panel=images[left?'pantA':'pantB'];
       if(localKillFlash){
         const flash=1-flashElapsed/450;
@@ -709,7 +718,51 @@
       ctx.font=`${20*hudScale}px Flashback,Arial`;ctx.fillStyle=color;ctx.textAlign='center';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(`J${p.i+1} · ${sinTildes(p.n)}`,px+64*hudScale,py+157*hudScale);ctx.globalAlpha=1;
       const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);
       const killText=`${p.k}/${state.scoreToWin}`;
-      if(localKillScoreFx){
+      if(localCrashScoreFx){
+        // Explosion local del contador cuando una colision propia resta una baja.
+        // El nuevo valor ya viene del servidor; aqui solo reforzamos visualmente
+        // la penalizacion sin alterar puntuacion, fisica ni red.
+        const duration=950;
+        const t=clamp(crashFxElapsed/duration,0,1);
+        const envelope=1-t;
+        const burst=Math.sin(Math.min(1,t*2.4)*Math.PI);
+        const kx=tx,ky=py+115*hudScale;
+        const shake=envelope*5*hudScale;
+        const sx=Math.sin(crashFxElapsed*.12)*shake;
+        const sy=Math.cos(crashFxElapsed*.10)*shake*.55;
+        ctx.save();
+        ctx.translate(kx+sx,ky+sy);
+        const scoreScale=1+0.72*burst*envelope;
+        ctx.scale(scoreScale,scoreScale);
+        ctx.shadowColor='rgba(255,70,20,.95)';
+        ctx.shadowBlur=(18+42*envelope)*hudScale;
+        ctx.fillStyle='#ff5b2d';
+        ctx.globalAlpha=.75+.25*envelope;
+        ctx.fillText(killText,0,0);
+        ctx.restore();
+
+        // Onda expansiva y chispas alrededor del contador.
+        ctx.save();
+        ctx.translate(kx,ky+7*hudScale);
+        ctx.globalAlpha=Math.max(0,envelope);
+        ctx.strokeStyle='#ff7a2f';
+        ctx.lineWidth=3*hudScale;
+        ctx.shadowColor='rgba(255,80,20,.9)';
+        ctx.shadowBlur=14*hudScale*envelope;
+        ctx.beginPath();
+        ctx.arc(0,0,(10+42*t)*hudScale,0,Math.PI*2);
+        ctx.stroke();
+        for(let n=0;n<12;n++){
+          const a=(Math.PI*2*n/12)+0.18;
+          const inner=(12+28*t)*hudScale;
+          const outer=(24+58*t)*hudScale;
+          ctx.beginPath();
+          ctx.moveTo(Math.cos(a)*inner,Math.sin(a)*inner);
+          ctx.lineTo(Math.cos(a)*outer,Math.sin(a)*outer);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }else if(localKillScoreFx){
         // Dos segundos despues de la baja, el marcador hace un efecto muy
         // evidente: entrada rapida, gran escala, dos pulsos y brillo fuerte.
         // La animacion completa dura dos segundos.
