@@ -818,7 +818,7 @@
       const hudScale=isMobile?1.60:1.12;
       const panelW=128*hudScale,panelH=153*hudScale;
       const left=p.i%2===0,top=p.i<2;
-      const px=left?10:W-88-panelW;
+      const px=left?10:W-10-panelW;
       const bottomHudMargin=isMobile?45:36;
       const py=top?5:H-bottomHudMargin-157*hudScale;
       const color=playerColors[p.i];
