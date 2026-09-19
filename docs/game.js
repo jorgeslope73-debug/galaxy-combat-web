@@ -695,14 +695,14 @@
     }
     if(max<=0||tied)leader=null;
     state.players.forEach(p=>{
-      // En movil ampliamos solo el HUD para que siga siendo legible al mostrar
-      // todo el campo 16:9. En PC la escala es 1 y conserva exactamente el
-      // tamano y las posiciones originales.
-      const hudScale=isMobile?1.48:1;
+      // HUD ligeramente mayor en ambas plataformas para mejorar la lectura.
+      // Movil conserva un refuerzo extra porque muestra todo el campo 16:9.
+      const hudScale=isMobile?1.60:1.12;
       const panelW=128*hudScale,panelH=153*hudScale;
       const left=p.i%2===0,top=p.i<2;
       const px=left?10:W-88-panelW;
-      const py=top?5:H-33-157*hudScale;
+      const bottomHudMargin=isMobile?45:36;
+      const py=top?5:H-bottomHudMargin-157*hudScale;
       const color=playerColors[p.i];
       const localKillFlash=p.i===myIndex&&now<killHudFlashUntil;
       const flashElapsed=localKillFlash?Math.max(0,now-killHudFlashStart):0;
@@ -864,9 +864,9 @@
       ctx.shadowColor='rgba(0,0,0,.65)';
       ctx.shadowBlur=4;
       // En reposo siguen discretos; al pulsar se hacen bastante mas visibles.
-      ctx.globalAlpha=mobileFire?.78:.32;
+      ctx.globalAlpha=mobileFire?.56:.34;
       ctx.fillText('DISPARO',W*.24,H-72);
-      ctx.globalAlpha=mobileThrust?.78:.32;
+      ctx.globalAlpha=mobileThrust?.56:.34;
       ctx.fillText('ACELERAR',W*.76,H-72);
     }finally{
       ctx.restore();
