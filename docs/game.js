@@ -120,10 +120,11 @@
     images[k]=im;
   }
   const soundDefs={
-    laser:{url:'assets/sonido/laser_1.mp3',size:8,volume:.55},
-    impact:{url:'assets/sonido/impacto1.mp3',size:5,volume:.75},
-    pickup:{url:'assets/sonido/carga3.wav',size:3,volume:.75},
-    start:{url:'assets/sonido/inicio.wav',size:1,volume:.75}
+    laser:{url:'assets/sonido/laser_1.mp3',volume:.55},
+    impact:{url:'assets/sonido/impacto1.mp3',volume:.75},
+    pickup:{url:'assets/sonido/carga3.wav',volume:.75},
+    start:{url:'assets/sonido/inicio.wav',volume:.75},
+    music:{url:'assets/sonido/musica.mp3',volume:.35,loop:true}
   };
   const gameVolumeEl=document.getElementById('gameVolume');
   const defaultGameVolume=isMobile?0.45:0.75;
@@ -132,36 +133,157 @@
     const saved=localStorage.getItem('galaxyGameVolume');
     if(saved!==null&&Number.isFinite(Number(saved)))gameVolume=clamp(Number(saved),0,1);
   }catch(_){}
-  const soundPools={};
-  for(const [key,def] of Object.entries(soundDefs)){
-    const items=[];
-    for(let i=0;i<def.size;i++){
-      const a=new Audio(def.url);a.preload='auto';a.volume=def.volume*gameVolume;items.push(a);
+
+  // Audio del juego con Web Audio API: un unico AudioContext y buffers ya
+  // decodificados. Evita crear/reiniciar muchos elementos <audio> durante la
+  // partida, reduce picos de CPU y ayuda a que iOS no trate cada efecto como
+  // una reproduccion multimedia independiente junto a la Dynamic Island.
+  const AudioCtx=window.AudioContext||window.webkitAudioContext;
+  let gameAudioCtx=null,gameMasterGain=null,musicSource=null,musicWanted=false;
+  const gameAudioBuffers=new Map();
+  const gameAudioLoads=new Map();
+  const gameSoundGains=new Map();
+  const legacyAudio=new Map();
+
+  function ensureGameAudio(){
+    if(!AudioCtx)return null;
+    if(gameAudioCtx)return gameAudioCtx;
+    try{
+      gameAudioCtx=new AudioCtx({latencyHint:'interactive'});
+    }catch(_){
+      try{gameAudioCtx=new AudioCtx();}catch(__){gameAudioCtx=null;return null;}
     }
-    soundPools[key]={items,next:0};
+    gameMasterGain=gameAudioCtx.createGain();
+    gameMasterGain.gain.value=gameVolume;
+    gameMasterGain.connect(gameAudioCtx.destination);
+    for(const [key,def] of Object.entries(soundDefs)){
+      const gain=gameAudioCtx.createGain();
+      gain.gain.value=def.volume;
+      gain.connect(gameMasterGain);
+      gameSoundGains.set(key,gain);
+    }
+    return gameAudioCtx;
   }
-  sounds.music=new Audio('assets/sonido/musica.mp3');sounds.music.preload='auto';sounds.music.loop=true;sounds.music.volume=.35*gameVolume;
-  function playSound(k){
-    const pool=soundPools[k];if(!pool||!pool.items.length)return;
-    const a=pool.items[pool.next++%pool.items.length];
-    try{a.currentTime=0;const promise=a.play();if(promise&&promise.catch)promise.catch(()=>{});}catch(_){}
+
+  async function loadGameAudioBuffer(key){
+    if(gameAudioBuffers.has(key))return gameAudioBuffers.get(key);
+    if(gameAudioLoads.has(key))return gameAudioLoads.get(key);
+    const def=soundDefs[key];
+    if(!def||!AudioCtx)return null;
+    const ctx=ensureGameAudio();
+    if(!ctx)return null;
+    const promise=(async()=>{
+      try{
+        const response=await fetch(def.url,{cache:'force-cache'});
+        if(!response.ok)throw new Error(`HTTP ${response.status}`);
+        const data=await response.arrayBuffer();
+        const buffer=await ctx.decodeAudioData(data.slice(0));
+        gameAudioBuffers.set(key,buffer);
+        return buffer;
+      }catch(err){
+        console.warn('[Galaxy Combat] No se pudo precargar audio',key,err);
+        return null;
+      }finally{
+        gameAudioLoads.delete(key);
+      }
+    })();
+    gameAudioLoads.set(key,promise);
+    return promise;
   }
+
+  async function unlockGameAudio(){
+    const ctx=ensureGameAudio();
+    if(!ctx)return false;
+    try{
+      if(ctx.state==='suspended')await ctx.resume();
+    }catch(_){}
+    if(ctx.state==='running'&&musicWanted)startMusicSource();
+    return ctx.state==='running';
+  }
+
+  function startBufferSource(key,loop=false){
+    const ctx=gameAudioCtx;
+    const buffer=gameAudioBuffers.get(key);
+    const gain=gameSoundGains.get(key);
+    if(!ctx||ctx.state!=='running'||!buffer||!gain)return null;
+    try{
+      const source=ctx.createBufferSource();
+      source.buffer=buffer;
+      source.loop=!!loop;
+      source.connect(gain);
+      source.start(0);
+      return source;
+    }catch(_){return null;}
+  }
+
+  function legacyPlaySound(key){
+    const def=soundDefs[key];if(!def)return;
+    try{
+      let a=legacyAudio.get(key);
+      if(!a){a=new Audio(def.url);a.preload='auto';legacyAudio.set(key,a);}
+      a.volume=def.volume*gameVolume;a.currentTime=0;
+      const promise=a.play();if(promise&&promise.catch)promise.catch(()=>{});
+    }catch(_){}
+  }
+
+  function playSound(key){
+    if(!AudioCtx){legacyPlaySound(key);return;}
+    const ctx=ensureGameAudio();
+    if(!ctx)return;
+    if(ctx.state!=='running'){unlockGameAudio();return;}
+    if(gameAudioBuffers.has(key)){startBufferSource(key,false);return;}
+    // No reproducimos el efecto tarde: si aun no esta listo lo precargamos y
+    // el siguiente evento ya saldra sin crear tirones ni desincronizacion visual.
+    loadGameAudioBuffer(key);
+  }
+
+  function startMusicSource(){
+    if(!musicWanted||musicSource||!menu||menu.classList.contains('hidden'))return;
+    if(!gameAudioBuffers.has('music')){
+      loadGameAudioBuffer('music').then(()=>{if(musicWanted)startMusicSource();});
+      return;
+    }
+    const source=startBufferSource('music',true);
+    if(!source)return;
+    musicSource=source;
+    musicStarted=true;
+    source.onended=()=>{if(musicSource===source){musicSource=null;musicStarted=false;}};
+  }
+
   function startMusic(){
-    if(!menu||menu.classList.contains('hidden')||!sounds.music||!sounds.music.paused)return;
-    sounds.music.play().then(()=>{musicStarted=true;}).catch(()=>{musicStarted=false;});
+    if(!menu||menu.classList.contains('hidden'))return;
+    musicWanted=true;
+    if(!AudioCtx){
+      let a=legacyAudio.get('music');
+      if(!a){a=new Audio(soundDefs.music.url);a.preload='auto';a.loop=true;legacyAudio.set('music',a);}
+      a.volume=soundDefs.music.volume*gameVolume;
+      const promise=a.play();if(promise&&promise.then)promise.then(()=>{musicStarted=true;}).catch(()=>{musicStarted=false;});
+      return;
+    }
+    unlockGameAudio().then(ok=>{if(ok)startMusicSource();});
   }
+
   function stopMusic(){
-    if(!sounds.music)return;
-    try{sounds.music.pause();sounds.music.currentTime=0;}catch(_){}
+    musicWanted=false;
+    if(musicSource){
+      const source=musicSource;musicSource=null;
+      try{source.onended=null;source.stop(0);}catch(_){}
+      try{source.disconnect();}catch(_){}
+    }
+    const legacy=legacyAudio.get('music');
+    if(legacy){try{legacy.pause();legacy.currentTime=0;}catch(_){}}
     musicStarted=false;
   }
+
   function applyGameVolume(value,persist=true){
     gameVolume=clamp(Number(value)||0,0,1);
-    for(const [key,pool] of Object.entries(soundPools)){
-      const base=soundDefs[key]?.volume??1;
-      for(const a of pool.items)a.volume=base*gameVolume;
+    if(gameMasterGain&&gameAudioCtx){
+      const t=gameAudioCtx.currentTime;
+      try{gameMasterGain.gain.cancelScheduledValues(t);gameMasterGain.gain.setTargetAtTime(gameVolume,t,.015);}catch(_){gameMasterGain.gain.value=gameVolume;}
     }
-    if(sounds.music)sounds.music.volume=.35*gameVolume;
+    for(const [key,a] of legacyAudio){
+      const def=soundDefs[key];if(def)a.volume=def.volume*gameVolume;
+    }
     if(gameVolumeEl)gameVolumeEl.value=String(Math.round(gameVolume*100));
     if(persist){try{localStorage.setItem('galaxyGameVolume',String(gameVolume));}catch(_){}}
   }
@@ -169,6 +291,29 @@
     applyGameVolume(gameVolume,false);
     gameVolumeEl.addEventListener('input',()=>applyGameVolume(Number(gameVolumeEl.value)/100,true));
   }
+
+  // Precarga gradual en tiempo ocioso. La decodificacion se reparte para no
+  // competir con Canvas ni con los snapshots de red al empezar una partida.
+  async function preloadGameAudio(){
+    for(const key of ['laser','impact','pickup','start','music']){
+      await loadGameAudioBuffer(key);
+      await new Promise(resolve=>setTimeout(resolve,0));
+    }
+  }
+  const scheduleAudioPreload=()=>preloadGameAudio().catch(()=>{});
+  if('requestIdleCallback' in window)requestIdleCallback(scheduleAudioPreload,{timeout:1800});
+  else setTimeout(scheduleAudioPreload,350);
+
+  // Safari/iOS solo deja arrancar AudioContext tras un gesto real. Una vez
+  // desbloqueado permanece como una unica sesion de audio del juego.
+  const unlockFromGesture=()=>{unlockGameAudio();};
+  document.addEventListener('pointerdown',unlockFromGesture,{passive:true,capture:true});
+  document.addEventListener('touchend',unlockFromGesture,{passive:true,capture:true});
+  document.addEventListener('keydown',unlockFromGesture,{passive:true,capture:true});
+  document.addEventListener('visibilitychange',()=>{
+    if(document.hidden)return;
+    if(gameAudioCtx&&gameAudioCtx.state==='suspended')unlockGameAudio();
+  });
 
   function screenAngle(){
     if(screen.orientation&&Number.isFinite(screen.orientation.angle))return screen.orientation.angle;
