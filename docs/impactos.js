@@ -29,14 +29,33 @@
     return c;
   }
 
+  function makeParticle(){return {dx:0,dy:0,distance:0,size:0,hot:false};}
+  function makeBurst(){
+    const particles=new Array(12);
+    for(let i=0;i<particles.length;i++)particles[i]=makeParticle();
+    return {x:0,y:0,kind:'hit',duration:0,born:0,particles,particleCount:0,key:''};
+  }
+
   class GalaxyImpactFX {
-    constructor() { getGlowSprite(); this.reset(); }
+    constructor() {
+      getGlowSprite();
+      this.pool=new Array(MAX_BURSTS);
+      for(let i=0;i<MAX_BURSTS;i++)this.pool[i]=makeBurst();
+      this.bursts=[];
+      this.freeBursts=[];
+      this.seen=new Set();
+      this.previousPlayers=new Map();
+      this.serverExplosions=[false,false,false,false];
+      this.reset();
+    }
 
     reset() {
-      this.bursts = [];
-      this.seen = new Set();
-      this.previousPlayers = new Map();
-      this.serverExplosions = [false,false,false,false];
+      this.bursts.length=0;
+      this.freeBursts.length=0;
+      for(let i=0;i<this.pool.length;i++)this.freeBursts.push(this.pool[i]);
+      this.seen.clear();
+      this.previousPlayers.clear();
+      this.serverExplosions[0]=this.serverExplosions[1]=this.serverExplosions[2]=this.serverExplosions[3]=false;
       this.room = '';
       this.lastSeq = -1;
     }
@@ -63,21 +82,25 @@
         seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
         return (seed >>> 0) / 4294967296;
       };
-      // Particle shapes are generated once, not randomly changed every frame.
+      // Particle shapes are generated once per burst, reusing a fixed object pool.
       const count = kind === 'explosion' ? 12 : 7;
-      const particles = [];
+      let burst=this.freeBursts.pop();
+      if(!burst){
+        // If every slot is in use, recycle the oldest visual effect rather than
+        // allocating another burst/particle array and forcing Safari GC later.
+        burst=this.bursts.shift();
+      }
+      burst.x=event.x;burst.y=event.y;burst.kind=kind;burst.duration=duration;
+      burst.born=now-age;burst.key=key;burst.particleCount=count;
       for (let i = 0; i < count; i++) {
         const angle = TAU * (i + random() * 0.65) / count;
-        particles.push({
-          dx: Math.cos(angle), dy: Math.sin(angle),
-          distance: kind === 'explosion' ? 16 + random() * 18 : 9 + random() * 12,
-          size: 1.2 + random() * (kind === 'explosion' ? 2.1 : 1.0),
-          hot: random() > 0.45
-        });
+        const particle=burst.particles[i];
+        particle.dx=Math.cos(angle);particle.dy=Math.sin(angle);
+        particle.distance=kind === 'explosion' ? 16 + random() * 18 : 9 + random() * 12;
+        particle.size=1.2 + random() * (kind === 'explosion' ? 2.1 : 1.0);
+        particle.hot=random() > 0.45;
       }
-      this.bursts.push({ x: event.x, y: event.y, kind, duration,
-        born: now - age, particles, key });
-      if (this.bursts.length > MAX_BURSTS) this.bursts.splice(0, this.bursts.length - MAX_BURSTS);
+      this.bursts.push(burst);
     }
 
     consume(snapshot, localIndex, now = clock()) {
@@ -91,7 +114,8 @@
         // Clear the dedup history immediately so new impacts are not mistaken
         // for old events from the previous match.
         if (snapshot.seq < this.lastSeq) {
-          this.bursts = [];
+          for(let i=0;i<this.bursts.length;i++)this.freeBursts.push(this.bursts[i]);
+          this.bursts.length=0;
           this.seen.clear();
           this.previousPlayers.clear();
           this.lastSeq = -1;
@@ -145,7 +169,11 @@
     draw(ctx, now = clock()) {
       if (!ctx || !Number.isFinite(now)) return;
       let write=0;
-      for(const e of this.bursts)if(now-e.born<e.duration)this.bursts[write++]=e;
+      for(let i=0;i<this.bursts.length;i++){
+        const e=this.bursts[i];
+        if(now-e.born<e.duration)this.bursts[write++]=e;
+        else this.freeBursts.push(e);
+      }
       this.bursts.length=write;
       if (!this.bursts.length) return;
       ctx.save();
@@ -174,7 +202,8 @@
           ctx.lineWidth = large ? 1.8 : 1.2;
           ctx.strokeStyle = '#ffc56c'; ctx.globalAlpha = fade * 0.65;
           ctx.beginPath(); ctx.arc(burst.x, burst.y, (large ? 4 : 2) + eased * (large ? 26 : 15), 0, TAU); ctx.stroke();
-          for (const p of burst.particles) {
+          for (let pi=0;pi<burst.particleCount;pi++) {
+            const p=burst.particles[pi];
             const distance = 3 + p.distance * eased;
             const x = burst.x + p.dx * distance, y = burst.y + p.dy * distance;
             ctx.globalAlpha = fade;
