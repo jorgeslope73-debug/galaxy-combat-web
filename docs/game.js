@@ -1424,18 +1424,21 @@
     try{
       // V16.4.5: el boton visible vive en el canvas, en la capa baja.
       // La zona HTML sigue encima pero es invisible y solo sirve para pulsarlo.
-      ctx.globalAlpha=.50;
-      ctx.font='800 16px Arial,Helvetica,sans-serif';
+      // V16.4.52: boton SALIR mas grande y visible en movil.
+      // Usamos alpha real en cada color para evitar que Safari multiplique
+      // transparencias y lo deje demasiado apagado.
+      ctx.globalAlpha=1;
+      ctx.font='800 19px Arial,Helvetica,sans-serif';
       ctx.textAlign='center';
       ctx.textBaseline='middle';
-      ctx.lineWidth=1.5;
-      ctx.strokeStyle='rgba(255,255,255,.45)';
-      ctx.fillStyle='rgba(5,7,15,.48)';
-      const bw=78,bh=30,r=7;
+      ctx.lineWidth=1.7;
+      ctx.strokeStyle='rgba(255,255,255,.68)';
+      ctx.fillStyle='rgba(5,7,15,.72)';
+      const bw=108,bh=42,r=9;
       ctx.beginPath();
       ctx.roundRect(x-bw/2,y-bh/2,bw,bh,r);
       ctx.fill();ctx.stroke();
-      ctx.fillStyle='rgba(255,255,255,.90)';
+      ctx.fillStyle='rgba(255,255,255,.96)';
       ctx.fillText(tr('exit'),x,y+1);
     }finally{ctx.restore();}
   }
