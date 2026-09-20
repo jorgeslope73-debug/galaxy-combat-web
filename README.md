@@ -220,3 +220,67 @@ turn:turn.example.com:3478?transport=udp,turn:turn.example.com:3478?transport=tc
 - Si la CPU tiene escudo pero no balas y el rival no tiene escudo/proteccion, puede elegir una embestida.
 - La probabilidad practica de embestida depende de distancia y dificultad; en dificil es mas agresiva.
 - No se modifican fisicas, pickups, HUD, audio ni controles.
+## V16.4.38 - fluidez movil recuperada
+- Mantiene las optimizaciones anti-tirones de V16.4.35/V16.4.36.
+- En movil vuelve a procesar estados a 30 Hz (cadencia real del servidor), en vez de 20 Hz.
+- Los estados siguen aplicandose al inicio del `requestAnimationFrame` y solo se conserva el snapshot mas reciente, evitando picos asincronos.
+- Ajuste fino de la ventana de interpolacion para reducir la sensacion de movimiento a saltos.
+- No cambia servidor, fisica, controles, audio ni jugabilidad.
+
+## V16.4.39 - optimizacion interna sin perder fluidez
+
+- Se mantienen 60 FPS de render y 30 Hz de estados de red.
+- Las explosiones/impactos reutilizan un pool fijo de bursts y particulas para reducir pausas de GC en Safari/iOS.
+- El HUD reutiliza las cadenas de municion, velocidad y marcador mientras sus valores no cambian.
+- Los estilos semitransparentes de FANTASMA se precalculan y se reutilizan durante la partida.
+- La distancia de BRUTAL y el texto de LIDER se calculan solo cuando cambia el evento, no cada frame.
+- Se elimina una asignacion de array por meteorito y frame y el callback temporal del HUD.
+- No cambia fisica, red, controles, calidad grafica, IA, audio, voz ni jugabilidad.
+
+
+
+## V16.4.40 - IA CPU verificada + invisibilidad con ojo tachado
+
+- Se conserva y verifica la IA introducida previamente: sin balas ni escudo la CPU prioriza municion y, si no existe, huye y evita al jugador; con escudo y sin balas puede embestir solo a un rival sin escudo/proteccion.
+- La mejora de invisibilidad/camuflaje deja de mostrar la letra C y ahora se representa con un ojo tachado vectorial.
+- El icono se dibuja por Canvas, sin añadir assets ni peso al proyecto.
+- No se modifican fisicas, dificultad, red, HUD, audio ni mecanica de invisibilidad.
+
+
+## V16.4.41 - suavidad PC / prediccion visual local
+
+- La nave local usa una pose visual continua con prediccion de aceleracion, drag y giro equivalente a la fisica del servidor.
+- Los snapshots de 30 Hz ya no reanclan visualmente la nave de golpe: se reconcilian suavemente, eliminando microtirones que aumentaban con la velocidad y con el jitter de red.
+- El intervalo de interpolacion usa una media suavizada en lugar del ultimo intervalo bruto de llegada.
+- Canvas 2D usa composicion sincronizada tambien en PC para evitar pacing irregular asociado a `desynchronized`.
+- La fisica autoritativa, colisiones, controles, red, IA y reglas de juego no cambian.
+- `?debug=1` muestra tambien `ERR`, el maximo error de reconciliacion local de los ultimos 5 s.
+
+## V16.4.42 - Espanol / English
+
+- Selector `ESPANOL / ENGLISH` arriba a la derecha del menu principal.
+- El idioma elegido se guarda en `localStorage` y se recupera al volver a abrir el juego.
+- Traduce menu principal, dialogos de salas, lobby/chat, voz, avisos de partida y controles moviles.
+- Nombres escritos por jugadores y mensajes de chat no se modifican.
+- No cambia fisica, red, IA ni rendimiento.
+
+
+## V16.4.43 - Testigo de version solo en portada
+- El indicador de version se muestra unicamente dentro del menu principal.
+- Al entrar en lobby, chat o partida desaparece automaticamente.
+- Al volver al menu principal reaparece.
+- Sin cambios de jugabilidad, red, audio, idiomas o servidor.
+
+## V16.4.45 - Selector de idioma desplegable
+
+- Selector compacto en la esquina superior derecha de la portada con bandera + codigo: ES, EN, IT, FR y DE.
+- Idiomas disponibles: espanol, ingles, italiano, frances y aleman.
+- La eleccion se guarda en `localStorage` y se restaura al volver a abrir el juego.
+- Se traducen menu, lobby/chat, voz, controles moviles y avisos de partida; nombres de jugadores y mensajes escritos en chat no se modifican.
+- El selector sigue apareciendo solo en la portada principal.
+
+
+
+## V16.4.45
+- Selector de idioma propio con banderas CSS (visible de forma consistente en Safari/Chrome).
+- El testigo de version queda arriba a la derecha y el selector de idioma justo debajo.
