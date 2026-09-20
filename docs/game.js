@@ -2,6 +2,7 @@
 (() => {
   const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
   const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+  const perfDebug=new URLSearchParams(location.search).get('debug')==='1';
   const canvas=document.getElementById('game');
   // En iOS usamos el canvas sincronizado con la composicion normal de Safari.
   // `desynchronized:true` puede producir una cadencia irregular/microtirones en
@@ -57,12 +58,20 @@
   let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0;
   let publicRooms=[];
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
-  // V16.4.35: sincronizamos estados y controles con RAF para evitar picos de trabajo
+  // V16.4.36: sincronizamos estados/controles y reducimos GC en movil para evitar picos de trabajo
   // asincronos en Safari/iOS. Solo conservamos el snapshot de estado mas reciente.
   let pendingStateRaw=null;
   let lastControlSentAt=0;
+  let lastSentControlTurn=NaN,lastSentControlThrust=false,lastSentControlFire=false;
   let lastPaintAt=0;
+  let lastStateProcessedAt=0;
   const CONTROL_SEND_MS=1000/30;
+  const CONTROL_HEARTBEAT_MS=100;
+  // En movil parseamos como maximo 20 snapshots/s. El servidor puede seguir
+  // enviando 30/s, pero conservar solo el mas reciente reduce un tercio las
+  // asignaciones de JSON y las pausas de GC sin tocar fisica ni controles.
+  const STATE_PROCESS_MS=isMobile?50:0;
+  const perfStats=perfDebug?{lastPaint:0,windowStart:performance.now(),frames:0,longFrames:0,maxFrame:0,lastFrame:0,parseMs:0,parseCount:0,report:{fps:0,long:0,max:0,frame:0,parse:0}}:null;
   // Solo saltamos callbacks propios de 120 Hz (~8,3 ms). No usamos un umbral
   // de 16,7 ms para no convertir una pequena variacion de un panel de 60 Hz en 30 Hz.
   const HIGH_REFRESH_SKIP_MS=10.5;
@@ -72,6 +81,18 @@
   // Tamano visual de las naves. Solo cambia el dibujo: fisica, colisiones y red quedan iguales.
   const SHIP_DRAW_SIZE=isMobile?86:72;
   const SHIELD_DRAW_RADIUS=isMobile?48:43;
+  const HUD_SCALE=isMobile?1.60:1.12;
+  const HUD_PANEL_W=128*HUD_SCALE;
+  const HUD_PANEL_H=153*HUD_SCALE;
+  const HUD_NAME_FONT=isMobile?`800 ${22*HUD_SCALE}px Arial,Helvetica,sans-serif`:`${20*HUD_SCALE}px Flashback,Arial`;
+  const HUD_VALUE_FONT=isMobile?`800 ${23*HUD_SCALE}px Arial,Helvetica,sans-serif`:null;
+  const SHIP_IMAGE_KEYS=[
+    {base:'ship1',a:'ship1a',f:'ship1f',af:'ship1af'},
+    {base:'ship2',a:'ship2a',f:'ship2f',af:'ship2af'},
+    {base:'ship3',a:'ship3a',f:'ship3f',af:'ship3af'},
+    {base:'ship4',a:'ship4a',f:'ship4f',af:'ship4af'}
+  ];
+  const ASTEROID_IMAGE_KEYS=['','asteroid1','asteroid2','asteroid3','asteroid4','asteroid5','asteroid6'];
   const voice=typeof window.GalaxyVoice==='function'?new window.GalaxyVoice({send:o=>send(o),isMobile}):null;
   let backgroundCache=null,backgroundCacheW=0,backgroundCacheH=0;
   function rebuildBackgroundCache(){
@@ -146,12 +167,18 @@
       letra=>vocalesSinTilde[letra]
     );
   }
+  const hudNameCache=[null,null,null,null];
   function hudPlayerName(p){
-    const raw=sinTildes(p&&p.n!=null?p.n:'').trim();
+    const idx=Number(p&&p.i);
+    const source=String(p&&p.n!=null?p.n:'');
+    const cached=Number.isInteger(idx)?hudNameCache[idx]:null;
+    if(cached&&cached.source===source)return cached.value;
+    const raw=sinTildes(source).trim();
     const upper=raw.toUpperCase();
-    const defaultNumber=`JUGADOR ${Number(p&&p.i)+1}`;
-    if(!raw||upper==='JUGADOR'||upper===defaultNumber)return `J${Number(p&&p.i)+1}`;
-    return raw;
+    const defaultNumber=`JUGADOR ${idx+1}`;
+    const value=(!raw||upper==='JUGADOR'||upper===defaultNumber)?`J${idx+1}`:raw;
+    if(Number.isInteger(idx)&&idx>=0&&idx<hudNameCache.length)hudNameCache[idx]={source,value};
+    return value;
   }
   const campoNombre=document.getElementById('name');
   function normalizarNombreVisible(){
@@ -411,11 +438,12 @@
         pendingStateRaw=raw;
         return;
       }
-      // Para mensajes no reemplazables respetamos el orden WebSocket: si habia
-      // un estado pendiente, se procesa antes del evento (victoria, sonido, etc.).
-      flushPendingState();
+      // Los eventos pequenos (sonido, voz, BRUTAL) no necesitan forzar el
+      // parseo de un snapshot pendiente. Solo los cambios de fase de partida
+      // requieren orden estricto con el ultimo estado recibido.
       let m;try{m=JSON.parse(raw);}catch(_){return;}
       if(voice&&voice.isSignal(m)){voice.handleSignal(m);return;}
+      if(m&&(['victory','restarted','closed','start'].includes(m.t)))flushPendingState(true);
       handle(m);
     };
   }
@@ -431,26 +459,38 @@
     if(Number(ws.bufferedAmount||0)>32*1024)return false;
     try{ws.send(JSON.stringify({t:'ctrl',turn,thrust,fire}));return true;}catch(_){return false;}
   }
-  function flushPendingState(){
+  function flushPendingState(force=false,stamp=performance.now()){
     if(!pendingStateRaw)return false;
+    if(!force&&STATE_PROCESS_MS>0&&lastStateProcessedAt&&stamp-lastStateProcessedAt<STATE_PROCESS_MS)return false;
     const raw=pendingStateRaw;
     pendingStateRaw=null;
+    const parseStart=perfStats?performance.now():0;
     let m;try{m=JSON.parse(raw);}catch(_){return false;}
+    if(perfStats){perfStats.parseMs+=performance.now()-parseStart;perfStats.parseCount++;}
+    lastStateProcessedAt=stamp;
     handle(m);
     return true;
   }
   function pumpControls(now){
     if(!inGame)return;
-    if(lastControlSentAt&&now-lastControlSentAt<CONTROL_SEND_MS-1)return;
-    lastControlSentAt=now;
     const left=keys.has('KeyA')||keys.has('ArrowLeft');
     const right=keys.has('KeyD')||keys.has('ArrowRight');
     const keyboardTurn=(left?1:0)-(right?1:0);
-    const turn=(isMobile&&motionEnabled)?motionTurn:keyboardTurn;
+    const rawTurn=(isMobile&&motionEnabled)?motionTurn:keyboardTurn;
+    // El sensor tiene un poco de ruido incluso con el telefono quieto. Redondear
+    // a pasos de 1/64 evita JSON/WebSocket innecesarios sin alterar el tacto.
+    const turn=Math.round(rawTurn*64)/64;
     const thrust=(isMobile?mobileThrust:false)||keys.has('KeyW')||keys.has('ArrowUp');
     const fire=(isMobile?mobileFire:false)||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
-    lastControlTurn=turn;
-    sendControl(turn,thrust,fire);
+    lastControlTurn=rawTurn;
+    const changed=!Number.isFinite(lastSentControlTurn)||turn!==lastSentControlTurn||thrust!==lastSentControlThrust||fire!==lastSentControlFire;
+    const elapsed=lastControlSentAt?now-lastControlSentAt:Infinity;
+    if((changed&&elapsed>=CONTROL_SEND_MS-1)||elapsed>=CONTROL_HEARTBEAT_MS){
+      if(sendControl(turn,thrust,fire)){
+        lastControlSentAt=now;
+        lastSentControlTurn=turn;lastSentControlThrust=thrust;lastSentControlFire=fire;
+      }
+    }
   }
   function uniqueLeaderFrom(players){
     if(!Array.isArray(players)||!players.length)return null;
@@ -653,7 +693,7 @@
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(){stopMusic();if(isMobile)calibrateMobileMotion();lastControlSentAt=0;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
+  function beginGame(){stopMusic();if(isMobile)calibrateMobileMotion();lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
   function showVictory(i){if(!inGame)return;inGame=false;leaderAnnouncement=null;topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?`GANA ${sinTildes(p.n)}`:`GANA J${i+1}`;const restartBtn=document.getElementById('restartMatch');if(restartBtn){restartBtn.disabled=false;restartBtn.textContent='REPETIR PARTIDA';}victory.classList.remove('hidden');}
 
   menu.addEventListener('pointerdown',startMusic,{passive:true});
@@ -697,7 +737,7 @@
     if(notifyServer&&roomCode)send({t:'leave'});
     if(voice)voice.clearSession();
     stopResumeWindow();clearResumeSession();playerToken='';
-    inGame=false;state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;lastControlSentAt=0;
+    inGame=false;state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
     killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
     roomCode='';myIndex=null;isHost=false;lastVoicePlayersSig=0;rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
@@ -748,15 +788,20 @@
   }
   function drawImageCentered(im,x,y,size,rot=0,alpha=1){
     if(!imageReady(im)||!Number.isFinite(x)||!Number.isFinite(y)||!Number.isFinite(rot))return false;
+    // Asteroides, mejoras y meteorito gigante no rotados son la mayoria de
+    // drawImage del frame. Evitamos save/translate/rotate/restore en ese caso.
+    if(rot===0&&alpha===1){
+      if(size)return drawImageSafely(im,x-size/2,y-size/2,size,size);
+      return drawImageSafely(im,x-im.naturalWidth/2,y-im.naturalHeight/2);
+    }
     ctx.save();
     try{
       ctx.globalAlpha=alpha;
       ctx.translate(x,y);
-      ctx.rotate(rot*Math.PI/180);
+      if(rot!==0)ctx.rotate(rot*Math.PI/180);
       if(size)return drawImageSafely(im,-size/2,-size/2,size,size);
       return drawImageSafely(im,-im.naturalWidth/2,-im.naturalHeight/2);
     }finally{
-      // An image error must never leave translate/rotate/alpha on the canvas.
       ctx.restore();
     }
   }
@@ -862,11 +907,11 @@
     }
     // Python: armado = balas > 0 y recarga terminada. El servidor confirma
     // ese estado; no cambiamos el movimiento ni el efecto de propulsion web.
-    const shipKey=`ship${p.i+1}`;
-    const motionSuffix=Math.hypot(p.vx,p.vy)>40?'a':'';
-    const readySuffix=p.armed===true?'f':'';
-    const selected=images[shipKey+motionSuffix+readySuffix];
-    const normal=images[shipKey+motionSuffix]||images[shipKey];
+    const variants=SHIP_IMAGE_KEYS[p.i]||SHIP_IMAGE_KEYS[0];
+    const moving=(p.vx*p.vx+p.vy*p.vy)>1600;
+    const armed=p.armed===true;
+    const selected=images[moving?(armed?variants.af:variants.a):(armed?variants.f:variants.base)];
+    const normal=images[moving?variants.a:variants.base]||images[variants.base];
     // Si el PNG aun no esta disponible, dibujar la nave normal sin bloquear.
     const im=imageReady(selected)?selected:normal;
     // Los PNG originales de las naves apuntan hacia ARRIBA.
@@ -887,8 +932,8 @@
     state.players.forEach(p=>{
       // HUD ligeramente mayor en ambas plataformas para mejorar la lectura.
       // Movil conserva un refuerzo extra porque muestra todo el campo 16:9.
-      const hudScale=isMobile?1.60:1.12;
-      const panelW=128*hudScale,panelH=153*hudScale;
+      const hudScale=HUD_SCALE;
+      const panelW=HUD_PANEL_W,panelH=HUD_PANEL_H;
       const left=p.i%2===0,top=p.i<2;
       const px=left?10:W-10-panelW;
       const bottomHudMargin=isMobile?45:36;
@@ -917,8 +962,8 @@
       }
       const rightHud=p.i===1||p.i===3;
       const nameX=rightHud?px+panelW-4*hudScale:px+4*hudScale;
-      ctx.font=isMobile?`800 ${22*hudScale}px Arial,Helvetica,sans-serif`:`${20*hudScale}px Flashback,Arial`;ctx.fillStyle=color;ctx.textAlign=rightHud?'right':'left';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(hudPlayerName(p),nameX,py+157*hudScale);ctx.globalAlpha=1;
-      const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;if(isMobile)ctx.font=`800 ${23*hudScale}px Arial,Helvetica,sans-serif`;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);
+      ctx.font=HUD_NAME_FONT;ctx.fillStyle=color;ctx.textAlign=rightHud?'right':'left';ctx.textBaseline='top';let alpha=1;if(leader===p.i)alpha=.62+.38*(.5+.5*Math.sin(now*.0042));ctx.globalAlpha=alpha;ctx.fillText(hudPlayerName(p),nameX,py+157*hudScale);ctx.globalAlpha=1;
+      const tx=px+(left?50:46)*hudScale;ctx.textAlign='left';ctx.fillStyle=color;if(isMobile)ctx.font=HUD_VALUE_FONT;ctx.fillText(String(p.ammo),tx,py+15*hudScale);ctx.fillText('x'+p.spd,tx,py+80*hudScale);
       let displayedKills=Number(p.k)||0;
       if(p.i===myIndex&&killScorePendingValue!==null){
         if(now<killScoreFxStart){
@@ -1145,8 +1190,8 @@
     const fontSize=isMobile?27:21;
     const pillH=isMobile?40:32;
     const pillW=isMobile?170:138;
-    const hudScale=isMobile?1.60:1.12;
-    const panelW=128*hudScale;
+    const hudScale=HUD_SCALE;
+    const panelW=HUD_PANEL_W;
     const sideGap=isMobile?14:12;
     const bottomHudMargin=isMobile?45:36;
 
@@ -1266,33 +1311,42 @@
   function render(rafNow){
     requestAnimationFrame(render);
     const now=Number.isFinite(rafNow)?rafNow:performance.now();
-    flushPendingState();
+    flushPendingState(false,now);
     pumpControls(now);
     // En pantallas ProMotion/120 Hz no tiene sentido dibujar el juego a 120: la
     // simulacion va a 60 Hz y la red a 30 Hz. Limitamos solo el pintado a 60 Hz.
     if(lastPaintAt&&now-lastPaintAt<HIGH_REFRESH_SKIP_MS)return;
     lastPaintAt=now;
-    // Limpiar en pixeles fisicos y dibujar despues en coordenadas logicas
-    // 1920x1080. En movil el buffer puede ser 1280x720 sin cambiar la fisica.
+    if(perfStats){
+      if(perfStats.lastPaint){
+        const dt=now-perfStats.lastPaint;perfStats.lastFrame=dt;perfStats.frames++;
+        if(dt>25)perfStats.longFrames++;
+        if(dt>perfStats.maxFrame)perfStats.maxFrame=dt;
+      }
+      perfStats.lastPaint=now;
+      if(now-perfStats.windowStart>=5000){
+        const seconds=(now-perfStats.windowStart)/1000;
+        perfStats.report={fps:seconds>0?perfStats.frames/seconds:0,long:perfStats.longFrames,max:perfStats.maxFrame,frame:perfStats.lastFrame,parse:perfStats.parseCount?perfStats.parseMs/perfStats.parseCount:0};
+        perfStats.windowStart=now;perfStats.frames=0;perfStats.longFrames=0;perfStats.maxFrame=0;perfStats.parseMs=0;perfStats.parseCount=0;
+      }
+    }
+    // El fondo cacheado es opaco y cubre todo el backing canvas. Con la
+    // composicion `copy` sustituimos el frame anterior en una sola pasada y
+    // evitamos clearRect + drawImage (dos recorridos completos de memoria).
     ctx.setTransform(1,0,0,1,0,0);
     ctx.globalAlpha=1;
-    ctx.globalCompositeOperation='source-over';
     ctx.filter='none';
     ctx.shadowColor='rgba(0,0,0,0)';
     ctx.shadowBlur=0;
     ctx.shadowOffsetX=0;
     ctx.shadowOffsetY=0;
-    // Safari/iPadOS puede conservar restos visuales si solo cubrimos el frame
-    // anterior con otra imagen. Limpiamos SIEMPRE el backing canvas completo
-    // en coordenadas fisicas antes de dibujar el nuevo frame.
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    // El fondo movil se reescala una sola vez al cambiar la resolucion, no en
-    // cada frame. El cache tiene exactamente el tamano del backing canvas.
+    ctx.globalCompositeOperation='copy';
     if(backgroundCache&&backgroundCacheW===canvas.width&&backgroundCacheH===canvas.height){
       ctx.drawImage(backgroundCache,0,0,canvas.width,canvas.height);
     }else{
       ctx.fillStyle='#020714';ctx.fillRect(0,0,canvas.width,canvas.height);
     }
+    ctx.globalCompositeOperation='source-over';
     ctx.setTransform(renderScale,0,0,renderScale,0,0);
     if(!backgroundCache&&!drawImageSafely(images.bg,0,0,W,H)){ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);}
     if(!state)return;
@@ -1315,7 +1369,7 @@
       const old=previousLookup.asteroids.get(a.id);
       const x=old?lerp(old.x,a.x,blend):a.x;
       const y=old?lerp(old.y,a.y,blend):a.y;
-      drawImageCentered(images[`asteroid${a.type}`]||images.asteroid1,x,y,a.type===5?60:90);
+      drawImageCentered(images[ASTEROID_IMAGE_KEYS[a.type]]||images.asteroid1,x,y,a.type===5?60:90);
     }
     for(const pk of state.pickups){
       const old=previousLookup.pickups.get(pk.id);
@@ -1326,7 +1380,7 @@
       const x=old?lerp(old.x,m.x,blend):m.x;
       const y=old?lerp(old.y,m.y,blend):m.y;
       const angle=old?lerpAngle(old.a,m.a,blend):m.a;
-      drawImageCentered(images[`asteroid${m.type}`]||images.asteroid1,x,y,[0,22,27,31][m.type]||25,angle);
+      drawImageCentered(images[ASTEROID_IMAGE_KEYS[m.type]]||images.asteroid1,x,y,[0,22,27,31][m.type]||25,angle);
     }
     if(state.giant){
       const old=prev.giant;
@@ -1360,6 +1414,18 @@
       ctx.shadowColor='rgba(255,135,35,.65)';
       ctx.shadowBlur=8+5*(1-pulse);
       ctx.fillText('LLUVIA DE METEORITOS',W/2,185);
+      ctx.restore();
+    }
+    if(perfStats){
+      const r=perfStats.report;
+      ctx.save();
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.globalCompositeOperation='source-over';
+      ctx.globalAlpha=.82;
+      ctx.fillStyle='rgba(0,0,0,.68)';ctx.fillRect(8,8,278,58);
+      ctx.globalAlpha=1;ctx.fillStyle='#8dffb0';ctx.font='12px Arial,Helvetica,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
+      ctx.fillText(`FPS ${r.fps.toFixed(0)}  FRAME ${r.frame.toFixed(1)}ms  MAX ${r.max.toFixed(1)}ms`,16,16);
+      ctx.fillText(`>25ms ${r.long}/5s  JSON ${r.parse.toFixed(2)}ms  ${canvas.width}x${canvas.height}`,16,36);
       ctx.restore();
     }
   }

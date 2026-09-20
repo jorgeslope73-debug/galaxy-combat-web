@@ -30,7 +30,7 @@
   }
 
   class GalaxyImpactFX {
-    constructor() { this.reset(); }
+    constructor() { getGlowSprite(); this.reset(); }
 
     reset() {
       this.bursts = [];

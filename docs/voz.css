@@ -93,3 +93,9 @@
   .mobile-exit:active{background:transparent!important;color:transparent!important}
   .mobile-exit:not(.hidden){display:block!important}
 }
+
+/* V16.4.36: las zonas tactiles son solo hit-areas; el feedback visual ya vive en canvas.
+   Evitamos dos grandes capas con gradiente sobre Safari/iOS durante toda la partida. */
+@media (pointer:coarse){
+  #mobileControls .fire-zone,#mobileControls .thrust-zone{background:transparent!important;}
+}
