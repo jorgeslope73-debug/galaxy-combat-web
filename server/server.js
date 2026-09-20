@@ -91,6 +91,11 @@ function safeName(v, fallback='JUGADOR') {
   const s = String(v || '').replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0,16);
   return s || fallback;
 }
+const ROOM_LANGUAGES = new Set(['es','en','it','fr','de']);
+function safeRoomLanguage(value) {
+  const lang = String(value || '').trim().toLowerCase();
+  return ROOM_LANGUAGES.has(lang) ? lang : 'es';
+}
 function normalizeClientIp(value) {
   let ip = String(value || '').trim();
   if (!ip) return 'unknown';
@@ -192,11 +197,12 @@ function broadcastVoicePresence(room,from,type,extra={}) {
 }
 
 class GameRoom {
-  constructor(code, mode='online', difficulty='medio', isPublic=false) {
+  constructor(code, mode='online', difficulty='medio', isPublic=false, language='es') {
     this.code = code;
     this.mode = mode;
     this.difficulty = difficulty;
     this.isPublic = mode==='online' && !!isPublic;
+    this.language = safeRoomLanguage(language);
     this.players = [];
     this.started = false;
     this.finished = false;
@@ -458,14 +464,29 @@ class GameRoom {
     // Excepcion: si conserva escudo y el rival no tiene escudo/proteccion,
     // puede aprovecharlo para embestir, sobre todo si el rival esta cerca.
     if (cpu.bullets===0) {
-      let bestD2=Infinity;
+      // Sin municion, la CPU elige la municion mas segura, no simplemente
+      // la mas cercana. Si el jugador esta cerca de un pickup, ese pickup
+      // recibe una penalizacion para evitar que la CPU se lance hacia el.
+      let bestAmmoScore=Infinity;
+      let bestAmmoDistance=Infinity;
+      let seekPickupRivalDistance=Infinity;
       for(const pk of this.pickups){
         if(!pk.type.startsWith('ammo'))continue;
-        const d2=dist2(cpu,pk);
-        if(d2<bestD2){bestD2=d2;seekPickup=pk;}
+        const cpuDistance=Math.sqrt(dist2(cpu,pk));
+        const rivalDistance=Math.sqrt(dist2(rival,pk));
+        const dangerRadius=900;
+        const danger=Math.max(0,dangerRadius-rivalDistance);
+        const dangerWeight=cpu.shield>0?0.45:1.35;
+        const score=cpuDistance+danger*dangerWeight;
+        if(score<bestAmmoScore){
+          bestAmmoScore=score;
+          bestAmmoDistance=cpuDistance;
+          seekPickupRivalDistance=rivalDistance;
+          seekPickup=pk;
+        }
       }
 
-      const ammoDistance=seekPickup?Math.sqrt(bestD2):Infinity;
+      const ammoDistance=seekPickup?bestAmmoDistance:Infinity;
       const canRam=cpu.shield>0 && !rivalShielded;
       const ramRange=cpu.difficulty==='dificil'?650:(cpu.difficulty==='medio'?520:420);
       const preferRam=canRam && (
@@ -485,11 +506,23 @@ class GameRoom {
         desiredX=seekPickup.x;
         desiredY=seekPickup.y;
 
-        // Va a por la municion, pero si el jugador se acerca demasiado
-        // curva la ruta hacia el lado contrario para no regalar la colision.
+        // Si la municion esta cerca del jugador, una CPU sin escudo intenta
+        // aproximarse por el lado opuesto y no cruza voluntariamente por su
+        // trayectoria. Cuando ya esta encima del pickup, prioriza recogerlo.
+        const cpuToPickup=Math.sqrt(dist2(cpu,seekPickup));
+        if(cpu.shield<=0 && seekPickupRivalDistance<520 && cpuToPickup>120){
+          const px=seekPickup.x-rival.x, py=seekPickup.y-rival.y;
+          const plen=Math.hypot(px,py)||1;
+          const detour=Math.min(280,Math.max(80,520-seekPickupRivalDistance));
+          desiredX+=px/plen*detour;
+          desiredY+=py/plen*detour;
+        }
+
+        // Ademas, si el jugador se acerca a la CPU, curva la ruta hacia el
+        // lado contrario para mantener distancia mientras busca municion.
         if(distance<800){
           const inv=1/(distance||1);
-          const flee=(800-distance)*(cpu.shield>0?0.55:0.9);
+          const flee=(800-distance)*(cpu.shield>0?0.55:0.95);
           desiredX+=(cpu.x-rival.x)*inv*flee;
           desiredY+=(cpu.y-rival.y)*inv*flee;
         }
@@ -526,7 +559,9 @@ class GameRoom {
       }
     }
 
-    if (seekPickup) { desiredX=seekPickup.x; desiredY=seekPickup.y; }
+    // En modo defensivo sin municion, desiredX/Y ya incluyen la ruta de
+    // evasion calculada arriba. No la sobrescribimos con el centro del pickup.
+    if (seekPickup && !defensiveNoAmmo) { desiredX=seekPickup.x; desiredY=seekPickup.y; }
     const ddx=desiredX-cpu.x, ddy=desiredY-cpu.y;
     const dRot=(Math.atan2(-ddx,-ddy)*180/Math.PI+360)%360;
     err=((dRot-cpu.rot+540)%360)-180;
@@ -555,7 +590,7 @@ class GameRoom {
     // En huida o embestida no dejamos de acelerar por estar demasiado cerca
     // del rival; esa era una de las causas de que una CPU desarmada se quedase
     // casi parada justo cuando mas necesitaba alejarse.
-    const thrust=Math.abs(err)<60 && (seekPickup||defensiveNoAmmo||ramming||distance>280||avoidMag>20);
+    const thrust=!!(Math.abs(err)<60 && (seekPickup||defensiveNoAmmo||ramming||distance>280||avoidMag>20));
     const fire=!rivalDangerous && !seekPickup && cpu.bullets>0 && cpu.reload<=0 && Math.abs(err)<6 && distance<1350;
     return {turn,thrust,fire};
   }
@@ -807,7 +842,7 @@ function publicRoomsSnapshot() {
     const humans=room.players.filter(p=>!p.cpu);
     if(!humans.length||humans.length>=MAX_PLAYERS)continue;
     const host=humans.find(p=>p.isHost)||humans[0];
-    list.push({code:room.code,host:host?host.name:'JUGADOR',players:humans.length,maxPlayers:MAX_PLAYERS,createdAt:room.createdAt});
+    list.push({code:room.code,host:host?host.name:'JUGADOR',lang:room.language,players:humans.length,maxPlayers:MAX_PLAYERS,createdAt:room.createdAt});
   }
   list.sort((a,b)=>b.players-a.players||a.createdAt-b.createdAt);
   return list.map(({createdAt,...room})=>room);
@@ -912,7 +947,7 @@ wss.on('connection',(ws,req)=>{
     if(msg.t==='create'){
       releaseAbandonedRoomForIp(clientIp);
       if(activeRoomForIp(clientIp)){send(ws,{t:'error',message:'YA TIENES UNA SALA ACTIVA.'});return;}
-      const code=roomCode();const room=new GameRoom(code,'online','medio',!!msg.public);rooms.set(code,room);registerRoomCreator(room,clientIp);const p=room.addHuman(ws,msg.name,true);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,public:room.isPublic,playerToken:p.playerToken});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
+      const code=roomCode();const room=new GameRoom(code,'online','medio',!!msg.public,safeRoomLanguage(msg.lang));rooms.set(code,room);registerRoomCreator(room,clientIp);const p=room.addHuman(ws,msg.name,true);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,public:room.isPublic,playerToken:p.playerToken});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
     } else if(msg.t==='cpu'){
       // Las partidas contra CPU son locales/privadas para esta sesion y no
       // cuentan para el limite de una sala online activa por IP.
