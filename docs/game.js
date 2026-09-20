@@ -101,7 +101,7 @@
     if(resizeRaf)return;
     resizeRaf=requestAnimationFrame(()=>{resizeRaf=0;updateCanvasResolution();});
   }
-  const mobileSetup=document.getElementById('mobileSetup'),enableMotionBtn=document.getElementById('enableMotion'),motionStatus=document.getElementById('motionStatus');
+  const motionStatus=document.getElementById('motionStatus');
   const mobileControls=document.getElementById('mobileControls'),fireZone=document.querySelector('.fire-zone'),thrustZone=document.querySelector('.thrust-zone');
   const mobileExit=document.getElementById('mobileExit');
   // En movil las zonas tactiles siguen por encima del canvas para recibir los toques,
@@ -113,7 +113,7 @@
     if(fireLabel)fireLabel.style.visibility='hidden';
     if(thrustLabel)thrustLabel.style.visibility='hidden';
   }
-  let motionEnabled=false,motionTurn=0,motionNeutral=null,motionLastRaw=0;
+  let motionEnabled=false,motionTurn=0,motionNeutral=null,motionLastRaw=0,motionHasSample=false;
   let mobileFire=false,mobileThrust=false;
   const touchSides=new Map();
 
@@ -229,7 +229,7 @@
   }
   function onDeviceOrientation(ev){
     const raw=lateralTilt(ev);
-    motionLastRaw=raw;
+    motionLastRaw=raw;motionHasSample=true;
     if(motionNeutral===null)motionNeutral=raw;
     let delta=raw-motionNeutral;
     // Compensa el salto de -180/180 en sensores que lo necesiten.
@@ -238,7 +238,7 @@
     const dead=3.0;
     if(Math.abs(delta)<=dead){motionTurn=0;return;}
     const signed=delta>0?delta-dead:delta+dead;
-    motionTurn=-clamp(signed/22,-1,1);
+    motionTurn=clamp(signed/22,-1,1);
   }
   async function enableMobileMotion(){
     if(!isMobile)return true;
@@ -253,14 +253,18 @@
       }
       window.removeEventListener('deviceorientation',onDeviceOrientation);
       window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});
-      motionNeutral=null;motionTurn=0;motionEnabled=true;
-      motionStatus.textContent='Control movil activo · giro corregido · posicion actual calibrada como centro.';
-      enableMotionBtn.textContent='RECALIBRAR GIRO';
+      motionNeutral=null;motionTurn=0;motionEnabled=true;motionHasSample=false;
+      motionStatus.textContent='';
       return true;
     }catch(err){
       motionStatus.textContent='No se pudo activar el giro: '+sinTildes(err&&err.message?err.message:'permiso no disponible');
       return false;
     }
+  }
+  function calibrateMobileMotion(){
+    if(!isMobile||!motionEnabled)return;
+    motionNeutral=motionHasSample?motionLastRaw:null;
+    motionTurn=0;
   }
   function refreshTouchControls(){
     mobileFire=false;mobileThrust=false;
@@ -594,14 +598,14 @@
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(){stopMusic();inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
+  function beginGame(){stopMusic();if(isMobile)calibrateMobileMotion();inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
   function showVictory(i){if(!inGame)return;inGame=false;leaderAnnouncement=null;topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?`GANA ${sinTildes(p.n)}`:`GANA J${i+1}`;const restartBtn=document.getElementById('restartMatch');if(restartBtn){restartBtn.disabled=false;restartBtn.textContent='REPETIR PARTIDA';}victory.classList.remove('hidden');}
 
   menu.addEventListener('pointerdown',startMusic,{passive:true});
   menu.addEventListener('keydown',startMusic);
 
   document.getElementById('create').addEventListener('click',()=>{startMusic();showRoomTypeDialog();});
-  document.getElementById('cpu').addEventListener('click',async()=>{startMusic();if(isMobile&&!motionEnabled)await enableMobileMotion();send({t:'cpu',name:sinTildes(campoNombre.value),difficulty:document.getElementById('difficulty').value});});
+  document.getElementById('cpu').addEventListener('click',async()=>{startMusic();await prepareMobileControls();send({t:'cpu',name:sinTildes(campoNombre.value),difficulty:document.getElementById('difficulty').value});});
   document.getElementById('join').addEventListener('click',()=>{startMusic();showPublicRoomsDialog();});
   document.getElementById('createPublic').addEventListener('click',()=>createOnlineRoom(true));
   document.getElementById('createPrivate').addEventListener('click',()=>createOnlineRoom(false));
@@ -619,8 +623,6 @@
   });
   if(lobbyChatInput)lobbyChatInput.addEventListener('keyup',e=>e.stopPropagation());
   if(isMobile){
-    mobileSetup.classList.remove('hidden');
-    enableMotionBtn.addEventListener('click',enableMobileMotion);
     document.getElementById('app').addEventListener('pointerdown',mobilePointerDown,{passive:false});
     document.getElementById('app').addEventListener('pointerup',mobilePointerEnd,{passive:false});
     document.getElementById('app').addEventListener('pointercancel',mobilePointerEnd,{passive:false});
@@ -635,7 +637,7 @@
   window.addEventListener('resize',scheduleCanvasResolution,{passive:true});
   window.addEventListener('orientationchange',scheduleCanvasResolution,{passive:true});
   scheduleCanvasResolution();
-  startBtn.addEventListener('click',()=>send({t:'start'}));
+  startBtn.addEventListener('click',async()=>{await prepareMobileControls();calibrateMobileMotion();send({t:'start'});});
   function returnToMainMenu(notifyServer=true){
     if(notifyServer&&roomCode)send({t:'leave'});
     if(voice)voice.clearSession();

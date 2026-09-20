@@ -501,3 +501,45 @@
   #menu .mobile-guide-main{display:block;font-size:10px!important;margin-bottom:0}
   #menu .mobile-motion-status{position:static!important;width:min(92vw,380px);margin:3px auto 0!important;transform:none!important;text-align:center;font-size:10px!important;line-height:1.25!important;pointer-events:none;color:#e1c5f2}
 }
+
+/* V16.4.28: orden y legibilidad de controles moviles en portada */
+@media (pointer:coarse),(max-width:900px){
+  #menu .menu-control-tools .mobile-setup{order:1!important}
+  #menu .menu-control-tools .voice-setup{order:2!important}
+  #menu #enableMotion,#menu #enableVoice{
+    font-family:Arial,Helvetica,sans-serif!important;
+    font-size:12px!important;
+    font-weight:800!important;
+    letter-spacing:.015em!important;
+    line-height:1.1!important;
+    min-height:40px!important;
+    height:40px!important;
+    padding:6px 8px!important;
+    text-transform:none!important;
+  }
+}
+
+
+/* V16.4.30: sin boton de recalibrado; VOZ queda a la derecha en movil. */
+@media (pointer:coarse),(max-width:900px){
+  #menu .menu-control-tools{justify-content:flex-end!important;}
+  #menu .menu-control-tools .voice-setup{
+    order:2!important;
+    flex:0 1 190px!important;
+    width:min(48%,190px)!important;
+    max-width:190px!important;
+    margin-left:auto!important;
+  }
+  #menu #enableVoice{
+    width:100%!important;
+    font-family:Arial,Helvetica,sans-serif!important;
+    font-size:12px!important;
+    font-weight:800!important;
+    letter-spacing:.015em!important;
+    line-height:1.1!important;
+    min-height:40px!important;
+    height:40px!important;
+    padding:6px 8px!important;
+    text-transform:none!important;
+  }
+}
