@@ -215,9 +215,9 @@
     if(cached&&cached.source===source)return cached.value;
     const raw=sinTildes(source).trim();
     const upper=raw.toUpperCase();
-    const defaultNumberEs=`JUGADOR ${idx+1}`;
-    const defaultNumberEn=`PLAYER ${idx+1}`;
-    const value=(!raw||upper==='JUGADOR'||upper==='PLAYER'||upper===defaultNumberEs||upper===defaultNumberEn)?`J${idx+1}`:raw;
+    const defaultNames=['JUGADOR','PLAYER','GIOCATORE','JOUEUR','SPIELER'];
+    const isDefaultName=defaultNames.includes(upper)||defaultNames.some(name=>upper===`${name} ${idx+1}`);
+    const value=(!raw||isDefaultName)?`J${idx+1}`:raw;
     if(Number.isInteger(idx)&&idx>=0&&idx<hudNameCache.length)hudNameCache[idx]={source,value};
     return value;
   }
