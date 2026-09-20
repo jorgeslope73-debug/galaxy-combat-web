@@ -1,4 +1,4 @@
-const VERSION = 'V16.4.41';
+const VERSION = 'V16.4.42';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
@@ -10,6 +10,7 @@ const SHELL_FILES = [
   './menu-portada.css',
   './voz.css',
   './config.js',
+  './i18n.js',
   './impactos.js',
   './voz.js',
   './game.js',

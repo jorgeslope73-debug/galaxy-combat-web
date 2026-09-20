@@ -3,6 +3,9 @@
   const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
   const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
   const perfDebug=new URLSearchParams(location.search).get('debug')==='1';
+  const i18n=window.GalaxyI18n||null;
+  const tr=(key,vars)=>i18n?i18n.t(key,vars):key;
+  const trServer=text=>i18n?i18n.translateServerText(text):String(text==null?'':text);
   const canvas=document.getElementById('game');
   // V16.4.41: usamos el compositor sincronizado tambien en PC. El hint
   // `desynchronized` reduce latencia en algunos navegadores, pero puede producir
@@ -38,7 +41,7 @@
   function stopResumeWindow(){
     resumeStartedAt=0;
     clearTimeout(resumeExpiryTimer);resumeExpiryTimer=null;
-    if(roomMini&&roomMini.textContent==='RECONECTANDO...')roomMini.textContent='';
+    if(roomMini&&roomMini.textContent===tr('reconnecting'))roomMini.textContent='';
   }
   const NET_FRAME_MS=1000/30;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
@@ -212,8 +215,9 @@
     if(cached&&cached.source===source)return cached.value;
     const raw=sinTildes(source).trim();
     const upper=raw.toUpperCase();
-    const defaultNumber=`JUGADOR ${idx+1}`;
-    const value=(!raw||upper==='JUGADOR'||upper===defaultNumber)?`J${idx+1}`:raw;
+    const defaultNumberEs=`JUGADOR ${idx+1}`;
+    const defaultNumberEn=`PLAYER ${idx+1}`;
+    const value=(!raw||upper==='JUGADOR'||upper==='PLAYER'||upper===defaultNumberEs||upper===defaultNumberEn)?`J${idx+1}`:raw;
     if(Number.isInteger(idx)&&idx>=0&&idx<hudNameCache.length)hudNameCache[idx]={source,value};
     return value;
   }
@@ -331,12 +335,12 @@
     if(!isMobile)return true;
     try{
       if(typeof DeviceOrientationEvent==='undefined'){
-        motionStatus.textContent='Este navegador no ofrece sensor de orientacion.';
+        motionStatus.textContent=tr('sensorUnsupported');
         return false;
       }
       if(typeof DeviceOrientationEvent.requestPermission==='function'){
         const result=await DeviceOrientationEvent.requestPermission();
-        if(result!=='granted')throw new Error('Permiso de movimiento denegado');
+        if(result!=='granted')throw new Error(tr('motionPermissionDenied'));
       }
       window.removeEventListener('deviceorientation',onDeviceOrientation);
       window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});
@@ -344,7 +348,7 @@
       motionStatus.textContent='';
       return true;
     }catch(err){
-      motionStatus.textContent='No se pudo activar el giro: '+sinTildes(err&&err.message?err.message:'permiso no disponible');
+      motionStatus.textContent=tr('motionError',{detail:sinTildes(err&&err.message?err.message:tr('permissionUnavailable'))});
       return false;
     }
   }
@@ -401,8 +405,8 @@
     const secs=wakeStartedAt?Math.max(0,Math.floor((Date.now()-wakeStartedAt)/1000)):0;
     const dots='.'.repeat((connectAttempt%3)+1);
     const msg=secs<8
-      ? `Conectando con el servidor${dots} espera un momento.`
-      : `El servidor se esta iniciando${dots} Puede tardar hasta un minuto (${secs}s).`;
+      ? tr('connectingServer',{dots})
+      : tr('serverStarting',{dots,secs});
     statusEl.textContent=msg;
     if(serverWaitText)serverWaitText.textContent=msg;
   }
@@ -415,7 +419,7 @@
     if(!url){
       setServerReady(false);
       statusEl.classList.remove('waking');
-      statusEl.textContent='Falta configurar el servidor de partida en config.js';
+      statusEl.textContent=tr('serverConfigMissing');
       return;
     }
     if(ws&&(ws.readyState===WebSocket.OPEN||ws.readyState===WebSocket.CONNECTING))return;
@@ -428,10 +432,10 @@
       clearTimeout(reconnectTimer);
       connectAttempt=0;wakeStartedAt=0;
       setServerReady(true);
-      statusEl.textContent='Servidor conectado · listo para jugar';
+      statusEl.textContent=tr('serverReady');
       const saved=(roomCode&&playerToken)?{code:roomCode,token:playerToken}:loadResumeSession();
       if(saved){
-        if(roomMini)roomMini.textContent='RECONECTANDO...';
+        if(roomMini)roomMini.textContent=tr('reconnecting');
         send({t:'resume',code:saved.code,token:saved.token});
       }else{
         send({t:'public-rooms'});
@@ -443,15 +447,15 @@
       if(manualClose)return;
       const saved=(roomCode&&playerToken)?{code:roomCode,token:playerToken}:loadResumeSession();
       if(saved&&(inGame||roomCode)){
-        statusEl.textContent='Reconectando con la partida...';
-        if(roomMini)roomMini.textContent='RECONECTANDO...';
+        statusEl.textContent=tr('reconnectingGame');
+        if(roomMini)roomMini.textContent=tr('reconnecting');
         if(!resumeStartedAt){
           resumeStartedAt=Date.now();
           clearTimeout(resumeExpiryTimer);
           resumeExpiryTimer=setTimeout(()=>{
             if(!resumeStartedAt)return;
             clearResumeSession();playerToken='';
-            alert('No se pudo recuperar la partida.');
+            alert(tr('resumeFailed'));
             returnToMainMenu(false);
           },RESUME_WINDOW_MS+1500);
         }
@@ -550,7 +554,7 @@
         leaderAnnouncement={
           i:leader.i,
           name:cleanName,
-          text:'LIDER "'+cleanName+'"',
+          text:null,
           until:now+4000
         };
       }
@@ -582,16 +586,16 @@
     if(!publicRoomsList)return;
     publicRoomsList.textContent='';
     if(!publicRooms.length){
-      const p=document.createElement('p');p.className='public-rooms-empty';p.textContent='NO HAY PARTIDAS PUBLICAS ESPERANDO';publicRoomsList.appendChild(p);return;
+      const p=document.createElement('p');p.className='public-rooms-empty';p.textContent=tr('noPublicRooms');publicRoomsList.appendChild(p);return;
     }
     for(const room of publicRooms){
       const row=document.createElement('div');row.className='public-room-row';
       const info=document.createElement('div');info.className='public-room-info';
-      const host=document.createElement('span');host.className='public-room-host';host.textContent=sinTildes(room.host||'JUGADOR');
-      const code=document.createElement('span');code.className='public-room-code';code.textContent='SALA '+String(room.code||'');
+      const host=document.createElement('span');host.className='public-room-host';host.textContent=sinTildes(room.host||tr('defaultPlayer'));
+      const code=document.createElement('span');code.className='public-room-code';code.textContent=tr('roomPrefix')+' '+String(room.code||'');
       info.append(host,code);
       const count=document.createElement('span');count.className='public-room-count';count.textContent=`${Number(room.players)||0}/${Number(room.maxPlayers)||4}`;
-      const joinBtn=document.createElement('button');joinBtn.type='button';joinBtn.className='public-room-join';joinBtn.textContent='UNIRSE';
+      const joinBtn=document.createElement('button');joinBtn.type='button';joinBtn.className='public-room-join';joinBtn.textContent=tr('join');
       joinBtn.addEventListener('click',()=>joinRoomByCode(room.code));
       row.append(info,count,joinBtn);publicRoomsList.appendChild(row);
     }
@@ -622,7 +626,7 @@
   function updateLobbyStartButton(canStart=false){
     if(!startBtn)return;
     // Solo el anfitrion necesita un control para iniciar la partida.
-    startBtn.textContent='EMPEZAR';
+    startBtn.textContent=tr('start');
     startBtn.classList.toggle('hidden',!isHost);
     startBtn.disabled=isHost?!canStart:true;
   }
@@ -641,7 +645,7 @@
     const line=document.createElement('div');line.className='lobby-chat-line';
     const who=document.createElement('span');who.className='lobby-chat-name';
     const idx=Number(msg.i);who.style.color=playerColors[idx]||'#fff';
-    who.textContent=`J${Number.isFinite(idx)?idx+1:'?'} ${sinTildes(msg.n||'JUGADOR')}:`;
+    who.textContent=`J${Number.isFinite(idx)?idx+1:'?'} ${sinTildes(msg.n||tr('defaultPlayer'))}:`;
     const body=document.createElement('span');body.className='lobby-chat-text';body.textContent=sinTildes(text);
     line.append(who,body);lobbyChatLog.appendChild(line);
     while(lobbyChatLog.querySelectorAll('.lobby-chat-line').length>24){
@@ -680,7 +684,7 @@
     }
     else if(m.t==='resume-failed'){
       stopResumeWindow();clearResumeSession();playerToken='';
-      if(inGame||roomCode){alert(sinTildes(m.message||'No se pudo recuperar la partida.'));returnToMainMenu(false);}
+      if(inGame||roomCode){alert(sinTildes(trServer(m.message||tr('resumeFailed'))));returnToMainMenu(false);}
       else send({t:'public-rooms'});
     }
     else if(m.t==='lobby'){roomCode=m.code;syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);}
@@ -736,12 +740,12 @@
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;showVictory(m.winner);}
     else if(m.t==='restarted'){if(impactFX)impactFX.reset();state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';victory.classList.add('hidden');beginGame();}
-    else if(m.t==='error'){statusEl.textContent=sinTildes(m.message||'Error');}
-    else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
+    else if(m.t==='error'){statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
+    else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
   function beginGame(){stopMusic();if(isMobile)calibrateMobileMotion();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
-  function showVictory(i){if(!inGame)return;inGame=false;leaderAnnouncement=null;topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?`GANA ${sinTildes(p.n)}`:`GANA J${i+1}`;const restartBtn=document.getElementById('restartMatch');if(restartBtn){restartBtn.disabled=false;restartBtn.textContent='REPETIR PARTIDA';}victory.classList.remove('hidden');}
+  function showVictory(i){if(!inGame)return;inGame=false;leaderAnnouncement=null;topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?tr('winnerName',{name:sinTildes(p.n)}):tr('winnerIndex',{index:i+1});const restartBtn=document.getElementById('restartMatch');if(restartBtn){restartBtn.disabled=false;restartBtn.textContent=tr('rematch');}victory.classList.remove('hidden');}
 
   menu.addEventListener('pointerdown',startMusic,{passive:true});
   menu.addEventListener('keydown',startMusic);
@@ -800,8 +804,8 @@
   const restartMatchBtn=document.getElementById('restartMatch');
   if(restartMatchBtn)restartMatchBtn.addEventListener('click',()=>{
     restartMatchBtn.disabled=true;
-    restartMatchBtn.textContent='REINICIANDO...';
-    if(!send({t:'restart'})){restartMatchBtn.disabled=false;restartMatchBtn.textContent='REPETIR PARTIDA';}
+    restartMatchBtn.textContent=tr('restarting');
+    if(!send({t:'restart'})){restartMatchBtn.disabled=false;restartMatchBtn.textContent=tr('rematch');}
   });
   document.getElementById('back').addEventListener('click',returnToMainMenu);
   window.addEventListener('keydown',e=>{keys.add(e.code);if(['ArrowUp','ArrowLeft','ArrowRight','Space','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();if(e.code==='Escape'){if((roomTypeDialog&&!roomTypeDialog.classList.contains('hidden'))||(publicRoomsDialog&&!publicRoomsDialog.classList.contains('hidden'))){closeRoomDialogs();}else if(inGame)returnToMainMenu();}});
@@ -1241,7 +1245,7 @@
       ctx.lineWidth=5;
       ctx.shadowColor='rgba(255,70,20,.9)';
       ctx.shadowBlur=14;
-      const text='PENALIZACION -1';
+      const text=tr('penalty');
       ctx.strokeText(text,0,0);
       ctx.fillText(text,0,0);
     }finally{
@@ -1278,8 +1282,8 @@
       ctx.shadowColor='rgba(255,85,20,.95)';
       ctx.shadowBlur=34+28*(1-t);
       ctx.fillStyle='#ffdb35';
-      ctx.strokeText('BRUTAL',0,0);
-      ctx.fillText('BRUTAL',0,0);
+      ctx.strokeText(tr('brutal'),0,0);
+      ctx.fillText(tr('brutal'),0,0);
       if(brutalDistance>0){
         ctx.shadowBlur=10;
         ctx.font=isMobile?'800 24px Arial,Helvetica,sans-serif':'800 20px Arial,Helvetica,sans-serif';
@@ -1304,7 +1308,7 @@
       ctx.shadowBlur=7;
       ctx.lineWidth=4;
       ctx.strokeStyle='rgba(0,0,0,.78)';
-      const text=leaderAnnouncement.text||('LIDER \"'+leaderAnnouncement.name+'\"');
+      const text=tr('leader',{name:leaderAnnouncement.name});
       ctx.strokeText(text,W/2,145);
       ctx.fillText(text,W/2,145);
     }finally{
@@ -1356,7 +1360,7 @@
         ctx.fill();
         ctx.stroke();
         ctx.fillStyle='#000';
-        ctx.fillText('FANTASMA',x,y+1);
+        ctx.fillText(tr('ghost'),x,y+1);
       }
     }finally{ctx.restore();}
   }
@@ -1376,8 +1380,8 @@
       ctx.fillStyle='rgba(255,255,255,0.20)';
       // Al pulsar una zona no reducimos el alpha: simplemente no dibujamos
       // ese texto, así desaparece completamente.
-      if(!mobileFire)ctx.fillText('DISPARO',W*.24,H-72);
-      if(!mobileThrust)ctx.fillText('ACELERAR',W*.76,H-72);
+      if(!mobileFire)ctx.fillText(tr('fireControl'),W*.24,H-72);
+      if(!mobileThrust)ctx.fillText(tr('thrustControl'),W*.76,H-72);
     }finally{
       ctx.restore();
     }
@@ -1401,7 +1405,7 @@
       ctx.roundRect(x-bw/2,y-bh/2,bw,bh,r);
       ctx.fill();ctx.stroke();
       ctx.fillStyle='rgba(255,255,255,.90)';
-      ctx.fillText('SALIR',x,y+1);
+      ctx.fillText(tr('exit'),x,y+1);
     }finally{ctx.restore();}
   }
   function drawMobileVoiceControl(){
@@ -1543,7 +1547,7 @@
       ctx.fillStyle='rgb(255,170,70)';
       ctx.shadowColor='rgba(255,135,35,.65)';
       ctx.shadowBlur=8+5*(1-pulse);
-      ctx.fillText('LLUVIA DE METEORITOS',W/2,185);
+      ctx.fillText(tr('meteorShower'),W/2,185);
       ctx.restore();
     }
     if(perfStats){
@@ -1559,5 +1563,13 @@
       ctx.restore();
     }
   }
+  window.addEventListener('galaxy-languagechange',()=>{
+    renderPublicRooms();
+    updateLobbyStartButton(startBtn&&!startBtn.disabled);
+    if(menu&&!menu.classList.contains('hidden')){
+      if(ws&&ws.readyState===WebSocket.OPEN)statusEl.textContent=tr('serverReady');
+      else wakeStatus();
+    }
+  });
   connect();render();
 })();

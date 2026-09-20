@@ -1,5 +1,6 @@
 'use strict';
 (() => {
+  const tr=(key,vars)=>window.GalaxyI18n?window.GalaxyI18n.t(key,vars):key;
   const DEFAULT_ICE_SERVERS = [
     {urls:'stun:stun.l.google.com:19302'},
     {urls:'stun:stun1.l.google.com:19302'}
@@ -46,6 +47,7 @@
 
       this.bindUI();
       this.refreshUI();
+      window.addEventListener('galaxy-languagechange',()=>this.refreshUI());
     }
 
     bindUI(){
@@ -132,11 +134,11 @@
       if(this.enabled)return true;
       if(this.enabling)return false;
       if(!navigator.mediaDevices||typeof navigator.mediaDevices.getUserMedia!=='function'){
-        this.setStatus('MICROFONO NO DISPONIBLE');
+        this.setStatus(tr('microphoneUnavailable'));
         return false;
       }
       this.enabling=true;
-      this.setStatus('SOLICITANDO MICROFONO...');
+      this.setStatus(tr('requestingMicrophone'));
       try{
         await this.ensureIceServers();
         const stream=await navigator.mediaDevices.getUserMedia({
@@ -150,7 +152,7 @@
         this.localTrack=track;
         this.enabled=true;
         track.addEventListener('ended',()=>this.disable(false),{once:true});
-        this.setStatus('VOZ ACTIVADA');
+        this.setStatus(tr('voiceEnabled'));
         this.refreshUI();
         if(this.localIndex!==null&&!this.cpuMode){
           this.send({t:'voice-ready'});
@@ -158,7 +160,7 @@
         }
         return true;
       }catch(err){
-        this.setStatus('PERMISO DE MICROFONO DENEGADO');
+        this.setStatus(tr('microphoneDenied'));
         console.warn('[Galaxy Combat Voice] No se pudo abrir el microfono.',err);
         return false;
       }finally{
@@ -176,7 +178,7 @@
       this.localTrack=null;
       this.localStream=null;
       this.closeAllPeers();
-      this.setStatus('VOZ DESACTIVADA');
+      this.setStatus(tr('voiceDisabled'));
       this.refreshUI();
     }
 
@@ -340,7 +342,7 @@
       if(audio.srcObject!==stream)audio.srcObject=stream;
       const p=audio.play();
       if(p&&typeof p.catch==='function')p.catch(()=>{
-        this.setStatus('TOCA ACTIVAR VOZ PARA OIR A LOS DEMAS');
+        this.setStatus(tr('tapVoiceToHear'));
       });
     }
 
@@ -374,31 +376,31 @@
       }
       const ids=[...this.remoteTalking].sort((a,b)=>a-b);
       if(!ids.length){this.talkerEl.textContent='';this.talkerEl.classList.add('hidden');return;}
-      this.talkerEl.textContent=ids.map(i=>`J${i+1} HABLANDO`).join(' · ');
+      this.talkerEl.textContent=ids.map(i=>tr('talkingPlayer',{index:i+1})).join(' · ');
       this.talkerEl.classList.remove('hidden');
     }
 
     refreshUI(){
       const inRoom=this.localIndex!==null;
       if(this.enableButton){
-        this.enableButton.textContent=this.enabled?'VOZ ACTIVA':'ACTIVAR VOZ';
+        this.enableButton.textContent=this.enabled?tr('voiceActive'):tr('activateVoice');
         this.enableButton.classList.toggle('active',this.enabled);
       }
       if(this.statusEl&&!this.enabling){
-        this.statusEl.textContent=this.enabled?'VOZ ACTIVADA':'VOZ DESACTIVADA';
+        this.statusEl.textContent=this.enabled?tr('voiceEnabled'):tr('voiceDisabled');
       }
       if(this.pttButton){
         const show=this.isMobile&&inRoom&&this.enabled&&!this.cpuMode;
         this.pttButton.classList.toggle('hidden',!show);
-        this.pttButton.textContent=this.enabled?'HABLAR':'ACTIVAR VOZ';
-        this.pttButton.setAttribute('aria-label',this.enabled?'Mantener para hablar':'Activar voz');
-        this.pttButton.title=this.enabled?'Mantener para hablar':'Activar voz';
+        this.pttButton.textContent=this.enabled?tr('talk'):tr('activateVoice');
+        this.pttButton.setAttribute('aria-label',this.enabled?tr('holdToTalk'):tr('activateVoice'));
+        this.pttButton.title=this.enabled?tr('holdToTalk'):tr('activateVoice');
         this.pttButton.classList.toggle('talking',this.talking);
       }
       if(this.hintEl){
         const show=!this.isMobile&&inRoom&&this.enabled&&!this.cpuMode;
         this.hintEl.classList.toggle('hidden',!show);
-        this.hintEl.textContent=this.talking?'V · HABLANDO':'V · HABLAR';
+        this.hintEl.textContent=this.talking?tr('voiceHintTalking'):tr('voiceHintTalk');
         this.hintEl.classList.toggle('talking',this.talking);
       }
       this.refreshTalkers();
