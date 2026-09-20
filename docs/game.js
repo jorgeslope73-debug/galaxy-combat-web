@@ -806,8 +806,21 @@
   }
   document.getElementById('leaveRoom').addEventListener('click',returnToMainMenu);
   if(mobileExit){
-    mobileExit.addEventListener('pointerdown',e=>{e.stopPropagation();},{passive:true});
-    mobileExit.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();returnToMainMenu();});
+    // V16.4.54: salir en el primer toque. En algunos moviles el click sintetico
+    // podia no llegar tras el primer pointerdown, obligando a tocar dos veces.
+    let mobileExitHandled=false;
+    mobileExit.addEventListener('pointerdown',e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      if(mobileExitHandled)return;
+      mobileExitHandled=true;
+      returnToMainMenu();
+      setTimeout(()=>{mobileExitHandled=false;},250);
+    },{passive:false});
+    mobileExit.addEventListener('click',e=>{
+      e.preventDefault();
+      e.stopPropagation();
+    });
   }
   const restartMatchBtn=document.getElementById('restartMatch');
   if(restartMatchBtn)restartMatchBtn.addEventListener('click',()=>{
@@ -1419,13 +1432,14 @@
   }
   function drawMobileExitControl(){
     if(!isMobile||!inGame)return;
-    const x=W/2,y=52;
+    const x=W/2,y=68;
     ctx.save();
     try{
       // V16.4.5: el boton visible vive en el canvas, en la capa baja.
       // La zona HTML sigue encima pero es invisible y solo sirve para pulsarlo.
       // V16.4.52: boton SALIR mas grande y visible en movil.
       // V16.4.53: pastilla mas transparente, texto blanco opaco y algo mas abajo.
+      // V16.4.54: se baja un poco mas y la zona tactil se alinea con el dibujo.
       // Usamos alpha real en cada color para evitar que Safari multiplique
       // transparencias y lo deje demasiado apagado.
       ctx.globalAlpha=1;
