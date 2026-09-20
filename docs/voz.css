@@ -80,7 +80,7 @@
 @media (pointer:coarse),(max-width:900px){
   .mobile-exit{
     position:fixed;z-index:150;
-    top:max(8px,calc(env(safe-area-inset-top) + 5px));
+    top:max(16px,calc(env(safe-area-inset-top) + 13px));
     left:50%;transform:translateX(-50%);
     width:120px!important;min-width:120px!important;min-height:50px!important;height:50px!important;
     margin:0!important;padding:0!important;border-radius:10px!important;

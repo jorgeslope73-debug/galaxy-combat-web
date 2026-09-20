@@ -1419,12 +1419,13 @@
   }
   function drawMobileExitControl(){
     if(!isMobile||!inGame)return;
-    const x=W/2,y=28;
+    const x=W/2,y=52;
     ctx.save();
     try{
       // V16.4.5: el boton visible vive en el canvas, en la capa baja.
       // La zona HTML sigue encima pero es invisible y solo sirve para pulsarlo.
       // V16.4.52: boton SALIR mas grande y visible en movil.
+      // V16.4.53: pastilla mas transparente, texto blanco opaco y algo mas abajo.
       // Usamos alpha real en cada color para evitar que Safari multiplique
       // transparencias y lo deje demasiado apagado.
       ctx.globalAlpha=1;
@@ -1432,13 +1433,13 @@
       ctx.textAlign='center';
       ctx.textBaseline='middle';
       ctx.lineWidth=1.7;
-      ctx.strokeStyle='rgba(255,255,255,.68)';
-      ctx.fillStyle='rgba(5,7,15,.72)';
+      ctx.strokeStyle='rgba(255,255,255,.58)';
+      ctx.fillStyle='rgba(5,7,15,.46)';
       const bw=108,bh=42,r=9;
       ctx.beginPath();
       ctx.roundRect(x-bw/2,y-bh/2,bw,bh,r);
       ctx.fill();ctx.stroke();
-      ctx.fillStyle='rgba(255,255,255,.96)';
+      ctx.fillStyle='#ffffff';
       ctx.fillText(tr('exit'),x,y+1);
     }finally{ctx.restore();}
   }
