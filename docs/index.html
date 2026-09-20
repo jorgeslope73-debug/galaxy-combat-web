@@ -4,6 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#10051e">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Galaxy Combat">
+<link rel="manifest" href="manifest.webmanifest?v=V16.4.34">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=V16.4.34">
 <script>
 (() => {
   const ua=navigator.userAgent||'';
@@ -12,9 +18,9 @@
 })();
 </script>
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
-<link rel="stylesheet" href="style.css?v=V16.4.33-voz-centrada-20260920">
-<link rel="stylesheet" href="menu-portada.css?v=V16.4.33-voz-centrada-20260920">
-<link rel="stylesheet" href="voz.css?v=V16.4.33-voz-centrada-20260920">
+<link rel="stylesheet" href="style.css?v=V16.4.34-pwa-20260920">
+<link rel="stylesheet" href="menu-portada.css?v=V16.4.34-pwa-20260920">
+<link rel="stylesheet" href="voz.css?v=V16.4.34-pwa-20260920">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
 #lobby.lobby-with-chat{width:min(620px,92vw);max-height:min(760px,88vh);overflow:hidden}
@@ -115,7 +121,7 @@
 </head>
 <body>
 <div id="app">
-  <div id="buildVersion" aria-label="Version del juego">V16.4.33</div>
+  <div id="buildVersion" aria-label="Version del juego">V16.4.34</div>
   <div id="orientationGate" class="orientation-gate" role="alert" aria-live="assertive">
     <div class="orientation-gate-card">
       <span class="orientation-gate-icon" aria-hidden="true">&#8596;</span>
@@ -244,8 +250,9 @@
   <button id="mobileExit" class="mobile-exit hidden" type="button" aria-label="Salir de la partida y volver al inicio">SALIR</button>
 </div>
 <script src="config.js"></script>
-<script src="impactos.js?v=V16.4.33-voz-centrada-20260920"></script>
-<script src="voz.js?v=V16.4.33-voz-centrada-20260920"></script>
-<script src="game.js?v=V16.4.33-voz-centrada-20260920"></script>
+<script src="impactos.js?v=V16.4.34-pwa-20260920"></script>
+<script src="voz.js?v=V16.4.34-pwa-20260920"></script>
+<script src="game.js?v=V16.4.34-pwa-20260920"></script>
+<script src="pwa.js?v=V16.4.34-pwa-20260920"></script>
 </body>
 </html>
