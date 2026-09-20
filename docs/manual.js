@@ -251,6 +251,11 @@
         ['CADENCIA', 'El tubo azul indica tu ritmo de disparo. Cuanto mas lleno o mejorado este, menos tiempo pasa entre bala y bala.'],
         ['VELOCIDAD', 'El cohete muestra tu nivel de velocidad. Al recoger esta mejora la nave acelera mas y alcanza mayor punta.'],
         ['MUERTES / BAJAS', 'La calavera indica tus bajas respecto al objetivo de la partida. Ejemplo: 0/5 significa que llevas 0 y necesitas 5 para ganar.']
+      ],
+      weaponStateTitle: 'ESTADO DEL ARMA EN LA NAVE',
+      weaponStates: [
+        ['assets/sprites/coete1.png','ARMA NO CARGADA','La cupula esta apagada. El arma todavia no esta cargada y no puede disparar.'],
+        ['assets/sprites/coete1f.png','ARMA LISTA','La cupula se enciende en verde: el arma esta cargada y lista para disparar.']
       ]
     },
     en: {
@@ -264,6 +269,11 @@
         ['FIRE RATE', 'The blue bar shows your firing rhythm. The higher it is improved, the less time passes between shots.'],
         ['SPEED', 'The rocket shows your speed level. Collecting this upgrade makes the ship accelerate harder and reach a higher top speed.'],
         ['KILLS', 'The skull shows your kills toward the match objective. Example: 0/5 means you have 0 kills and need 5 to win.']
+      ],
+      weaponStateTitle: 'SHIP WEAPON STATUS',
+      weaponStates: [
+        ['assets/sprites/coete1.png','WEAPON NOT CHARGED','The canopy is off. The weapon is not charged yet and cannot fire.'],
+        ['assets/sprites/coete1f.png','WEAPON READY','The canopy lights up green: the weapon is charged and ready to fire.']
       ]
     },
     it: {
@@ -277,6 +287,11 @@
         ['CADENZA', 'La barra blu indica il ritmo di fuoco. Più e migliorata, meno tempo passa tra uno sparo e l altro.'],
         ['VELOCITA', 'Il razzo mostra il tuo livello di velocita. Questa miglioria fa accelerare di piu la nave e aumenta la velocita massima.'],
         ['UCCISIONI', 'Il teschio indica le tue uccisioni rispetto all obiettivo della partita. Esempio: 0/5 significa 0 uccisioni e 5 necessarie per vincere.']
+      ],
+      weaponStateTitle: 'STATO DELL ARMA SULLA NAVE',
+      weaponStates: [
+        ['assets/sprites/coete1.png','ARMA NON CARICA','La cupola e spenta. L arma non e ancora carica e non puo sparare.'],
+        ['assets/sprites/coete1f.png','ARMA PRONTA','La cupola si accende in verde: l arma e carica e pronta a sparare.']
       ]
     },
     fr: {
@@ -290,6 +305,11 @@
         ['CADENCE', 'La barre bleue indique ton rythme de tir. Plus elle est amelioree, moins il y a de temps entre deux tirs.'],
         ['VITESSE', 'La fusee indique ton niveau de vitesse. Cette amelioration permet au vaisseau d accelerer davantage et d atteindre une vitesse maximale plus elevee.'],
         ['ELIMINATIONS', 'La tete de mort indique tes eliminations par rapport a l objectif. Exemple : 0/5 signifie 0 elimination et 5 necessaires pour gagner.']
+      ],
+      weaponStateTitle: 'ETAT DE L ARME DU VAISSEAU',
+      weaponStates: [
+        ['assets/sprites/coete1.png','ARME NON CHARGEE','La coupole est eteinte. L arme n est pas encore chargee et ne peut pas tirer.'],
+        ['assets/sprites/coete1f.png','ARME PRETE','La coupole s allume en vert : l arme est chargee et prete a tirer.']
       ]
     },
     de: {
@@ -303,6 +323,11 @@
         ['FEUERRATE', 'Der blaue Balken zeigt dein Schusstempo. Je staerker er verbessert ist, desto weniger Zeit liegt zwischen zwei Schuessen.'],
         ['GESCHWINDIGKEIT', 'Die Rakete zeigt dein Geschwindigkeitslevel. Dieses Upgrade laesst das Schiff staerker beschleunigen und erhoeht die Spitzengeschwindigkeit.'],
         ['ABSCHUESSE', 'Der Totenkopf zeigt deine Abschuesse im Verhaeltnis zum Spielziel. Beispiel: 0/5 bedeutet 0 Abschuesse und 5 zum Sieg.']
+      ],
+      weaponStateTitle: 'WAFFENSTATUS DES SCHIFFS',
+      weaponStates: [
+        ['assets/sprites/coete1.png','WAFFE NICHT GELADEN','Die Kuppel ist aus. Die Waffe ist noch nicht geladen und kann nicht feuern.'],
+        ['assets/sprites/coete1f.png','WAFFE BEREIT','Die Kuppel leuchtet gruen: Die Waffe ist geladen und schussbereit.']
       ]
     }
   };
@@ -322,6 +347,11 @@
           caption: patch.hudDiagramCaption,
           items: patch.hudLegend
         };
+      }
+      const weapons = pack.sections.find(section => section.id === 'weapons');
+      if(weapons){
+        weapons.weaponStateTitle = patch.weaponStateTitle;
+        weapons.weaponStates = patch.weaponStates;
       }
     });
   }
@@ -381,7 +411,8 @@
       const steps=section.steps&&section.steps.length?'<div class="manual-steps"><h4>'+escapeHtml(section.stepsTitle||'')+'</h4>'+section.steps.map(([name,desc])=>'<article class="manual-step"><h5>'+escapeHtml(name)+'</h5><p>'+escapeHtml(desc)+'</p></article>').join('')+'</div>':'';
       const media=section.media&&section.media.length?'<div class="manual-media-grid">'+section.media.map(([src,alt,caption])=>'<figure class="manual-media"><img src="'+escapeHtml(src)+'" alt="'+escapeHtml(alt)+'" loading="lazy"><figcaption>'+escapeHtml(caption)+'</figcaption></figure>').join('')+'</div>':'';
       const diagram=section.diagram?'<div class="manual-diagram"><h4>'+escapeHtml(section.diagram.title||'')+'</h4><div class="manual-diagram-layout"><figure class="manual-diagram-figure"><img src="'+escapeHtml(section.diagram.src)+'" alt="'+escapeHtml(section.diagram.alt||'')+'" loading="lazy"><figcaption>'+escapeHtml(section.diagram.caption||'')+'</figcaption></figure><div class="manual-diagram-items">'+(section.diagram.items||[]).map(([name,desc])=>'<article class="manual-diagram-item"><h5>'+escapeHtml(name)+'</h5><p>'+escapeHtml(desc)+'</p></article>').join('')+'</div></div></div>':'';
-      return '<section id="manual-'+section.id+'" class="manual-section" data-section="'+section.id+'"><h3>'+escapeHtml(stripFlashbackText(section.title))+'</h3>'+body+notice+diagram+steps+media+pickups+tips+'</section>';
+      const weaponStates=section.weaponStates&&section.weaponStates.length?'<div class="manual-weapon-states"><h4>'+escapeHtml(section.weaponStateTitle||'')+'</h4><div class="manual-weapon-state-grid">'+section.weaponStates.map(([src,name,desc],idx)=>'<article class="manual-weapon-state '+(idx===1?'ready':'not-ready')+'"><div class="manual-weapon-state-image"><img src="'+escapeHtml(src)+'" alt="'+escapeHtml(name)+'" loading="lazy"></div><div><h5>'+escapeHtml(name)+'</h5><p>'+escapeHtml(desc)+'</p></div></article>').join('')+'</div></div>':'';
+      return '<section id="manual-'+section.id+'" class="manual-section" data-section="'+section.id+'"><h3>'+escapeHtml(stripFlashbackText(section.title))+'</h3>'+body+notice+diagram+weaponStates+steps+media+pickups+tips+'</section>';
     }).join('');
     bindNav();
   }
