@@ -238,7 +238,7 @@
     const dead=3.0;
     if(Math.abs(delta)<=dead){motionTurn=0;return;}
     const signed=delta>0?delta-dead:delta+dead;
-    motionTurn=clamp(signed/22,-1,1);
+    motionTurn=-clamp(signed/22,-1,1);
   }
   async function enableMobileMotion(){
     if(!isMobile)return true;
