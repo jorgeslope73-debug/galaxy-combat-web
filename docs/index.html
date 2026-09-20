@@ -8,8 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Galaxy Combat">
-<link rel="manifest" href="manifest.webmanifest?v=V16.4.54">
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=V16.4.54">
+<link rel="manifest" href="manifest.webmanifest?v=V16.4.56">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=V16.4.56">
 <script>
 (() => {
   const ua=navigator.userAgent||'';
@@ -18,9 +18,9 @@
 })();
 </script>
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
-<link rel="stylesheet" href="style.css?v=V16.4.54-salir-un-toque-20260920">
-<link rel="stylesheet" href="menu-portada.css?v=V16.4.54-salir-un-toque-20260920">
-<link rel="stylesheet" href="voz.css?v=V16.4.54-salir-un-toque-20260920">
+<link rel="stylesheet" href="style.css?v=V16.4.56-lobby-mobile-grid-20260920">
+<link rel="stylesheet" href="menu-portada.css?v=V16.4.56-lobby-mobile-grid-20260920">
+<link rel="stylesheet" href="voz.css?v=V16.4.56-lobby-mobile-grid-20260920">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
 #lobby.lobby-with-chat{width:min(620px,92vw);max-height:min(760px,88vh);overflow:hidden}
@@ -39,6 +39,35 @@
 #lobby #lobbyChatInput:focus{border-color:rgba(208,168,255,.88)!important;box-shadow:0 0 12px rgba(155,83,255,.24)!important}
 #lobby #lobbyChatSend{display:inline-flex!important;align-items:center!important;justify-content:center!important;width:auto!important;min-width:0!important;max-width:max-content!important;flex:none!important;min-height:36px!important;height:36px!important;padding:5px 10px!important;margin:0!important;font-family:Arial,Helvetica,sans-serif!important;font-size:12px!important;font-weight:700!important;letter-spacing:.02em!important;white-space:nowrap!important}
 .lobby-actions{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:5px}
+
+/* V16.4.56: lobby PC/web mas compacto y jugadores en dos columnas. */
+html:not(.handheld-device) #lobby.lobby-with-chat{width:min(560px,88vw)}
+html:not(.handheld-device) #lobby #players{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+  grid-template-rows:auto auto;
+  column-gap:24px;
+  row-gap:7px;
+  width:100%;
+  padding:8px 12px;
+  box-sizing:border-box;
+  line-height:1.25;
+}
+html:not(.handheld-device) #lobby #players>div{
+  min-width:0;
+  padding:7px 10px;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:7px;
+  background:rgba(5,8,20,.48);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+html:not(.handheld-device) #lobby #players>div:nth-child(1){grid-column:1;grid-row:1;text-align:left}
+html:not(.handheld-device) #lobby #players>div:nth-child(2){grid-column:1;grid-row:2;text-align:left}
+html:not(.handheld-device) #lobby #players>div:nth-child(3){grid-column:2;grid-row:1;text-align:right}
+html:not(.handheld-device) #lobby #players>div:nth-child(4){grid-column:2;grid-row:2;text-align:right}
+html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
 @media (max-width:760px){
   html,body{touch-action:manipulation;overscroll-behavior:none}
   #lobby.lobby-with-chat{width:min(96vw,620px);max-height:92vh;padding:12px}
@@ -50,8 +79,8 @@
 /* V16.4.20: lobby/chat compacto para movil horizontal. */
 @media (orientation:landscape){
   html.handheld-device #lobby.lobby-with-chat{
-    width:min(900px,calc(100vw - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 16px));
-    max-width:calc(100vw - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 16px);
+    width:min(760px,calc(100vw - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 46px));
+    max-width:calc(100vw - env(safe-area-inset-left,0px) - env(safe-area-inset-right,0px) - 46px);
     height:calc(100dvh - 10px);max-height:calc(100dvh - 10px);
     padding:8px 12px max(8px,env(safe-area-inset-bottom,0px));
     display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:6px;
@@ -61,16 +90,23 @@
     margin:0;font-size:17px;line-height:1.05;letter-spacing:.04em;
   }
   html.handheld-device #lobby #players{
-    display:flex;flex-wrap:nowrap;justify-content:center;align-items:center;gap:6px;
-    min-height:34px;width:100%;padding:0;background:transparent;border-radius:0;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+    grid-template-rows:auto auto;
+    column-gap:12px;row-gap:5px;
+    min-height:66px;width:100%;padding:0;background:transparent;border-radius:0;
     line-height:1;overflow:hidden;text-align:center;
   }
   html.handheld-device #lobby #players>div{
-    flex:0 1 190px;min-width:0;max-width:190px;
-    padding:7px 9px;border:1px solid rgba(255,255,255,.20);border-radius:999px;
+    min-width:0;max-width:none;
+    padding:7px 9px;border:1px solid rgba(255,255,255,.20);border-radius:8px;
     background:rgba(7,10,24,.76);box-shadow:inset 0 0 10px rgba(255,255,255,.025),0 2px 8px rgba(0,0,0,.24);
     font:800 12px/1 Arial,Helvetica,sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
   }
+  html.handheld-device #lobby #players>div:nth-child(1){grid-column:1;grid-row:1;text-align:left}
+  html.handheld-device #lobby #players>div:nth-child(2){grid-column:1;grid-row:2;text-align:left}
+  html.handheld-device #lobby #players>div:nth-child(3){grid-column:2;grid-row:1;text-align:right}
+  html.handheld-device #lobby #players>div:nth-child(4){grid-column:2;grid-row:2;text-align:right}
   html.handheld-device #lobby .lobby-chat{
     width:100%;min-height:0;margin:0;display:grid;grid-template-rows:auto minmax(0,1fr) auto;gap:4px;
   }
@@ -131,7 +167,7 @@
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
-      <div id="buildVersion" aria-label="Version del juego">V16.4.54</div>
+      <div id="buildVersion" aria-label="Version del juego">V16.4.56</div>
       <div class="menu-top-tools" aria-label="Menu de idioma y ayuda">
         <button id="manualOpen" class="manual-launch" type="button" aria-haspopup="dialog">MANUAL</button>
         <div id="languageSwitcher" class="language-switcher">
@@ -285,11 +321,11 @@
   <button id="mobileExit" class="mobile-exit hidden" type="button" data-i18n-aria="exitAria" aria-label="Salir de la partida y volver al inicio"><span data-i18n="exit">SALIR</span></button>
 </div>
 <script src="config.js"></script>
-<script src="i18n.js?v=V16.4.54-salir-un-toque-20260920"></script>
-<script src="manual.js?v=V16.4.54-salir-un-toque-20260920"></script>
-<script src="impactos.js?v=V16.4.54-salir-un-toque-20260920"></script>
-<script src="voz.js?v=V16.4.54-salir-un-toque-20260920"></script>
-<script src="game.js?v=V16.4.54-salir-un-toque-20260920"></script>
-<script src="pwa.js?v=V16.4.54-salir-un-toque-20260920"></script>
+<script src="i18n.js?v=V16.4.56-lobby-mobile-grid-20260920"></script>
+<script src="manual.js?v=V16.4.56-lobby-mobile-grid-20260920"></script>
+<script src="impactos.js?v=V16.4.56-lobby-mobile-grid-20260920"></script>
+<script src="voz.js?v=V16.4.56-lobby-mobile-grid-20260920"></script>
+<script src="game.js?v=V16.4.56-lobby-mobile-grid-20260920"></script>
+<script src="pwa.js?v=V16.4.56-lobby-mobile-grid-20260920"></script>
 </body>
 </html>
