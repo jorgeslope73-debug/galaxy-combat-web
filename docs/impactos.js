@@ -10,6 +10,24 @@
   const MAX_SEEN = 256;
   const durationFor = kind => kind === 'explosion' ? 420 : 260;
   const clock = () => typeof performance !== 'undefined' ? performance.now() : Date.now();
+  let glowSpriteCanvas=null;
+  function getGlowSprite(){
+    if(glowSpriteCanvas)return glowSpriteCanvas;
+    if(typeof document==='undefined'||!document.createElement)return null;
+    const c=document.createElement('canvas');
+    c.width=64;c.height=64;
+    const g=c.getContext('2d');
+    if(!g)return null;
+    const r=32;
+    const glow=g.createRadialGradient(r,r,0,r,r,r);
+    glow.addColorStop(0,'rgba(255,250,215,0.95)');
+    glow.addColorStop(0.28,'rgba(255,201,85,0.8)');
+    glow.addColorStop(0.62,'rgba(255,94,32,0.38)');
+    glow.addColorStop(1,'rgba(235,45,12,0)');
+    g.fillStyle=glow;g.fillRect(0,0,64,64);
+    glowSpriteCanvas=c;
+    return c;
+  }
 
   class GalaxyImpactFX {
     constructor() { this.reset(); }
@@ -18,6 +36,7 @@
       this.bursts = [];
       this.seen = new Set();
       this.previousPlayers = new Map();
+      this.serverExplosions = [false,false,false,false];
       this.room = '';
       this.lastSeq = -1;
     }
@@ -80,9 +99,12 @@
         if (snapshot.seq === this.lastSeq) return;
         this.lastSeq = snapshot.seq;
       }
-      const serverExplosions = new Set();
+      const serverExplosions=this.serverExplosions;
+      serverExplosions[0]=serverExplosions[1]=serverExplosions[2]=serverExplosions[3]=false;
       if (snapshot.fxVersion === 1 && Array.isArray(snapshot.fx)) {
-        for (const event of snapshot.fx.slice(-MAX_BURSTS)) {
+        const start=Math.max(0,snapshot.fx.length-MAX_BURSTS);
+        for (let idx=start;idx<snapshot.fx.length;idx++) {
+          const event=snapshot.fx[idx];
           if (!event || !Number.isSafeInteger(event.id) || event.id < 1) continue;
           if (!Number.isInteger(event.i) || event.i < 0 || event.i > 3) continue;
           if (event.kind !== 'explosion' && event.kind !== 'hit') continue;
@@ -90,7 +112,7 @@
           // the state transition fallback below will recreate the death burst.
           if (event.kind === 'explosion') {
             const age = Number.isFinite(event.age) ? Math.max(0, event.age) : 0;
-            if (age < durationFor('explosion')) serverExplosions.add(event.i);
+            if (age < durationFor('explosion')) serverExplosions[event.i]=true;
           }
           this.enqueue(event, 'fx:' + event.id, localIndex, now);
         }
@@ -105,16 +127,18 @@
         const previous = this.previousPlayers.get(player.i);
         const deathCount = Number.isFinite(player.d) ? player.d : 0;
         const justDied = player.dead && (!previous || !previous.dead || previous.deaths < deathCount);
-        if (justDied && !serverExplosions.has(player.i)) {
+        if (justDied && !serverExplosions[player.i]) {
           const age = Number.isFinite(player.respawn) ? Math.max(0, (0.7 - player.respawn) * 1000) : 0;
           this.enqueue({i: player.i, x: player.x, y: player.y,
             kind: 'explosion', age}, 'death-fallback:' + (snapshot.code || '') + ':' + player.i + ':' + deathCount, localIndex, now);
         }
       }
-      this.previousPlayers.clear();
       for (const player of snapshot.players) {
-        if (player && Number.isInteger(player.i)) this.previousPlayers.set(player.i,
-          {dead: !!player.dead, deaths: Number.isFinite(player.d) ? player.d : 0});
+        if (!player || !Number.isInteger(player.i)) continue;
+        let previous=this.previousPlayers.get(player.i);
+        if(!previous){previous={dead:false,deaths:0};this.previousPlayers.set(player.i,previous);}
+        previous.dead=!!player.dead;
+        previous.deaths=Number.isFinite(player.d)?player.d:0;
       }
     }
 
@@ -134,14 +158,18 @@
           const large = burst.kind === 'explosion';
           const eased = 1 - Math.pow(1 - t, 2);
           const radius = (large ? 9 : 5) + eased * (large ? 20 : 11);
-          const glow = ctx.createRadialGradient(burst.x, burst.y, 0, burst.x, burst.y, radius);
-          glow.addColorStop(0, 'rgba(255,250,215,0.95)');
-          glow.addColorStop(0.28, 'rgba(255,201,85,0.8)');
-          glow.addColorStop(0.62, 'rgba(255,94,32,0.38)');
-          glow.addColorStop(1, 'rgba(235,45,12,0)');
-          ctx.globalAlpha = fade;
-          ctx.fillStyle = glow;
-          ctx.beginPath(); ctx.arc(burst.x, burst.y, radius, 0, TAU); ctx.fill();
+          const glowSprite=getGlowSprite();
+          ctx.globalAlpha=fade;
+          if(glowSprite){
+            ctx.drawImage(glowSprite,burst.x-radius,burst.y-radius,radius*2,radius*2);
+          }else{
+            const glow=ctx.createRadialGradient(burst.x,burst.y,0,burst.x,burst.y,radius);
+            glow.addColorStop(0,'rgba(255,250,215,0.95)');
+            glow.addColorStop(0.28,'rgba(255,201,85,0.8)');
+            glow.addColorStop(0.62,'rgba(255,94,32,0.38)');
+            glow.addColorStop(1,'rgba(235,45,12,0)');
+            ctx.fillStyle=glow;ctx.beginPath();ctx.arc(burst.x,burst.y,radius,0,TAU);ctx.fill();
+          }
 
           ctx.lineWidth = large ? 1.8 : 1.2;
           ctx.strokeStyle = '#ffc56c'; ctx.globalAlpha = fade * 0.65;

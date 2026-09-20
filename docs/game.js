@@ -16,6 +16,7 @@
   const roomTypeDialog=document.getElementById('roomTypeDialog'),publicRoomsDialog=document.getElementById('publicRoomsDialog'),publicRoomsList=document.getElementById('publicRoomsList'),joinCodeDialog=document.getElementById('joinCodeDialog');
   const W=1920,H=1080;
   const playerColors=['#5ae1ff','#ff50a5','#5aff78','#ffdc46'];
+  const playerRgb=[[90,225,255],[255,80,165],[90,255,120],[255,220,70]];
   const images={},sounds={};
   let state=null,previousState=null,myIndex=null,isHost=false,roomCode='',playerToken='',inGame=false,lastStateTime=0,previousStateTime=0;
   const RESUME_STORAGE_KEY='galaxyCombatResumeV1';
@@ -42,7 +43,7 @@
   }
   const NET_FRAME_MS=1000/30;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
-  let lastControlTurn=0,lastVoicePlayersSig='',renderScale=1;
+  let lastControlTurn=0,lastVoicePlayersSig=0,renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
   // Mantiene visualmente el contador anterior hasta que empieza el pop de escala.
@@ -56,6 +57,15 @@
   let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0;
   let publicRooms=[];
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
+  // V16.4.35: sincronizamos estados y controles con RAF para evitar picos de trabajo
+  // asincronos en Safari/iOS. Solo conservamos el snapshot de estado mas reciente.
+  let pendingStateRaw=null;
+  let lastControlSentAt=0;
+  let lastPaintAt=0;
+  const CONTROL_SEND_MS=1000/30;
+  // Solo saltamos callbacks propios de 120 Hz (~8,3 ms). No usamos un umbral
+  // de 16,7 ms para no convertir una pequena variacion de un panel de 60 Hz en 30 Hz.
+  const HIGH_REFRESH_SKIP_MS=10.5;
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const serverButtons=['cpu','create','join'].map(id=>document.getElementById(id));
@@ -364,6 +374,7 @@
       }
     };
     ws.onclose=()=>{
+      pendingStateRaw=null;
       setServerReady(false);
       if(manualClose)return;
       const saved=(roomCode&&playerToken)?{code:roomCode,token:playerToken}:loadResumeSession();
@@ -393,7 +404,17 @@
       // porque un Render gratuito puede estar arrancando todavia.
     };
     ws.onmessage=e=>{
-      let m;try{m=JSON.parse(e.data);}catch(_){return;}
+      const raw=e.data;
+      // Los snapshots son reemplazables. No los parseamos en mitad de un frame:
+      // conservamos el ultimo y lo procesamos al comienzo del siguiente RAF.
+      if(typeof raw==='string'&&raw.startsWith('{"t":"state"')){
+        pendingStateRaw=raw;
+        return;
+      }
+      // Para mensajes no reemplazables respetamos el orden WebSocket: si habia
+      // un estado pendiente, se procesa antes del evento (victoria, sonido, etc.).
+      flushPendingState();
+      let m;try{m=JSON.parse(raw);}catch(_){return;}
       if(voice&&voice.isSignal(m)){voice.handleSignal(m);return;}
       handle(m);
     };
@@ -409,6 +430,27 @@
     // mejor omitir uno y mandar el mas reciente 33 ms despues que acumular lag.
     if(Number(ws.bufferedAmount||0)>32*1024)return false;
     try{ws.send(JSON.stringify({t:'ctrl',turn,thrust,fire}));return true;}catch(_){return false;}
+  }
+  function flushPendingState(){
+    if(!pendingStateRaw)return false;
+    const raw=pendingStateRaw;
+    pendingStateRaw=null;
+    let m;try{m=JSON.parse(raw);}catch(_){return false;}
+    handle(m);
+    return true;
+  }
+  function pumpControls(now){
+    if(!inGame)return;
+    if(lastControlSentAt&&now-lastControlSentAt<CONTROL_SEND_MS-1)return;
+    lastControlSentAt=now;
+    const left=keys.has('KeyA')||keys.has('ArrowLeft');
+    const right=keys.has('KeyD')||keys.has('ArrowRight');
+    const keyboardTurn=(left?1:0)-(right?1:0);
+    const turn=(isMobile&&motionEnabled)?motionTurn:keyboardTurn;
+    const thrust=(isMobile?mobileThrust:false)||keys.has('KeyW')||keys.has('ArrowUp');
+    const fire=(isMobile?mobileFire:false)||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
+    lastControlTurn=turn;
+    sendControl(turn,thrust,fire);
   }
   function uniqueLeaderFrom(players){
     if(!Array.isArray(players)||!players.length)return null;
@@ -445,8 +487,8 @@
   }
   function syncVoicePlayers(players,force=false){
     if(!voice)return;
-    let sig='';
-    if(Array.isArray(players))for(const p of players)if(p&&!p.cpu)sig+=String(p.i)+',';
+    let sig=0;
+    if(Array.isArray(players))for(const p of players)if(p&&!p.cpu&&Number.isInteger(Number(p.i)))sig|=(1<<Number(p.i));
     if(!force&&sig===lastVoicePlayersSig)return;
     lastVoicePlayersSig=sig;
     voice.syncPlayers(players);
@@ -546,7 +588,7 @@
     if(m.t==='created'||m.t==='joined'){
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
-      state=null;previousState=null;lastStateTime=0;previousStateTime=0;lastVoicePlayersSig='';rebuildPreviousLookup(null);
+      state=null;previousState=null;lastStateTime=0;previousStateTime=0;lastVoicePlayersSig=0;rebuildPreviousLookup(null);
       roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
     }
     else if(m.t==='resumed'){
@@ -611,7 +653,7 @@
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(){stopMusic();if(isMobile)calibrateMobileMotion();inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
+  function beginGame(){stopMusic();if(isMobile)calibrateMobileMotion();lastControlSentAt=0;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
   function showVictory(i){if(!inGame)return;inGame=false;leaderAnnouncement=null;topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?`GANA ${sinTildes(p.n)}`:`GANA J${i+1}`;const restartBtn=document.getElementById('restartMatch');if(restartBtn){restartBtn.disabled=false;restartBtn.textContent='REPETIR PARTIDA';}victory.classList.remove('hidden');}
 
   menu.addEventListener('pointerdown',startMusic,{passive:true});
@@ -655,9 +697,9 @@
     if(notifyServer&&roomCode)send({t:'leave'});
     if(voice)voice.clearSession();
     stopResumeWindow();clearResumeSession();playerToken='';
-    inGame=false;state=null;previousState=null;lastStateTime=0;previousStateTime=0;
+    inGame=false;state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;lastControlSentAt=0;
     killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
-    roomCode='';myIndex=null;isHost=false;lastVoicePlayersSig='';rebuildPreviousLookup(null);
+    roomCode='';myIndex=null;isHost=false;lastVoicePlayersSig=0;rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
     mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();
     roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';clearLobbyChat();updateLobbyStartButton(false);
@@ -689,17 +731,6 @@
   document.addEventListener('visibilitychange',()=>{if(document.hidden)clearHeldKeys();});
   window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);if(voice)voice.shutdown(true);try{if(ws)ws.close();}catch(_){}});
 
-  setInterval(()=>{
-    if(!inGame)return;
-    const left=keys.has('KeyA')||keys.has('ArrowLeft'),right=keys.has('KeyD')||keys.has('ArrowRight');
-    const keyboardTurn=(left?1:0)-(right?1:0);
-    const turn=(isMobile&&motionEnabled)?motionTurn:keyboardTurn;
-    const thrust=(isMobile?mobileThrust:false)||keys.has('KeyW')||keys.has('ArrowUp');
-    const fire=(isMobile?mobileFire:false)||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
-    lastControlTurn=turn;
-    sendControl(turn,thrust,fire);
-  },1000/30);
-
   function imageReady(im){
     // complete is ALSO true after a failed download. Check decoded dimensions.
     return Boolean(im&&im.complete&&im.naturalWidth>0&&im.naturalHeight>0);
@@ -730,7 +761,7 @@
     }
   }
   const pickupSpriteMap={ammo1:'ammo1',ammo3:'ammo3',cadence:'cadence',speed:'speed'};
-  function pickupExpiryAlpha(pk){
+  function pickupExpiryAlpha(pk,nowSec){
     const raw=pk&&pk.expiresIn;
     // null significa que esta mejora NO esta pendiente de desaparecer.
     // Importante: Number(null) === 0, por eso hay que comprobar null antes.
@@ -739,12 +770,11 @@
     // Durante toda su vida permanece al 100%. Solo en los ultimos 2 segundos
     // parpadea de forma regular entre 50% y 100% de opacidad.
     if(!Number.isFinite(left)||left>2)return 1;
-    const now=performance.now()/1000;
-    const pulse=.5+.5*Math.sin(now*Math.PI*2*3);
+    const pulse=.5+.5*Math.sin(nowSec*Math.PI*2*3);
     return .5+.5*pulse;
   }
-  function drawPickup(pk,x=pk.x,y=pk.y){
-    const alpha=pickupExpiryAlpha(pk);
+  function drawPickup(pk,x=pk.x,y=pk.y,nowSec=0){
+    const alpha=pickupExpiryAlpha(pk,nowSec);
     if(pickupSpriteMap[pk.type]){drawImageCentered(images[pickupSpriteMap[pk.type]],x,y,46,0,alpha);return;}
     ctx.save();ctx.translate(x,y);
     if(pk.type==='shield'){
@@ -780,20 +810,20 @@
     const frameMs=clamp(Number.isFinite(measured)&&measured>0?measured:NET_FRAME_MS,20,80);
     return clamp((now-lastStateTime)/frameMs,0,1);
   }
-  function ghostRevealState(p,now){
+  function ghostRevealAlpha(p,now){
     const camo=Number(p&&p.camo)||0;
-    if(camo<=0)return {revealed:false,alpha:0};
+    if(camo<=0)return 0;
     // El camuflaje dura 10 s. Para los rivales, la nave se revela brevemente
     // cada 4 s (aprox. en los segundos 4 y 8) con fundido de entrada/salida.
     const elapsed=Math.max(0,10-camo);
-    if(elapsed<4)return {revealed:false,alpha:0};
+    if(elapsed<4)return 0;
     const phase=elapsed%4;
     const window=1.0;
-    if(phase>=window)return {revealed:false,alpha:0};
+    if(phase>=window)return 0;
     let alpha=1;
     if(phase<0.25)alpha=phase/0.25;
     else if(phase>0.75)alpha=(window-phase)/0.25;
-    return {revealed:true,alpha:Math.max(0,Math.min(1,alpha))};
+    return Math.max(0,Math.min(1,alpha));
   }
   function drawShip(p,previous,blend,now){
     const local=p.i===myIndex;
@@ -813,10 +843,10 @@
     if(p.dead)return;
     let alpha=1;
     if(p.camo>0&&!local){
-      const reveal=ghostRevealState(p,now);
-      if(!reveal.revealed)return;
+      const revealAlpha=ghostRevealAlpha(p,now);
+      if(revealAlpha<=0)return;
       // Revelacion encadenada: aparece y desaparece suavemente.
-      alpha=.78*reveal.alpha;
+      alpha=.78*revealAlpha;
     }
     if(p.camo>0&&local){alpha=.42;if(p.camo<=3)alpha=(Math.floor(now/160)%2===0)?.55:.22;}
     if(p.prot>0)alpha*=spawnProtectionAlpha(p.prot);
@@ -1112,9 +1142,6 @@
   }
   function drawGhostStatus(now){
     if(!state||!Array.isArray(state.players))return;
-    const ghosts=state.players.filter(p=>Number(p&&p.camo)>0);
-    if(!ghosts.length)return;
-
     const fontSize=isMobile?27:21;
     const pillH=isMobile?40:32;
     const pillW=isMobile?170:138;
@@ -1132,41 +1159,31 @@
       ctx.shadowColor='transparent';
       ctx.shadowBlur=0;
 
-      for(const p of ghosts){
+      for(const p of state.players){
+        if(!(Number(p&&p.camo)>0))continue;
         const left=p.i%2===0;
         const top=p.i<2;
         const panelX=left?10:W-10-panelW;
         const panelY=top?5:H-bottomHudMargin-157*hudScale;
-
-        // La pastilla queda junto al HUD de su jugador, hacia el centro del campo,
-        // con margen suficiente para no pisar panel, nombre, municion ni velocidad.
-        const x=left
-          ? panelX+panelW+sideGap+pillW/2
-          : panelX-sideGap-pillW/2;
+        const x=left?panelX+panelW+sideGap+pillW/2:panelX-sideGap-pillW/2;
         const y=panelY+pillH/2+6;
-
-        const color=playerColors[p.i]||'#d7b6ff';
-        const rgb=hexToRgb(color);
+        const rgb=playerRgb[p.i]||[215,182,255];
         const wave=.5+.5*Math.sin(now*.0045+(p.i||0)*.9);
         const fillAlpha=.22+.08*wave;
         const borderAlpha=.34+.10*wave;
 
-        ctx.fillStyle=`rgba(${rgb.r},${rgb.g},${rgb.b},${fillAlpha.toFixed(3)})`;
-        ctx.strokeStyle=`rgba(${rgb.r},${rgb.g},${rgb.b},${borderAlpha.toFixed(3)})`;
+        ctx.fillStyle=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${fillAlpha.toFixed(3)})`;
+        ctx.strokeStyle=`rgba(${rgb[0]},${rgb[1]},${rgb[2]},${borderAlpha.toFixed(3)})`;
         ctx.lineWidth=2;
         ctx.beginPath();
         if(typeof ctx.roundRect==='function')ctx.roundRect(x-pillW/2,y-pillH/2,pillW,pillH,pillH/2);
         else ctx.rect(x-pillW/2,y-pillH/2,pillW,pillH);
         ctx.fill();
         ctx.stroke();
-
-        // Texto negro, sin sombra, para contrastar con el color del jugador.
         ctx.fillStyle='#000';
         ctx.fillText('FANTASMA',x,y+1);
       }
-    }finally{
-      ctx.restore();
-    }
+    }finally{ctx.restore();}
   }
 
   function drawMobileControlLabels(){
@@ -1246,8 +1263,15 @@
       ctx.restore();
     }
   }
-  function render(){
+  function render(rafNow){
     requestAnimationFrame(render);
+    const now=Number.isFinite(rafNow)?rafNow:performance.now();
+    flushPendingState();
+    pumpControls(now);
+    // En pantallas ProMotion/120 Hz no tiene sentido dibujar el juego a 120: la
+    // simulacion va a 60 Hz y la red a 30 Hz. Limitamos solo el pintado a 60 Hz.
+    if(lastPaintAt&&now-lastPaintAt<HIGH_REFRESH_SKIP_MS)return;
+    lastPaintAt=now;
     // Limpiar en pixeles fisicos y dibujar despues en coordenadas logicas
     // 1920x1080. En movil el buffer puede ser 1280x720 sin cambiar la fisica.
     ctx.setTransform(1,0,0,1,0,0);
@@ -1273,7 +1297,7 @@
     if(!backgroundCache&&!drawImageSafely(images.bg,0,0,W,H)){ctx.fillStyle='#020714';ctx.fillRect(0,0,W,H);}
     if(!state)return;
 
-    const now=performance.now();
+    const nowSec=now/1000;
     const blend=interpolationAlpha(now);
     const prev=previousState||state;
 
@@ -1295,7 +1319,7 @@
     }
     for(const pk of state.pickups){
       const old=previousLookup.pickups.get(pk.id);
-      drawPickup(pk,old?lerp(old.x,pk.x,blend):pk.x,old?lerp(old.y,pk.y,blend):pk.y);
+      drawPickup(pk,old?lerp(old.x,pk.x,blend):pk.x,old?lerp(old.y,pk.y,blend):pk.y,nowSec);
     }
     for(const m of state.meteors){
       const old=previousLookup.meteors.get(m.id);
@@ -1327,7 +1351,7 @@
     drawLeaderAnnouncement(now);
     drawBrutalAnnouncement(now);
     if(state.shower>0){
-      const pulse=.58+.42*(.5+.5*Math.sin(performance.now()*.005));
+      const pulse=.58+.42*(.5+.5*Math.sin(now*.005));
       ctx.save();
       ctx.globalAlpha=pulse;
       ctx.font=isMobile?'38px Flashback,Arial':'28px Flashback,Arial';
