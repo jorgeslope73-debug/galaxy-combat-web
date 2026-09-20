@@ -284,3 +284,45 @@ turn:turn.example.com:3478?transport=udp,turn:turn.example.com:3478?transport=tc
 ## V16.4.45
 - Selector de idioma propio con banderas CSS (visible de forma consistente en Safari/Chrome).
 - El testigo de version queda arriba a la derecha y el selector de idioma justo debajo.
+
+
+## V16.4.46 - Idioma visible en partidas publicas
+
+- Cada sala publica guarda el idioma seleccionado por su creador (ES/EN/IT/FR/DE).
+- La lista de partidas muestra la bandera de ese idioma junto al anfitrion.
+- La bandera no cambia aunque se unan jugadores que tengan otro idioma seleccionado.
+- Clientes antiguos o salas sin idioma explicito usan ES como valor seguro.
+
+
+## V16.4.47 - Manual multilingüe integrado
+
+- Nueva pestaña **MANUAL** junto al selector de idioma en la portada.
+- Manual integrado en un panel responsive, sin recargar la página.
+- Traducción automática del manual a ES / EN / IT / FR / DE según el idioma seleccionado.
+- Incluye objetivo, controles PC/móvil, HUD, puntuación, armas, BRUTAL, mejoras, invisibilidad, peligros, CPU, online/chat/voz, reconexión, revancha, PWA y consejos.
+- Las fichas de mejoras reutilizan los assets existentes del juego; no se añaden imágenes pesadas.
+- El manual está oculto fuera de la portada y no añade trabajo al render de la partida.
+- Caché PWA actualizada a V16.4.47 y `manual.js` incluido en el shell.
+
+
+## V16.4.49 - IA CPU desarmada mas prudente
+
+- Sin balas ni escudo, la CPU no persigue ni ataca al jugador.
+- Prioriza municion y ahora elige la opcion mas segura, penalizando pickups demasiado cercanos al rival.
+- Si el jugador se acerca mientras busca municion, la CPU curva su ruta para mantener distancia.
+- Si no hay municion disponible, huye hasta que aparezca.
+- Con escudo pero sin balas puede embestir solo a un rival sin escudo ni proteccion activa.
+- Con balas conserva su comportamiento ofensivo normal.
+- Sin cambios en fisica, dificultad, HUD, manual, idiomas, audio o controles.
+
+
+## V16.4.49 - manual ampliado
+- El manual incluye capturas reales de la portada y de una partida.
+- La seccion Online explica paso a paso como crear una sala publica/privada y como unirse desde la lista o mediante codigo.
+- Las nuevas imagenes y explicaciones estan disponibles en ES, EN, IT, FR y DE.
+
+
+## V16.4.50 - manual HUD e inercia
+- El manual muestra una imagen real del HUD y explica balas, cadencia, velocidad y bajas.
+- Se destaca que la nave solo avanza al acelerar y que conserva inercia/deslizamiento, por lo que hay que corregir la trayectoria girando.
+- Los textos del manual renderizados con Flashback se muestran sin tildes para evitar problemas de glifos.
