@@ -1,8 +1,12 @@
 'use strict';
 
 const http = require('http');
-const { randomBytes } = require('crypto');
+const { randomBytes, scrypt: scryptCallback, timingSafeEqual, createHash } = require('crypto');
+const { promisify } = require('util');
+const { Pool } = require('pg');
 const { WebSocketServer } = require('ws');
+
+const scrypt = promisify(scryptCallback);
 
 const PORT = Number(process.env.PORT || 8080);
 const W = 1920;
@@ -19,6 +23,162 @@ const SCORE_TO_WIN = 5;
 const MAX_PLAYERS = 4;
 const RECONNECT_GRACE_MS = 30000;
 const BRUTAL_SHOT_DISTANCE = 850;
+
+
+const SESSION_DAYS = 30;
+const PASSWORD_MIN_LENGTH = 8;
+const DATABASE_URL = String(process.env.DATABASE_URL || '').trim();
+let dbReady = false;
+let dbInitPromise = null;
+const db = DATABASE_URL ? new Pool({
+  connectionString: DATABASE_URL,
+  ssl: /localhost|127\.0\.0\.1/.test(DATABASE_URL) ? false : { rejectUnauthorized:false }
+}) : null;
+
+function normalizeUsername(value) {
+  return String(value||'').replace(/[\x00-\x1f\x7f]/g,'').replace(/\s+/g,' ').trim().slice(0,16);
+}
+function usernameKey(value) { return normalizeUsername(value).toLowerCase(); }
+function normalizeEmail(value) { return String(value||'').trim().toLowerCase().slice(0,254); }
+function validEmail(value) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value); }
+function validRegisteredUsername(value) { return /^[A-Za-z0-9 _-]{2,16}$/.test(normalizeUsername(value)); }
+function tokenHash(token) { return createHash('sha256').update(String(token||'')).digest('hex'); }
+async function hashPassword(password, saltHex='') {
+  const salt = saltHex ? Buffer.from(saltHex,'hex') : randomBytes(16);
+  const derived = await scrypt(String(password), salt, 64);
+  return { salt:salt.toString('hex'), hash:Buffer.from(derived).toString('hex') };
+}
+async function verifyPassword(password, saltHex, hashHex) {
+  try {
+    const test = await hashPassword(password, saltHex);
+    const a = Buffer.from(test.hash,'hex');
+    const b = Buffer.from(String(hashHex||''),'hex');
+    return a.length===b.length && timingSafeEqual(a,b);
+  } catch (_) { return false; }
+}
+async function ensureDatabase() {
+  if (!db) return false;
+  if (dbReady) return true;
+  if (dbInitPromise) return dbInitPromise;
+  dbInitPromise = (async()=>{
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS galaxy_users (
+        id BIGSERIAL PRIMARY KEY,
+        username VARCHAR(16) NOT NULL,
+        username_key VARCHAR(16) NOT NULL UNIQUE,
+        email VARCHAR(254) NOT NULL,
+        email_key VARCHAR(254) NOT NULL UNIQUE,
+        password_salt VARCHAR(64) NOT NULL,
+        password_hash VARCHAR(256) NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS galaxy_sessions (
+        token_hash CHAR(64) PRIMARY KEY,
+        user_id BIGINT NOT NULL REFERENCES galaxy_users(id) ON DELETE CASCADE,
+        expires_at TIMESTAMPTZ NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS galaxy_sessions_user_idx ON galaxy_sessions(user_id);
+      CREATE INDEX IF NOT EXISTS galaxy_sessions_exp_idx ON galaxy_sessions(expires_at);
+      CREATE TABLE IF NOT EXISTS galaxy_ranked_matches (
+        match_id VARCHAR(64) PRIMARY KEY,
+        room_code VARCHAR(8) NOT NULL,
+        winner_user_id BIGINT NOT NULL REFERENCES galaxy_users(id) ON DELETE RESTRICT,
+        played_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE TABLE IF NOT EXISTS galaxy_ranked_match_players (
+        match_id VARCHAR(64) NOT NULL REFERENCES galaxy_ranked_matches(match_id) ON DELETE CASCADE,
+        user_id BIGINT NOT NULL REFERENCES galaxy_users(id) ON DELETE RESTRICT,
+        player_index SMALLINT NOT NULL,
+        PRIMARY KEY(match_id,user_id)
+      );
+      CREATE INDEX IF NOT EXISTS galaxy_rank_players_user_idx ON galaxy_ranked_match_players(user_id);
+      CREATE INDEX IF NOT EXISTS galaxy_rank_winner_idx ON galaxy_ranked_matches(winner_user_id);
+    `);
+    dbReady = true;
+    console.log('[Galaxy Combat] Base de datos de cuentas preparada.');
+    return true;
+  })().catch(err=>{
+    dbInitPromise=null;
+    dbReady=false;
+    console.error('[Galaxy Combat] No se pudo preparar DATABASE_URL:',err&&err.message||err);
+    return false;
+  });
+  return dbInitPromise;
+}
+async function createSession(userId) {
+  if (!await ensureDatabase()) return null;
+  const token=randomBytes(32).toString('hex');
+  await db.query('DELETE FROM galaxy_sessions WHERE expires_at<=NOW()');
+  await db.query(
+    `INSERT INTO galaxy_sessions(token_hash,user_id,expires_at)
+     VALUES($1,$2,NOW()+($3||' days')::interval)`,
+    [tokenHash(token),userId,String(SESSION_DAYS)]
+  );
+  return token;
+}
+async function userFromSessionToken(token) {
+  if (!token || !/^[a-f0-9]{64}$/i.test(String(token))) return null;
+  if (!await ensureDatabase()) return null;
+  const {rows}=await db.query(
+    `SELECT u.id,u.username,u.email
+       FROM galaxy_sessions s JOIN galaxy_users u ON u.id=s.user_id
+      WHERE s.token_hash=$1 AND s.expires_at>NOW() LIMIT 1`,
+    [tokenHash(token)]
+  );
+  return rows[0]||null;
+}
+async function registeredNameExists(name) {
+  if (!db || !await ensureDatabase()) return false;
+  const {rowCount}=await db.query('SELECT 1 FROM galaxy_users WHERE username_key=$1 LIMIT 1',[usernameKey(name)]);
+  return rowCount>0;
+}
+async function resolvePlayerIdentity(msg) {
+  const token=String(msg&&msg.authToken||'').trim();
+  let user=null;
+  try{user=token?await userFromSessionToken(token):null;}catch(err){
+    console.error('[Galaxy Combat] Error validando sesion:',err&&err.message||err);
+    if(token)return {error:'SERVICIO DE CUENTAS NO DISPONIBLE.'};
+  }
+  if(user) return {name:user.username,userId:Number(user.id),registered:true};
+  const name=safeName(normalizeUsername(msg&&msg.name));
+  try{if(await registeredNameExists(name)) return {error:'NOMBRE REGISTRADO. INICIA SESION.'};}
+  catch(err){console.error('[Galaxy Combat] Error comprobando nombre registrado:',err&&err.message||err);}
+  return {name,userId:null,registered:false};
+}
+async function recordRankedMatch(room,winner) {
+  if (!db || !room || room.rankRecorded || !room.rankEligible || !room.rankMatchId || !winner || !winner.userId) return;
+  room.rankRecorded=true;
+  try {
+    if (!await ensureDatabase()) { room.rankRecorded=false; return; }
+    const players=room.players.filter(p=>!p.cpu&&p.userId);
+    if(players.length<2 || players.length!==room.players.filter(p=>!p.cpu).length){room.rankRecorded=false;return;}
+    const client=await db.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO galaxy_ranked_matches(match_id,room_code,winner_user_id)
+         VALUES($1,$2,$3) ON CONFLICT(match_id) DO NOTHING`,
+        [room.rankMatchId,room.code,winner.userId]
+      );
+      for(const p of players){
+        await client.query(
+          `INSERT INTO galaxy_ranked_match_players(match_id,user_id,player_index)
+           VALUES($1,$2,$3) ON CONFLICT DO NOTHING`,
+          [room.rankMatchId,p.userId,p.index]
+        );
+      }
+      await client.query('COMMIT');
+      console.log(`[Galaxy Combat] Partida rankeada ${room.rankMatchId} registrada.`);
+    } catch(err){
+      try{await client.query('ROLLBACK');}catch(_){}
+      throw err;
+    } finally { client.release(); }
+  } catch(err){
+    room.rankRecorded=false;
+    console.error('[Galaxy Combat] Error guardando partida rankeada:',err&&err.message||err);
+  }
+}
 
 const SHIP_RADIUS = 24;
 const ASTEROID_RADIUS = 45;
@@ -231,6 +391,9 @@ class GameRoom {
     this.controls = new Map();
     this.createdAt = Date.now();
     this.creatorIp = '';
+    this.rankMatchId = '';
+    this.rankEligible = false;
+    this.rankRecorded = false;
     this.resetAsteroids();
   }
 
@@ -241,12 +404,14 @@ class GameRoom {
     });
   }
 
-  addHuman(ws, name, isHost=false) {
+  addHuman(ws, name, isHost=false, identity=null) {
     if (this.players.filter(p=>!p.cpu).length >= MAX_PLAYERS) return null;
     const used = new Set(this.players.map(p=>p.index));
     let index=0; while (used.has(index)) index++;
     const p = this.makePlayer(index, name, false);
     p.ws = ws; p.isHost = isHost; p.playerToken = newPlayerToken(); p.disconnectedAt = 0;
+    p.userId = identity&&identity.userId?Number(identity.userId):null;
+    p.registered = !!(identity&&identity.registered&&p.userId);
     this.placeAtSpawn(p);
     this.players.push(p);
     this.controls.set(index, { turn:0, thrust:false, fire:false });
@@ -270,8 +435,15 @@ class GameRoom {
       bullets:1, cadence:30, speed:1, kills:0, deaths:0,
       reload:0, shield:0, camo:0, protection:SPAWN_PROTECTION_SECONDS,
       dead:false, respawn:0, fireLatch:false, voiceReady:false, lastChatAt:0, lastControlAt:Date.now(),
-      playerToken:'', disconnectedAt:0
+      playerToken:'', disconnectedAt:0, userId:null, registered:false
     };
+  }
+
+  prepareRankedMatch() {
+    const humans=this.players.filter(p=>!p.cpu);
+    this.rankEligible=this.mode==='online' && humans.length>=2 && humans.every(p=>!!p.userId&&p.registered);
+    this.rankMatchId=this.rankEligible?randomBytes(18).toString('hex'):'';
+    this.rankRecorded=false;
   }
 
   canStart() {
@@ -281,8 +453,9 @@ class GameRoom {
 
   start() {
     if (!this.canStart()) return false;
+    this.prepareRankedMatch();
     this.started = true; this.finished = false; this.winner = null;
-    broadcast(this, { t:'start', code:this.code });
+    broadcast(this, { t:'start', code:this.code, ranked:this.rankEligible });
     return true;
   }
 
@@ -333,8 +506,9 @@ class GameRoom {
       p.dead = false;
     }
 
+    this.prepareRankedMatch();
     this.started = true;
-    broadcast(this, { t:'restarted', code:this.code });
+    broadcast(this, { t:'restarted', code:this.code, ranked:this.rankEligible });
     return true;
   }
 
@@ -393,6 +567,7 @@ class GameRoom {
         this.finished = true;
         this.winner = attacker.index;
         broadcast(this,{t:'victory', winner:this.winner});
+        void recordRankedMatch(this,attacker);
       }
     }
   }
@@ -864,7 +1039,7 @@ function removePlayer(ws) {
   room.players=room.players.filter(x=>x!==p);room.controls.delete(p.index);
   clientInfo.delete(ws);
   if(p.isHost){broadcast(room,{t:'closed',reason:'El anfitrión cerró la sala.'});deleteRoom(room.code);}
-  else broadcast(room,{t:'lobby',code:room.code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});
+  else broadcast(room,{t:'lobby',code:room.code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu,registered:!!x.registered})),canStart:room.canStart()});
   broadcastPublicRooms();
 }
 
@@ -919,13 +1094,114 @@ function rtcIceServers(){
   return iceServers;
 }
 
-const server=http.createServer((req,res)=>{
+function sendJson(res,status,obj){
+  res.writeHead(status,{'Content-Type':'application/json; charset=utf-8'});
+  res.end(JSON.stringify(obj));
+}
+function readJsonBody(req,maxBytes=16384){
+  return new Promise((resolve,reject)=>{
+    let size=0;const chunks=[];
+    req.on('data',chunk=>{size+=chunk.length;if(size>maxBytes){reject(new Error('body-too-large'));req.destroy();return;}chunks.push(chunk);});
+    req.on('end',()=>{try{resolve(chunks.length?JSON.parse(Buffer.concat(chunks).toString('utf8')):{});}catch(_){reject(new Error('bad-json'));}});
+    req.on('error',reject);
+  });
+}
+function bearerToken(req){
+  const raw=String(req.headers.authorization||'');
+  const m=/^Bearer\s+([a-f0-9]{64})$/i.exec(raw.trim());
+  return m?m[1]:'';
+}
+async function authApi(req,res,url){
+  if(!db){sendJson(res,503,{ok:false,code:'DB_NOT_CONFIGURED',message:'Cuentas aun no configuradas en el servidor.'});return true;}
+  if(!await ensureDatabase()){sendJson(res,503,{ok:false,code:'DB_UNAVAILABLE',message:'Servicio de cuentas no disponible.'});return true;}
+  if(url==='/api/auth/register'&&req.method==='POST'){
+    let body;try{body=await readJsonBody(req);}catch(_){sendJson(res,400,{ok:false,code:'BAD_REQUEST'});return true;}
+    const username=normalizeUsername(body.username),email=normalizeEmail(body.email),password=String(body.password||'');
+    if(!validRegisteredUsername(username)){sendJson(res,400,{ok:false,code:'BAD_USERNAME',message:'Nombre de 2 a 16 caracteres: letras, numeros, espacio, _ o -.'});return true;}
+    if(!validEmail(email)){sendJson(res,400,{ok:false,code:'BAD_EMAIL',message:'Correo no valido.'});return true;}
+    if(password.length<PASSWORD_MIN_LENGTH||password.length>128){sendJson(res,400,{ok:false,code:'BAD_PASSWORD',message:`La clave debe tener al menos ${PASSWORD_MIN_LENGTH} caracteres.`});return true;}
+    const pw=await hashPassword(password);
+    try{
+      const {rows}=await db.query(
+        `INSERT INTO galaxy_users(username,username_key,email,email_key,password_salt,password_hash)
+         VALUES($1,$2,$3,$4,$5,$6) RETURNING id,username,email`,
+        [username,usernameKey(username),email,email,pw.salt,pw.hash]
+      );
+      const user=rows[0];const token=await createSession(user.id);
+      sendJson(res,201,{ok:true,token,user:{id:Number(user.id),username:user.username,email:user.email}});
+    }catch(err){
+      if(err&&err.code==='23505'){
+        const detail=String(err.constraint||err.detail||'');
+        const code=detail.includes('email')?'EMAIL_TAKEN':'USERNAME_TAKEN';
+        sendJson(res,409,{ok:false,code,message:code==='EMAIL_TAKEN'?'Ese correo ya esta registrado.':'Ese nombre ya esta registrado.'});
+      }else{console.error(err);sendJson(res,500,{ok:false,code:'SERVER_ERROR'});}
+    }
+    return true;
+  }
+  if(url==='/api/auth/login'&&req.method==='POST'){
+    let body;try{body=await readJsonBody(req);}catch(_){sendJson(res,400,{ok:false,code:'BAD_REQUEST'});return true;}
+    const key=usernameKey(body.username),password=String(body.password||'');
+    const {rows}=await db.query('SELECT id,username,email,password_salt,password_hash FROM galaxy_users WHERE username_key=$1 LIMIT 1',[key]);
+    const user=rows[0];
+    if(!user||!await verifyPassword(password,user.password_salt,user.password_hash)){sendJson(res,401,{ok:false,code:'INVALID_LOGIN',message:'Nombre o clave incorrectos.'});return true;}
+    const token=await createSession(user.id);
+    sendJson(res,200,{ok:true,token,user:{id:Number(user.id),username:user.username,email:user.email}});
+    return true;
+  }
+  if(url==='/api/auth/logout'&&req.method==='POST'){
+    const token=bearerToken(req);if(token)await db.query('DELETE FROM galaxy_sessions WHERE token_hash=$1',[tokenHash(token)]);
+    sendJson(res,200,{ok:true});return true;
+  }
+  if(url==='/api/auth/me'&&req.method==='GET'){
+    const user=await userFromSessionToken(bearerToken(req));
+    if(!user){sendJson(res,401,{ok:false,code:'UNAUTHORIZED'});return true;}
+    sendJson(res,200,{ok:true,user:{id:Number(user.id),username:user.username,email:user.email}});return true;
+  }
+  if(url==='/api/ranking/me'&&req.method==='GET'){
+    const user=await userFromSessionToken(bearerToken(req));
+    if(!user){sendJson(res,401,{ok:false,code:'UNAUTHORIZED'});return true;}
+    const {rows}=await db.query(`
+      WITH stats AS (
+        SELECT u.id,
+               COUNT(DISTINCT mp.match_id)::int AS played,
+               COUNT(DISTINCT CASE WHEN m.winner_user_id=u.id THEN m.match_id END)::int AS wins
+          FROM galaxy_users u
+          LEFT JOIN galaxy_ranked_match_players mp ON mp.user_id=u.id
+          LEFT JOIN galaxy_ranked_matches m ON m.match_id=mp.match_id
+         GROUP BY u.id
+      ), strength AS (
+        SELECT m.winner_user_id AS id,
+               COALESCE(SUM(opponent_stats.wins),0)::bigint AS opponent_strength
+          FROM galaxy_ranked_matches m
+          JOIN galaxy_ranked_match_players opp ON opp.match_id=m.match_id AND opp.user_id<>m.winner_user_id
+          JOIN stats opponent_stats ON opponent_stats.id=opp.user_id
+         GROUP BY m.winner_user_id
+      ), ranked AS (
+        SELECT s.id,s.played,s.wins,(s.played-s.wins) AS losses,
+               COALESCE(st.opponent_strength,0) AS opponent_strength,
+               ROW_NUMBER() OVER (
+                 ORDER BY s.wins DESC,COALESCE(st.opponent_strength,0) DESC,(s.played-s.wins) ASC,s.id ASC
+               )::int AS position
+          FROM stats s LEFT JOIN strength st ON st.id=s.id
+      ) SELECT played,wins,losses,position FROM ranked WHERE id=$1`,[user.id]);
+    sendJson(res,200,{ok:true,ranking:rows[0]||{played:0,wins:0,losses:0,position:1}});return true;
+  }
+  return false;
+}
+
+const server=http.createServer(async(req,res)=>{
   res.setHeader('Access-Control-Allow-Origin','*');
+  res.setHeader('Access-Control-Allow-Headers','Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');
   res.setHeader('Cache-Control','no-store');
+  if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
   const url=(req.url||'/').split('?')[0];
+  try{
+    if(url.startsWith('/api/')&&await authApi(req,res,url))return;
+  }catch(err){console.error('[Galaxy Combat] API error:',err);sendJson(res,500,{ok:false,code:'SERVER_ERROR'});return;}
   if(url==='/health'){
     res.writeHead(200,{'Content-Type':'application/json; charset=utf-8'});
-    res.end(JSON.stringify({ok:true,service:'Galaxy Combat WebSocket'}));
+    res.end(JSON.stringify({ok:true,service:'Galaxy Combat WebSocket',accounts:!!db}));
     return;
   }
   if(url==='/rtc-config'){
@@ -942,18 +1218,19 @@ wss.on('connection',(ws,req)=>{
   const clientIp=clientIpFromRequest(req);
   send(ws,{t:'hello'});
   sendPublicRooms(ws);
-  ws.on('message',raw=>{
+  ws.on('message',async raw=>{
     let msg;try{msg=JSON.parse(String(raw));}catch(_){return;}
     if(msg.t==='create'){
       releaseAbandonedRoomForIp(clientIp);
       if(activeRoomForIp(clientIp)){send(ws,{t:'error',message:'YA TIENES UNA SALA ACTIVA.'});return;}
-      const code=roomCode();const room=new GameRoom(code,'online','medio',!!msg.public,safeRoomLanguage(msg.lang));rooms.set(code,room);registerRoomCreator(room,clientIp);const p=room.addHuman(ws,msg.name,true);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,public:room.isPublic,playerToken:p.playerToken});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
+      const identity=await resolvePlayerIdentity(msg);if(identity.error){send(ws,{t:'error',message:identity.error});return;}
+      const code=roomCode();const room=new GameRoom(code,'online','medio',!!msg.public,safeRoomLanguage(msg.lang));rooms.set(code,room);registerRoomCreator(room,clientIp);const p=room.addHuman(ws,identity.name,true,identity);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,public:room.isPublic,playerToken:p.playerToken,registered:p.registered});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu,registered:!!x.registered})),canStart:room.canStart()});broadcastPublicRooms();
     } else if(msg.t==='cpu'){
       // Las partidas contra CPU son locales/privadas para esta sesion y no
       // cuentan para el limite de una sala online activa por IP.
-      const code=roomCode();const room=new GameRoom(code,'cpu',String(msg.difficulty||'dificil'));rooms.set(code,room);const p=room.addHuman(ws,msg.name,true);room.addCpu('CPU',room.difficulty);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,cpu:true,playerToken:p.playerToken});room.start();
+      const identity=await resolvePlayerIdentity(msg);if(identity.error){send(ws,{t:'error',message:identity.error});return;}const code=roomCode();const room=new GameRoom(code,'cpu',String(msg.difficulty||'dificil'));rooms.set(code,room);const p=room.addHuman(ws,identity.name,true,identity);room.addCpu('CPU',room.difficulty);clientInfo.set(ws,{code,index:p.index});send(ws,{t:'created',code,index:p.index,cpu:true,playerToken:p.playerToken});room.start();
     } else if(msg.t==='join'){
-      const code=String(msg.code||'').trim().toUpperCase();const room=rooms.get(code);if(!room||room.started||room.mode!=='online'){send(ws,{t:'error',message:'Sala no disponible.'});return;}const p=room.addHuman(ws,msg.name,false);if(!p){send(ws,{t:'error',message:'Sala llena.'});return;}clientInfo.set(ws,{code,index:p.index});send(ws,{t:'joined',code,index:p.index,public:room.isPublic,playerToken:p.playerToken});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu})),canStart:room.canStart()});broadcastPublicRooms();
+      const code=String(msg.code||'').trim().toUpperCase();const room=rooms.get(code);if(!room||room.started||room.mode!=='online'){send(ws,{t:'error',message:'Sala no disponible.'});return;}const identity=await resolvePlayerIdentity(msg);if(identity.error){send(ws,{t:'error',message:identity.error});return;}const p=room.addHuman(ws,identity.name,false,identity);if(!p){send(ws,{t:'error',message:'Sala llena.'});return;}clientInfo.set(ws,{code,index:p.index});send(ws,{t:'joined',code,index:p.index,public:room.isPublic,playerToken:p.playerToken,registered:p.registered});send(ws,{t:'chat-history',messages:room.chatMessages});broadcast(room,{t:'lobby',code,players:room.players.map(x=>({i:x.index,n:x.name,cpu:x.cpu,registered:!!x.registered})),canStart:room.canStart()});broadcastPublicRooms();
     } else if(msg.t==='resume'){
       const code=String(msg.code||'').trim().toUpperCase();
       const token=String(msg.token||'').trim();
@@ -1036,6 +1313,8 @@ function gameLoop(){
 setTimeout(gameLoop,STEP_MS);
 setInterval(expireDisconnectedPlayers,1000);
 setInterval(()=>{const now=Date.now();let changed=false;for(const [code,room] of rooms){if(room.players.length===0||now-room.createdAt>12*60*60*1000){deleteRoom(code);changed=true;}}if(changed)broadcastPublicRooms();},30000);
+
+if(db)void ensureDatabase();
 
 server.listen(PORT,'0.0.0.0',()=>{
   console.log(`Galaxy Combat WebSocket server online on port ${PORT}`);
