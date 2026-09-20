@@ -1,6 +1,14 @@
 'use strict';
 (() => {
-  const canvas=document.getElementById('game'),ctx=canvas.getContext('2d',{alpha:false,desynchronized:true})||canvas.getContext('2d');
+  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+  const canvas=document.getElementById('game');
+  // En iOS usamos el canvas sincronizado con la composicion normal de Safari.
+  // `desynchronized:true` puede producir una cadencia irregular/microtirones en
+  // algunos iPhone/iPad aunque el FPS medio sea correcto.
+  const ctx=isIOS
+    ? (canvas.getContext('2d',{alpha:false})||canvas.getContext('2d'))
+    : (canvas.getContext('2d',{alpha:false,desynchronized:true})||canvas.getContext('2d'));
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
   const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
   const lobbyChatLog=document.getElementById('lobbyChatLog'),lobbyChatEmpty=document.getElementById('lobbyChatEmpty'),lobbyChatInput=document.getElementById('lobbyChatInput'),lobbyChatSend=document.getElementById('lobbyChatSend');
@@ -51,8 +59,6 @@
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
   const serverButtons=['cpu','create','join'].map(id=>document.getElementById(id));
-  const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
-  const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent);
   // Tamano visual de las naves. Solo cambia el dibujo: fisica, colisiones y red quedan iguales.
   const SHIP_DRAW_SIZE=isMobile?86:72;
   const SHIELD_DRAW_RADIUS=isMobile?48:43;
@@ -114,6 +120,7 @@
     if(thrustLabel)thrustLabel.style.visibility='hidden';
   }
   let motionEnabled=false,motionTurn=0,motionNeutral=null,motionLastRaw=0,motionHasSample=false;
+  let lastMotionSampleAt=0;
   let mobileFire=false,mobileThrust=false;
   const touchSides=new Map();
 
@@ -228,6 +235,12 @@
     return gamma;
   }
   function onDeviceOrientation(ev){
+    // Safari puede entregar mas muestras de sensor de las que necesita el juego.
+    // Limitar el trabajo a ~60 Hz evita competir con RAF + WebSocket en el
+    // mismo hilo principal sin cambiar la respuesta percibida del control.
+    const stamp=Number.isFinite(ev.timeStamp)?ev.timeStamp:performance.now();
+    if(lastMotionSampleAt&&stamp-lastMotionSampleAt<15)return;
+    lastMotionSampleAt=stamp;
     const raw=lateralTilt(ev);
     motionLastRaw=raw;motionHasSample=true;
     if(motionNeutral===null)motionNeutral=raw;
@@ -253,7 +266,7 @@
       }
       window.removeEventListener('deviceorientation',onDeviceOrientation);
       window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});
-      motionNeutral=null;motionTurn=0;motionEnabled=true;motionHasSample=false;
+      motionNeutral=null;motionTurn=0;motionEnabled=true;motionHasSample=false;lastMotionSampleAt=0;
       motionStatus.textContent='';
       return true;
     }catch(err){
