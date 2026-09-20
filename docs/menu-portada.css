@@ -520,26 +520,28 @@
 }
 
 
-/* V16.4.30: sin boton de recalibrado; VOZ queda a la derecha en movil. */
+/* V16.4.31: VOZ centrado y mas compacto en movil. */
 @media (pointer:coarse),(max-width:900px){
-  #menu .menu-control-tools{justify-content:flex-end!important;}
+  #menu .menu-control-tools{justify-content:center!important;}
   #menu .menu-control-tools .voice-setup{
     order:2!important;
-    flex:0 1 190px!important;
-    width:min(48%,190px)!important;
-    max-width:190px!important;
-    margin-left:auto!important;
+    flex:0 0 auto!important;
+    width:auto!important;
+    max-width:none!important;
+    margin:0 auto!important;
   }
   #menu #enableVoice{
-    width:100%!important;
+    width:auto!important;
+    min-width:132px!important;
+    max-width:160px!important;
     font-family:Arial,Helvetica,sans-serif!important;
-    font-size:12px!important;
+    font-size:11px!important;
     font-weight:800!important;
     letter-spacing:.015em!important;
     line-height:1.1!important;
-    min-height:40px!important;
-    height:40px!important;
-    padding:6px 8px!important;
+    min-height:34px!important;
+    height:34px!important;
+    padding:5px 12px!important;
     text-transform:none!important;
   }
 }
