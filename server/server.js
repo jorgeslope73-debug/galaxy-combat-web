@@ -446,37 +446,62 @@ class GameRoom {
     let err=((targetRot-cpu.rot+540)%360)-180;
     let desiredX=rival.x, desiredY=rival.y;
     let seekPickup=null;
+    let defensiveNoAmmo=false;
+    let ramming=false;
 
-    const dangerousCamo = rival.shield>0;
-    const difficultNoAmmo = cpu.difficulty==='dificil' && cpu.bullets===0;
+    const rivalShielded = rival.shield>0 || rival.protection>0;
+    const rivalDangerous = rival.shield>0;
 
-    // En DIFICIL, quedarse sin balas cambia por completo la prioridad:
-    // 1) buscar la municion mas cercana; 2) mantenerse lejos del rival.
-    // No persigue otras mejoras hasta volver a estar armado.
-    if (difficultNoAmmo) {
+    // V16.4.37: una CPU desarmada no persigue al jugador por defecto.
+    // Prioridad universal (todas las dificultades):
+    // 1) buscar municion; 2) si no existe, huir y mantener distancia.
+    // Excepcion: si conserva escudo y el rival no tiene escudo/proteccion,
+    // puede aprovecharlo para embestir, sobre todo si el rival esta cerca.
+    if (cpu.bullets===0) {
       let bestD2=Infinity;
       for(const pk of this.pickups){
         if(!pk.type.startsWith('ammo'))continue;
         const d2=dist2(cpu,pk);
         if(d2<bestD2){bestD2=d2;seekPickup=pk;}
       }
-      if (seekPickup) {
+
+      const ammoDistance=seekPickup?Math.sqrt(bestD2):Infinity;
+      const canRam=cpu.shield>0 && !rivalShielded;
+      const ramRange=cpu.difficulty==='dificil'?650:(cpu.difficulty==='medio'?520:420);
+      const preferRam=canRam && (
+        !seekPickup ||
+        distance<ramRange ||
+        (cpu.difficulty==='dificil' && distance<ammoDistance*0.65)
+      );
+
+      if(preferRam){
+        // Embestida deliberada: solo con escudo propio y rival vulnerable.
+        seekPickup=null;
+        ramming=true;
+        desiredX=rival.x;
+        desiredY=rival.y;
+      } else if(seekPickup){
+        defensiveNoAmmo=true;
         desiredX=seekPickup.x;
         desiredY=seekPickup.y;
-        // Si el rival esta cerca, sesga la ruta hacia el lado contrario sin
-        // dejar de tener la municion como objetivo principal.
-        if(distance<700){
+
+        // Va a por la municion, pero si el jugador se acerca demasiado
+        // curva la ruta hacia el lado contrario para no regalar la colision.
+        if(distance<800){
           const inv=1/(distance||1);
-          const flee=(700-distance)*0.75;
+          const flee=(800-distance)*(cpu.shield>0?0.55:0.9);
           desiredX+=(cpu.x-rival.x)*inv*flee;
           desiredY+=(cpu.y-rival.y)*inv*flee;
         }
       } else {
-        // Si no hay municion flotando, huye hasta que aparezca alguna.
-        desiredX=cpu.x-dx*2;
-        desiredY=cpu.y-dy*2;
+        // No hay armas disponibles: huye de verdad hasta que aparezcan.
+        defensiveNoAmmo=true;
+        const inv=1/(distance||1);
+        const fleeDistance=950;
+        desiredX=cpu.x+(cpu.x-rival.x)*inv*fleeDistance;
+        desiredY=cpu.y+(cpu.y-rival.y)*inv*fleeDistance;
       }
-    } else if (dangerousCamo) {
+    } else if (rivalDangerous) {
       let bestD2=Infinity;
       for(const pk of this.pickups){
         if(pk.type!=='shield'&&!pk.type.startsWith('ammo'))continue;
@@ -491,20 +516,13 @@ class GameRoom {
         let bestScore=10;
         for(const pk of this.pickups){
           let value=0;
-          if (pk.type.startsWith('ammo')) value = cpu.bullets===0?120:(cpu.bullets<=2?85:25);
+          if (pk.type.startsWith('ammo')) value = cpu.bullets<=2?85:25;
           else if (pk.type==='cadence') value = cpu.cadence>=20?100:35;
           else if (pk.type==='speed') value = cpu.speed<2?55:10;
           else if (pk.type==='shield') value = cpu.shield<=0?95:20;
           const score=value-Math.sqrt(dist2(cpu,pk))*0.06;
           if(score>bestScore){bestScore=score;seekPickup=pk;}
         }
-      }
-    } else if (cpu.bullets===0) {
-      let bestD2=Infinity;
-      for(const pk of this.pickups){
-        if(!pk.type.startsWith('ammo'))continue;
-        const d2=dist2(cpu,pk);
-        if(d2<bestD2){bestD2=d2;seekPickup=pk;}
       }
     }
 
@@ -534,8 +552,11 @@ class GameRoom {
     }
 
     const turn=clamp(err/38,-1,1);
-    const thrust=Math.abs(err)<60 && (seekPickup||distance>280||avoidMag>20);
-    const fire=!dangerousCamo && !seekPickup && cpu.bullets>0 && cpu.reload<=0 && Math.abs(err)<6 && distance<1350;
+    // En huida o embestida no dejamos de acelerar por estar demasiado cerca
+    // del rival; esa era una de las causas de que una CPU desarmada se quedase
+    // casi parada justo cuando mas necesitaba alejarse.
+    const thrust=Math.abs(err)<60 && (seekPickup||defensiveNoAmmo||ramming||distance>280||avoidMag>20);
+    const fire=!rivalDangerous && !seekPickup && cpu.bullets>0 && cpu.reload<=0 && Math.abs(err)<6 && distance<1350;
     return {turn,thrust,fire};
   }
 
