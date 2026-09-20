@@ -238,6 +238,98 @@
     }
   };
 
+
+  const ENHANCEMENTS = {
+    es: {
+      noticeLabel: 'IMPORTANTE',
+      controlsNotice: 'IMPORTANTE: si no aceleras, la nave no avanza. El movimiento tiene inercia y deslizamiento, asi que debes ir corrigiendo la trayectoria girando la nave mientras te desplazas.',
+      hudDiagramTitle: 'LECTURA RAPIDA DEL HUD',
+      hudDiagramAlt: 'Detalle del HUD con municion, cadencia, velocidad y bajas.',
+      hudDiagramCaption: 'Ejemplo de HUD del jugador con sus indicadores principales.',
+      hudLegend: [
+        ['BALAS', 'Numero de disparos disponibles. Cada tiro gasta 1 bala. Si llegas a 0, no podras atacar hasta recoger mas municion.'],
+        ['CADENCIA', 'El tubo azul indica tu ritmo de disparo. Cuanto mas lleno o mejorado este, menos tiempo pasa entre bala y bala.'],
+        ['VELOCIDAD', 'El cohete muestra tu nivel de velocidad. Al recoger esta mejora la nave acelera mas y alcanza mayor punta.'],
+        ['MUERTES / BAJAS', 'La calavera indica tus bajas respecto al objetivo de la partida. Ejemplo: 0/5 significa que llevas 0 y necesitas 5 para ganar.']
+      ]
+    },
+    en: {
+      noticeLabel: 'IMPORTANT',
+      controlsNotice: 'IMPORTANT: if you do not accelerate, the ship does not move forward. Movement has inertia and sliding, so you must keep correcting your path by turning the ship while drifting.',
+      hudDiagramTitle: 'QUICK HUD GUIDE',
+      hudDiagramAlt: 'HUD detail showing ammo, fire rate, speed and kills.',
+      hudDiagramCaption: 'Example of the player HUD and its main indicators.',
+      hudLegend: [
+        ['AMMO', 'Number of shots available. Every shot spends 1 round. If you reach 0, you cannot attack until you collect more ammo.'],
+        ['FIRE RATE', 'The blue bar shows your firing rhythm. The higher it is improved, the less time passes between shots.'],
+        ['SPEED', 'The rocket shows your speed level. Collecting this upgrade makes the ship accelerate harder and reach a higher top speed.'],
+        ['KILLS', 'The skull shows your kills toward the match objective. Example: 0/5 means you have 0 kills and need 5 to win.']
+      ]
+    },
+    it: {
+      noticeLabel: 'IMPORTANTE',
+      controlsNotice: 'IMPORTANTE: se non acceleri, la nave non avanza. Il movimento ha inerzia e scivolamento, quindi devi correggere la traiettoria ruotando la nave mentre ti muovi.',
+      hudDiagramTitle: 'GUIDA RAPIDA HUD',
+      hudDiagramAlt: 'Dettaglio HUD con munizioni, cadenza, velocita e uccisioni.',
+      hudDiagramCaption: 'Esempio di HUD del giocatore con i suoi indicatori principali.',
+      hudLegend: [
+        ['MUNIZIONI', 'Numero di colpi disponibili. Ogni sparo consuma 1 munizione. Se arrivi a 0, non puoi attaccare finche non raccogli altra munizione.'],
+        ['CADENZA', 'La barra blu indica il ritmo di fuoco. Più e migliorata, meno tempo passa tra uno sparo e l altro.'],
+        ['VELOCITA', 'Il razzo mostra il tuo livello di velocita. Questa miglioria fa accelerare di piu la nave e aumenta la velocita massima.'],
+        ['UCCISIONI', 'Il teschio indica le tue uccisioni rispetto all obiettivo della partita. Esempio: 0/5 significa 0 uccisioni e 5 necessarie per vincere.']
+      ]
+    },
+    fr: {
+      noticeLabel: 'IMPORTANT',
+      controlsNotice: 'IMPORTANT : si tu n acceleres pas, le vaisseau n avance pas. Le mouvement a de l inertie et du glissement, donc il faut corriger la trajectoire en faisant tourner le vaisseau pendant le deplacement.',
+      hudDiagramTitle: 'LECTURE RAPIDE DU HUD',
+      hudDiagramAlt: 'Detail du HUD avec munitions, cadence, vitesse et eliminations.',
+      hudDiagramCaption: 'Exemple du HUD du joueur avec ses indicateurs principaux.',
+      hudLegend: [
+        ['MUNITIONS', 'Nombre de tirs disponibles. Chaque tir depense 1 munition. Si tu arrives a 0, tu ne peux plus attaquer tant que tu ne recuperes pas d autres munitions.'],
+        ['CADENCE', 'La barre bleue indique ton rythme de tir. Plus elle est amelioree, moins il y a de temps entre deux tirs.'],
+        ['VITESSE', 'La fusee indique ton niveau de vitesse. Cette amelioration permet au vaisseau d accelerer davantage et d atteindre une vitesse maximale plus elevee.'],
+        ['ELIMINATIONS', 'La tete de mort indique tes eliminations par rapport a l objectif. Exemple : 0/5 signifie 0 elimination et 5 necessaires pour gagner.']
+      ]
+    },
+    de: {
+      noticeLabel: 'WICHTIG',
+      controlsNotice: 'WICHTIG: Wenn du nicht beschleunigst, bewegt sich das Schiff nicht vorwaerts. Die Bewegung hat Traegheit und Gleitverhalten, deshalb musst du die Flugbahn waehrend der Bewegung durch Drehen des Schiffs korrigieren.',
+      hudDiagramTitle: 'HUD SCHNELLERKLARUNG',
+      hudDiagramAlt: 'HUD-Detail mit Munition, Feuerrate, Geschwindigkeit und Abschuessen.',
+      hudDiagramCaption: 'Beispiel fuer das Spieler-HUD mit den wichtigsten Anzeigen.',
+      hudLegend: [
+        ['MUNITION', 'Anzahl der verfuegbaren Schuesse. Jeder Schuss verbraucht 1 Munition. Bei 0 kannst du erst wieder angreifen, wenn du neue Munition aufsammelst.'],
+        ['FEUERRATE', 'Der blaue Balken zeigt dein Schusstempo. Je staerker er verbessert ist, desto weniger Zeit liegt zwischen zwei Schuessen.'],
+        ['GESCHWINDIGKEIT', 'Die Rakete zeigt dein Geschwindigkeitslevel. Dieses Upgrade laesst das Schiff staerker beschleunigen und erhoeht die Spitzengeschwindigkeit.'],
+        ['ABSCHUESSE', 'Der Totenkopf zeigt deine Abschuesse im Verhaeltnis zum Spielziel. Beispiel: 0/5 bedeutet 0 Abschuesse und 5 zum Sieg.']
+      ]
+    }
+  };
+
+  function applyEnhancements(){
+    Object.entries(ENHANCEMENTS).forEach(([lang, patch])=>{
+      const pack = DATA[lang];
+      if(!pack || !Array.isArray(pack.sections)) return;
+      const controls = pack.sections.find(section => section.id === 'controls');
+      if(controls){ controls.noticeLabel = patch.noticeLabel || 'IMPORTANT'; controls.notice = patch.controlsNotice; }
+      const hud = pack.sections.find(section => section.id === 'hud');
+      if(hud){
+        hud.diagram = {
+          title: patch.hudDiagramTitle,
+          src: 'assets/manual/hud.png',
+          alt: patch.hudDiagramAlt,
+          caption: patch.hudDiagramCaption,
+          items: patch.hudLegend
+        };
+      }
+    });
+  }
+  applyEnhancements();
+
+  function stripFlashbackText(value){
+    return String(value == null ? '' : value).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
   const menu=document.getElementById('menu');
   const dialog=document.getElementById('manualDialog');
   const openButton=document.getElementById('manualOpen');
@@ -271,7 +363,7 @@
     const copy=DATA[language()];
     if(!copy)return;
     renderButton();
-    titleEl.textContent=copy.title;
+    titleEl.textContent=stripFlashbackText(copy.title);
     navEl.setAttribute('aria-label',copy.contents);
     subtitleEl.textContent=copy.subtitle;
     closeButton.setAttribute('aria-label',copy.close);
@@ -283,11 +375,13 @@
     ).join('');
     contentEl.innerHTML=copy.sections.map(section=>{
       const body=section.body.map(p=>'<p>'+escapeHtml(p)+'</p>').join('');
+      const notice=section.notice?'<div class="manual-alert"><strong>'+escapeHtml(section.noticeLabel||'IMPORTANT')+'</strong><p>'+escapeHtml(section.notice)+'</p></div>':'';
       const tips=section.tips&&section.tips.length?'<div class="manual-tips">'+section.tips.map(t=>'<div><span aria-hidden="true">✦</span><p>'+escapeHtml(t)+'</p></div>').join('')+'</div>':'';
       const pickups=section.pickups?'<div class="manual-pickup-grid">'+section.pickups.map(([kind,name,desc])=>'<article class="manual-pickup"><div class="manual-pickup-icon">'+pickupIcon(kind)+'</div><div><h4>'+escapeHtml(name)+'</h4><p>'+escapeHtml(desc)+'</p></div></article>').join('')+'</div>':'';
       const steps=section.steps&&section.steps.length?'<div class="manual-steps"><h4>'+escapeHtml(section.stepsTitle||'')+'</h4>'+section.steps.map(([name,desc])=>'<article class="manual-step"><h5>'+escapeHtml(name)+'</h5><p>'+escapeHtml(desc)+'</p></article>').join('')+'</div>':'';
       const media=section.media&&section.media.length?'<div class="manual-media-grid">'+section.media.map(([src,alt,caption])=>'<figure class="manual-media"><img src="'+escapeHtml(src)+'" alt="'+escapeHtml(alt)+'" loading="lazy"><figcaption>'+escapeHtml(caption)+'</figcaption></figure>').join('')+'</div>':'';
-      return '<section id="manual-'+section.id+'" class="manual-section" data-section="'+section.id+'"><h3>'+escapeHtml(section.title)+'</h3>'+body+steps+media+pickups+tips+'</section>';
+      const diagram=section.diagram?'<div class="manual-diagram"><h4>'+escapeHtml(section.diagram.title||'')+'</h4><div class="manual-diagram-layout"><figure class="manual-diagram-figure"><img src="'+escapeHtml(section.diagram.src)+'" alt="'+escapeHtml(section.diagram.alt||'')+'" loading="lazy"><figcaption>'+escapeHtml(section.diagram.caption||'')+'</figcaption></figure><div class="manual-diagram-items">'+(section.diagram.items||[]).map(([name,desc])=>'<article class="manual-diagram-item"><h5>'+escapeHtml(name)+'</h5><p>'+escapeHtml(desc)+'</p></article>').join('')+'</div></div></div>':'';
+      return '<section id="manual-'+section.id+'" class="manual-section" data-section="'+section.id+'"><h3>'+escapeHtml(stripFlashbackText(section.title))+'</h3>'+body+notice+diagram+steps+media+pickups+tips+'</section>';
     }).join('');
     bindNav();
   }
