@@ -621,15 +621,16 @@
   async function prepareMobileControls(){
     if(isMobile&&!motionEnabled)await enableMobileMotion();
   }
+  function authToken(){return window.GalaxyAuth&&typeof window.GalaxyAuth.getToken==='function'?window.GalaxyAuth.getToken():'';}
   async function createOnlineRoom(isPublic){
     startMusic();await prepareMobileControls();closeRoomDialogs();
-    send({t:'create',name:sinTildes(campoNombre.value),public:!!isPublic,lang:(i18n&&typeof i18n.getLanguage==='function'?i18n.getLanguage():'es')});
+    send({t:'create',name:sinTildes(campoNombre.value),public:!!isPublic,lang:(i18n&&typeof i18n.getLanguage==='function'?i18n.getLanguage():'es'),authToken:authToken()});
   }
   async function joinRoomByCode(code){
     const clean=String(code||'').trim().toUpperCase();
     if(!clean){showPublicRoomsDialog();return;}
     startMusic();await prepareMobileControls();closeRoomDialogs();
-    send({t:'join',name:sinTildes(campoNombre.value),code:clean});
+    send({t:'join',name:sinTildes(campoNombre.value),code:clean,authToken:authToken()});
   }
   function updateLobbyStartButton(canStart=false){
     if(!startBtn)return;
@@ -695,7 +696,7 @@
       if(inGame||roomCode){alert(sinTildes(trServer(m.message||tr('resumeFailed'))));returnToMainMenu(false);}
       else send({t:'public-rooms'});
     }
-    else if(m.t==='lobby'){roomCode=m.code;syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);}
+    else if(m.t==='lobby'){roomCode=m.code;syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);}
     else if(m.t==='start'){beginGame();playSound('start');}
     else if(m.t==='state'){
       const now=performance.now();
@@ -759,7 +760,7 @@
   menu.addEventListener('keydown',startMusic);
 
   document.getElementById('create').addEventListener('click',()=>{startMusic();showRoomTypeDialog();});
-  document.getElementById('cpu').addEventListener('click',async()=>{startMusic();await prepareMobileControls();send({t:'cpu',name:sinTildes(campoNombre.value),difficulty:document.getElementById('difficulty').value});});
+  document.getElementById('cpu').addEventListener('click',async()=>{startMusic();await prepareMobileControls();send({t:'cpu',name:sinTildes(campoNombre.value),difficulty:document.getElementById('difficulty').value,authToken:authToken()});});
   document.getElementById('join').addEventListener('click',()=>{startMusic();showPublicRoomsDialog();});
   document.getElementById('createPublic').addEventListener('click',()=>createOnlineRoom(true));
   document.getElementById('createPrivate').addEventListener('click',()=>createOnlineRoom(false));

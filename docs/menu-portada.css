@@ -1106,3 +1106,83 @@
 @media (max-width:620px){
   #menu .manual-weapon-state-grid{grid-template-columns:1fr}
 }
+
+/* V16.4.59: cuentas registradas, acceso y registro desde la portada. */
+#menu .account-launch{
+  width:auto!important;
+  min-width:76px!important;
+  height:29px!important;
+  min-height:29px!important;
+  margin:0!important;
+  padding:4px 10px!important;
+  border:1px solid rgba(213,185,236,.42)!important;
+  border-radius:999px!important;
+  background:rgba(5,3,12,.78)!important;
+  color:#f1e4fb!important;
+  box-shadow:0 3px 14px rgba(0,0,0,.28)!important;
+  font:800 11px/1 Arial,Helvetica,sans-serif!important;
+  letter-spacing:.045em!important;
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
+}
+#menu .account-launch:hover,#menu .account-launch:focus-visible{
+  border-color:rgba(233,205,255,.78)!important;
+  background:rgba(78,34,104,.86)!important;
+  outline:none;
+}
+#menu .account-user{border-color:rgba(123,239,182,.52)!important;color:#cbffe1!important}
+#menu #name.registered-name{border-color:rgba(118,235,176,.58);box-shadow:0 0 0 1px rgba(118,235,176,.09),0 0 18px rgba(71,212,141,.08)}
+#menu .auth-dialog{
+  position:fixed;
+  inset:0;
+  z-index:2147483647;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:max(12px,env(safe-area-inset-top,0px)) max(12px,env(safe-area-inset-right,0px)) max(12px,env(safe-area-inset-bottom,0px)) max(12px,env(safe-area-inset-left,0px));
+  background:rgba(2,0,8,.82);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  pointer-events:auto;
+}
+#menu .auth-dialog.hidden{display:none!important}
+#menu .auth-card{
+  width:min(430px,calc(100vw - 28px));
+  max-height:min(660px,92svh);
+  overflow:auto;
+  padding:20px;
+  border:1px solid rgba(194,124,244,.62);
+  border-radius:16px;
+  background:linear-gradient(150deg,rgba(34,12,55,.99),rgba(8,4,21,.995) 58%,rgba(18,7,34,.99));
+  box-shadow:0 24px 80px rgba(0,0,0,.72),0 0 42px rgba(158,73,230,.2);
+}
+#menu .auth-card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px}
+#menu .auth-kicker{margin-bottom:6px;color:#ab6deb;font:800 10px/1 Arial,Helvetica,sans-serif;letter-spacing:.18em}
+#menu .auth-card h2{margin:0;color:#f7ebff;font:400 24px/1.08 Flashback,Arial,sans-serif;letter-spacing:.04em}
+#menu .auth-close{
+  flex:0 0 auto;width:36px!important;min-width:36px!important;height:36px!important;min-height:36px!important;
+  padding:0!important;margin:0!important;border-radius:50%!important;border:1px solid rgba(225,192,249,.4)!important;
+  background:rgba(10,6,18,.72)!important;color:#f5e7ff!important;font:300 25px/1 Arial,Helvetica,sans-serif!important;box-shadow:none!important;
+}
+#menu .auth-form{display:grid;gap:11px}
+#menu .auth-form.hidden,#menu .auth-account.hidden{display:none!important}
+#menu .auth-form label{display:grid;gap:5px;color:#d8c5e6;font:800 11px/1.2 Arial,Helvetica,sans-serif;letter-spacing:.06em}
+#menu .auth-form input{width:100%;height:42px;min-height:42px;font:600 16px/1 Arial,Helvetica,sans-serif;letter-spacing:.02em;text-align:left}
+#menu .auth-form button,#menu .auth-account button{width:100%;margin-top:3px;font:800 12px/1 Arial,Helvetica,sans-serif!important}
+#menu .auth-message{min-height:18px;margin:12px 0 0;color:#cdbbda;font:700 12px/1.35 Arial,Helvetica,sans-serif;text-align:center}
+#menu .auth-message.error{color:#ffb4ba}
+#menu .auth-account{text-align:center}
+#menu .auth-account-name{margin:4px 0 5px;color:#d9ffe8;font:900 19px/1.2 Arial,Helvetica,sans-serif}
+#menu .auth-account-email{margin:0 0 16px;color:#cbbbd7;font:600 13px/1.3 Arial,Helvetica,sans-serif;word-break:break-word}
+@media (max-width:900px),(max-height:620px){
+  #menu .menu-top-tools{gap:4px}
+  #menu .account-launch{min-width:58px!important;height:27px!important;min-height:27px!important;padding:3px 7px!important;font-size:9px!important}
+  #menu .auth-card{width:min(390px,calc(100vw - 18px));padding:13px 14px;border-radius:12px}
+  #menu .auth-card-head{margin-bottom:10px}
+  #menu .auth-card h2{font-size:18px}
+  #menu .auth-form{gap:7px}
+  #menu .auth-form label{font-size:9px}
+  #menu .auth-form input{height:36px;min-height:36px;font-size:16px}
+  #menu .auth-form button,#menu .auth-account button{height:35px;min-height:35px;font-size:10px!important}
+  #menu .auth-message{margin-top:8px;font-size:10px}
+}
