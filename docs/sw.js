@@ -1,4 +1,4 @@
-const VERSION = 'V16.4.39';
+const VERSION = 'V16.4.40';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);

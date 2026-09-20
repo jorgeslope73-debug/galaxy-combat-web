@@ -860,8 +860,31 @@
       ctx.globalAlpha=.25*alpha;ctx.fillStyle='#5adfff';ctx.fill();
     }
     else if(pk.type==='camo'){
-      ctx.globalAlpha=alpha;ctx.strokeStyle='#d1b4ff';ctx.fillStyle='rgba(160,100,255,.18)';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,21,0,Math.PI*2);ctx.fill();ctx.stroke();
-      ctx.globalAlpha=.9*alpha;ctx.font='18px Arial';ctx.fillStyle='#fff';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('C',0,1);
+      // Invisibilidad: ojo tachado vectorial. Evita un asset adicional y
+      // conserva el mismo peso/rendimiento del pickup anterior.
+      ctx.globalAlpha=alpha;
+      ctx.strokeStyle='#d1b4ff';
+      ctx.fillStyle='rgba(160,100,255,.16)';
+      ctx.lineWidth=3;
+      ctx.beginPath();ctx.arc(0,0,21,0,Math.PI*2);ctx.fill();ctx.stroke();
+
+      // Ojo.
+      ctx.globalAlpha=.95*alpha;
+      ctx.strokeStyle='#ffffff';
+      ctx.lineWidth=3;
+      ctx.lineCap='round';
+      ctx.lineJoin='round';
+      ctx.beginPath();
+      ctx.moveTo(-13,0);
+      ctx.bezierCurveTo(-7,-9,7,-9,13,0);
+      ctx.bezierCurveTo(7,9,-7,9,-13,0);
+      ctx.stroke();
+      ctx.beginPath();ctx.arc(0,0,4.2,0,Math.PI*2);ctx.fillStyle='#ffffff';ctx.fill();
+
+      // Tachado diagonal.
+      ctx.strokeStyle='#ffffff';
+      ctx.lineWidth=4;
+      ctx.beginPath();ctx.moveTo(-14,-14);ctx.lineTo(14,14);ctx.stroke();
     }
     ctx.restore();
   }
