@@ -45,7 +45,7 @@
   }
   const NET_FRAME_MS=1000/30;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
-  let lastControlTurn=0,lastControlThrust=false,lastVoicePlayersSig=0,renderScale=1;
+  let lastControlTurn=0,lastControlTurnChangedAt=0,lastControlThrust=false,lastVoicePlayersSig=0,renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
   // Mantiene visualmente el contador anterior hasta que empieza el pop de escala.
@@ -523,7 +523,10 @@
     const turn=Math.round(rawTurn*64)/64;
     const thrust=(isMobile?mobileThrust:false)||keys.has('KeyW')||keys.has('ArrowUp');
     const fire=(isMobile?mobileFire:false)||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
-    lastControlTurn=rawTurn;
+    if(Math.abs(rawTurn-lastControlTurn)>0.001){
+      lastControlTurnChangedAt=now;
+      lastControlTurn=rawTurn;
+    }
     lastControlThrust=thrust;
     const changed=!Number.isFinite(lastSentControlTurn)||turn!==lastSentControlTurn||thrust!==lastSentControlThrust||fire!==lastSentControlFire;
     const elapsed=lastControlSentAt?now-lastControlSentAt:Infinity;
@@ -591,9 +594,14 @@
     for(const room of publicRooms){
       const row=document.createElement('div');row.className='public-room-row';
       const info=document.createElement('div');info.className='public-room-info';
+      const hostRow=document.createElement('div');hostRow.className='public-room-host-row';
+      const lang=String(room.lang||'es').toLowerCase();
+      const safeLang=['es','en','it','fr','de'].includes(lang)?lang:'es';
+      const flag=document.createElement('span');flag.className=`language-flag room-language-flag flag-${safeLang}`;flag.setAttribute('role','img');flag.setAttribute('aria-label',safeLang.toUpperCase());flag.title=safeLang.toUpperCase();
       const host=document.createElement('span');host.className='public-room-host';host.textContent=sinTildes(room.host||tr('defaultPlayer'));
+      hostRow.append(flag,host);
       const code=document.createElement('span');code.className='public-room-code';code.textContent=tr('roomPrefix')+' '+String(room.code||'');
-      info.append(host,code);
+      info.append(hostRow,code);
       const count=document.createElement('span');count.className='public-room-count';count.textContent=`${Number(room.players)||0}/${Number(room.maxPlayers)||4}`;
       const joinBtn=document.createElement('button');joinBtn.type='button';joinBtn.className='public-room-join';joinBtn.textContent=tr('join');
       joinBtn.addEventListener('click',()=>joinRoomByCode(room.code));
@@ -615,7 +623,7 @@
   }
   async function createOnlineRoom(isPublic){
     startMusic();await prepareMobileControls();closeRoomDialogs();
-    send({t:'create',name:sinTildes(campoNombre.value),public:!!isPublic});
+    send({t:'create',name:sinTildes(campoNombre.value),public:!!isPublic,lang:(i18n&&typeof i18n.getLanguage==='function'?i18n.getLanguage():'es')});
   }
   async function joinRoomByCode(code){
     const clean=String(code||'').trim().toUpperCase();
@@ -960,7 +968,11 @@
       const age=Math.min(.05,Math.max(0,(now-lastStateTime)/1000));
       const targetX=(p.x+p.vx*age+W)%W;
       const targetY=(p.y+p.vy*age+H)%H;
-      const targetR=(p.r+lastControlTurn*240*age+360)%360;
+      // Para la rotacion local no extrapolamos el snapshot con el input actual.
+      // En pulsaciones cortas, el snapshot puede corresponder todavia al input
+      // anterior; extrapolarlo con el estado actual provoca un rollback visual
+      // al soltar y otro giro cuando llega el siguiente snapshot.
+      const targetR=isMobile?(p.r+lastControlTurn*240*age+360)%360:(p.r+360)%360;
       const needsReset=!localVisual.ready||localVisual.index!==p.i||(previous&&previous.dead)||now-localVisual.lastAt>250;
       if(needsReset){
         localVisual.ready=true;localVisual.index=p.i;
@@ -1013,8 +1025,27 @@
           localVisual.y=(localVisual.y+dy*positionFollow+H)%H;
         }
         const dr=angleDelta(localVisual.r,targetR);
-        const rotationFollow=1-Math.exp(-20*dt);
-        localVisual.r=(localVisual.r+dr*rotationFollow+360)%360;
+        // El servidor va por detras del input local aproximadamente un snapshot
+        // + latencia. Tras pulsar o soltar giro, damos un breve margen para que
+        // el snapshot autoritativo alcance la rotacion ya mostrada. Asi una
+        // pulsacion corta no hace: gira -> vuelve -> gira otra vez.
+        const rotationGrace=(now-lastControlTurnChangedAt)<180;
+        // En PC, mientras la tecla de giro esta pulsada, la pose local ya usa
+        // exactamente los 240 deg/s del servidor. Corregir contra un snapshot
+        // que va unos ms por detras restaria giro y causaria un segundo tiron.
+        // Tras soltar, esperamos 180 ms para que el servidor alcance la pose.
+        const deferDesktopRotation=!isMobile&&(Math.abs(lastControlTurn)>0.001||rotationGrace);
+        if(!deferDesktopRotation){
+          // Correccion deliberadamente suave: seguimos siendo autoritativos,
+          // pero sin que el jitter de red se convierta en un rebote visible.
+          const absDr=Math.abs(dr);
+          if(absDr>55){
+            localVisual.r=targetR;
+          }else{
+            const rotationFollow=1-Math.exp(-(isMobile?20:8)*dt);
+            localVisual.r=(localVisual.r+dr*rotationFollow+360)%360;
+          }
+        }
       }
       x=localVisual.x;y=localVisual.y;r=localVisual.r;
     }else if(previous&&!previous.dead){
