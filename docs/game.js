@@ -67,10 +67,11 @@
   let lastStateProcessedAt=0;
   const CONTROL_SEND_MS=1000/30;
   const CONTROL_HEARTBEAT_MS=100;
-  // En movil parseamos como maximo 20 snapshots/s. El servidor puede seguir
-  // enviando 30/s, pero conservar solo el mas reciente reduce un tercio las
-  // asignaciones de JSON y las pausas de GC sin tocar fisica ni controles.
-  const STATE_PROCESS_MS=isMobile?50:0;
+  // V16.4.38: recuperamos los 30 snapshots/s en movil para que la interpolacion
+  // vuelva a tener la misma cadencia que el servidor. Seguimos procesandolos al
+  // comienzo del RAF y conservando solo el mas reciente, asi evitamos los picos
+  // asincronos de versiones anteriores sin sacrificar fluidez visual.
+  const STATE_PROCESS_MS=isMobile?NET_FRAME_MS:0;
   const perfStats=perfDebug?{lastPaint:0,windowStart:performance.now(),frames:0,longFrames:0,maxFrame:0,lastFrame:0,parseMs:0,parseCount:0,report:{fps:0,long:0,max:0,frame:0,parse:0}}:null;
   // Solo saltamos callbacks propios de 120 Hz (~8,3 ms). No usamos un umbral
   // de 16,7 ms para no convertir una pequena variacion de un panel de 60 Hz en 30 Hz.
@@ -852,7 +853,7 @@
   function interpolationAlpha(now){
     if(!previousState||previousState===state||!lastStateTime)return 1;
     const measured=lastStateTime-previousStateTime;
-    const frameMs=clamp(Number.isFinite(measured)&&measured>0?measured:NET_FRAME_MS,20,80);
+    const frameMs=clamp(Number.isFinite(measured)&&measured>0?measured:NET_FRAME_MS,24,60);
     return clamp((now-lastStateTime)/frameMs,0,1);
   }
   function ghostRevealAlpha(p,now){
