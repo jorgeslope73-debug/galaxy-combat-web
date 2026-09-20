@@ -8,8 +8,8 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Galaxy Combat">
-<link rel="manifest" href="manifest.webmanifest?v=V16.4.58">
-<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=V16.4.58">
+<link rel="manifest" href="manifest.webmanifest?v=V16.4.59">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png?v=V16.4.59">
 <script>
 (() => {
   const ua=navigator.userAgent||'';
@@ -18,9 +18,9 @@
 })();
 </script>
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
-<link rel="stylesheet" href="style.css?v=V16.4.58-manual-weapon-state-20260920">
-<link rel="stylesheet" href="menu-portada.css?v=V16.4.58-manual-weapon-state-20260920">
-<link rel="stylesheet" href="voz.css?v=V16.4.58-manual-weapon-state-20260920">
+<link rel="stylesheet" href="style.css?v=V16.4.59-cuentas-20260920">
+<link rel="stylesheet" href="menu-portada.css?v=V16.4.59-cuentas-20260920">
+<link rel="stylesheet" href="voz.css?v=V16.4.59-cuentas-20260920">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
 #lobby.lobby-with-chat{width:min(620px,92vw);max-height:min(760px,88vh);overflow:hidden}
@@ -167,9 +167,12 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
-      <div id="buildVersion" aria-label="Version del juego">V16.4.58</div>
+      <div id="buildVersion" aria-label="Version del juego">V16.4.59</div>
       <div class="menu-top-tools" aria-label="Menu de idioma y ayuda">
         <button id="manualOpen" class="manual-launch" type="button" aria-haspopup="dialog">MANUAL</button>
+        <button id="authLoginOpen" class="account-launch" type="button">INICIO</button>
+        <button id="authRegisterOpen" class="account-launch" type="button">REGISTRO</button>
+        <button id="authUserOpen" class="account-launch account-user hidden" type="button" aria-haspopup="dialog"></button>
         <div id="languageSwitcher" class="language-switcher">
           <details id="languageDropdown" class="language-dropdown">
           <summary id="languageCurrent" class="language-current" aria-label="Idioma / Language">
@@ -201,6 +204,35 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
             <nav id="manualNav" class="manual-nav" aria-label="Contenido del manual"></nav>
             <main id="manualContent" class="manual-content" tabindex="0"></main>
           </div>
+        </div>
+      </div>
+      <div id="authDialog" class="auth-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="authDialogTitle">
+        <div class="auth-card">
+          <div class="auth-card-head">
+            <div>
+              <div class="auth-kicker">GALAXY COMBAT</div>
+              <h2 id="authDialogTitle">INICIO DE SESION</h2>
+            </div>
+            <button id="authClose" class="auth-close" type="button" aria-label="Cerrar">×</button>
+          </div>
+          <form id="authLoginForm" class="auth-form">
+            <label><span id="authLoginNameLabel">NOMBRE</span><input id="authLoginName" maxlength="16" autocomplete="username" autocapitalize="off" spellcheck="false"></label>
+            <label><span id="authLoginPasswordLabel">CLAVE</span><input id="authLoginPassword" type="password" maxlength="128" autocomplete="current-password"></label>
+            <button id="authLoginSubmit" type="submit">ENTRAR</button>
+          </form>
+          <form id="authRegisterForm" class="auth-form hidden">
+            <label><span id="authRegisterNameLabel">NOMBRE</span><input id="authRegisterName" maxlength="16" autocomplete="username" autocapitalize="off" spellcheck="false"></label>
+            <label><span id="authRegisterEmailLabel">CORREO</span><input id="authRegisterEmail" type="email" maxlength="254" autocomplete="email" autocapitalize="off" spellcheck="false"></label>
+            <label><span id="authRegisterPasswordLabel">CLAVE</span><input id="authRegisterPassword" type="password" maxlength="128" autocomplete="new-password"></label>
+            <label><span id="authRegisterRepeatLabel">REPETIR CLAVE</span><input id="authRegisterRepeat" type="password" maxlength="128" autocomplete="new-password"></label>
+            <button id="authRegisterSubmit" type="submit">CREAR CUENTA</button>
+          </form>
+          <div id="authAccountPanel" class="auth-account hidden">
+            <p id="authAccountName" class="auth-account-name"></p>
+            <p id="authAccountEmail" class="auth-account-email"></p>
+            <button id="authLogout" type="button">CERRAR SESION</button>
+          </div>
+          <p id="authMessage" class="auth-message" aria-live="polite"></p>
         </div>
       </div>
       <div class="menu-scene">
@@ -321,11 +353,12 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <button id="mobileExit" class="mobile-exit hidden" type="button" data-i18n-aria="exitAria" aria-label="Salir de la partida y volver al inicio"><span data-i18n="exit">SALIR</span></button>
 </div>
 <script src="config.js"></script>
-<script src="i18n.js?v=V16.4.58-manual-weapon-state-20260920"></script>
-<script src="manual.js?v=V16.4.58-manual-weapon-state-20260920"></script>
-<script src="impactos.js?v=V16.4.58-manual-weapon-state-20260920"></script>
-<script src="voz.js?v=V16.4.58-manual-weapon-state-20260920"></script>
-<script src="game.js?v=V16.4.58-manual-weapon-state-20260920"></script>
-<script src="pwa.js?v=V16.4.58-manual-weapon-state-20260920"></script>
+<script src="i18n.js?v=V16.4.59-cuentas-20260920"></script>
+<script src="manual.js?v=V16.4.59-cuentas-20260920"></script>
+<script src="impactos.js?v=V16.4.59-cuentas-20260920"></script>
+<script src="voz.js?v=V16.4.59-cuentas-20260920"></script>
+<script src="auth.js?v=V16.4.59-cuentas-20260920"></script>
+<script src="game.js?v=V16.4.59-cuentas-20260920"></script>
+<script src="pwa.js?v=V16.4.59-cuentas-20260920"></script>
 </body>
 </html>
