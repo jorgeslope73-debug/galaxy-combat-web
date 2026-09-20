@@ -4,12 +4,10 @@
   const isMobile=(matchMedia('(pointer:coarse)').matches||/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
   const perfDebug=new URLSearchParams(location.search).get('debug')==='1';
   const canvas=document.getElementById('game');
-  // En iOS usamos el canvas sincronizado con la composicion normal de Safari.
-  // `desynchronized:true` puede producir una cadencia irregular/microtirones en
-  // algunos iPhone/iPad aunque el FPS medio sea correcto.
-  const ctx=isIOS
-    ? (canvas.getContext('2d',{alpha:false})||canvas.getContext('2d'))
-    : (canvas.getContext('2d',{alpha:false,desynchronized:true})||canvas.getContext('2d'));
+  // V16.4.41: usamos el compositor sincronizado tambien en PC. El hint
+  // `desynchronized` reduce latencia en algunos navegadores, pero puede producir
+  // pacing irregular/tearing en Canvas cuando la nave se mueve deprisa.
+  const ctx=canvas.getContext('2d',{alpha:false})||canvas.getContext('2d');
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
   const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
   const lobbyChatLog=document.getElementById('lobbyChatLog'),lobbyChatEmpty=document.getElementById('lobbyChatEmpty'),lobbyChatInput=document.getElementById('lobbyChatInput'),lobbyChatSend=document.getElementById('lobbyChatSend');
@@ -44,7 +42,7 @@
   }
   const NET_FRAME_MS=1000/30;
   const previousLookup={players:new Map(),asteroids:new Map(),pickups:new Map(),meteors:new Map()};
-  let lastControlTurn=0,lastVoicePlayersSig=0,renderScale=1;
+  let lastControlTurn=0,lastControlThrust=false,lastVoicePlayersSig=0,renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
   // Mantiene visualmente el contador anterior hasta que empieza el pop de escala.
@@ -72,7 +70,15 @@
   // comienzo del RAF y conservando solo el mas reciente, asi evitamos los picos
   // asincronos de versiones anteriores sin sacrificar fluidez visual.
   const STATE_PROCESS_MS=isMobile?NET_FRAME_MS:0;
-  const perfStats=perfDebug?{lastPaint:0,windowStart:performance.now(),frames:0,longFrames:0,maxFrame:0,lastFrame:0,parseMs:0,parseCount:0,report:{fps:0,long:0,max:0,frame:0,parse:0}}:null;
+  // Intervalo de snapshots suavizado. Usar directamente el tiempo entre llegadas
+  // hace que unos pocos ms de jitter se traduzcan en pequenas variaciones de
+  // velocidad visual, especialmente visibles cuando las naves van rapido.
+  let smoothedStateInterval=NET_FRAME_MS;
+  const localVisual={ready:false,index:-1,x:0,y:0,r:0,vx:0,vy:0,lastAt:0,lastError:0};
+  function resetLocalVisual(){
+    localVisual.ready=false;localVisual.index=-1;localVisual.lastAt=0;localVisual.lastError=0;
+  }
+  const perfStats=perfDebug?{lastPaint:0,windowStart:performance.now(),frames:0,longFrames:0,maxFrame:0,lastFrame:0,parseMs:0,parseCount:0,localErrMax:0,report:{fps:0,long:0,max:0,frame:0,parse:0,localErr:0}}:null;
   // Solo saltamos callbacks propios de 120 Hz (~8,3 ms). No usamos un umbral
   // de 16,7 ms para no convertir una pequena variacion de un panel de 60 Hz en 30 Hz.
   const HIGH_REFRESH_SKIP_MS=10.5;
@@ -514,6 +520,7 @@
     const thrust=(isMobile?mobileThrust:false)||keys.has('KeyW')||keys.has('ArrowUp');
     const fire=(isMobile?mobileFire:false)||keys.has('Space')||keys.has('ControlLeft')||keys.has('ControlRight');
     lastControlTurn=rawTurn;
+    lastControlThrust=thrust;
     const changed=!Number.isFinite(lastSentControlTurn)||turn!==lastSentControlTurn||thrust!==lastSentControlThrust||fire!==lastSentControlFire;
     const elapsed=lastControlSentAt?now-lastControlSentAt:Infinity;
     if((changed&&elapsed>=CONTROL_SEND_MS-1)||elapsed>=CONTROL_HEARTBEAT_MS){
@@ -661,7 +668,7 @@
     if(m.t==='created'||m.t==='joined'){
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
-      state=null;previousState=null;lastStateTime=0;previousStateTime=0;lastVoicePlayersSig=0;rebuildPreviousLookup(null);
+      state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
       roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
     }
     else if(m.t==='resumed'){
@@ -710,6 +717,13 @@
         crashScoreFxStart=penaltyMessageUntil;
         crashScoreFxUntil=crashScoreFxStart+950;
       }
+      if(lastStateTime>0){
+        const arrived=now-lastStateTime;
+        if(Number.isFinite(arrived)&&arrived>=16&&arrived<=100){
+          const sample=clamp(arrived,24,60);
+          smoothedStateInterval+=0.14*(sample-smoothedStateInterval);
+        }
+      }
       previousState=state;
       previousStateTime=lastStateTime;
       rebuildPreviousLookup(previousState);
@@ -721,12 +735,12 @@
     else if(m.t==='brutal'){brutalFxStart=performance.now();brutalFxUntil=brutalFxStart+1650;brutalDistance=Number(m.distance)||0;brutalDistanceText=brutalDistance>0?(Math.round(brutalDistance*(8/48))+' m'):'';}
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;showVictory(m.winner);}
-    else if(m.t==='restarted'){if(impactFX)impactFX.reset();state=null;previousState=null;lastStateTime=0;previousStateTime=0;rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';victory.classList.add('hidden');beginGame();}
+    else if(m.t==='restarted'){if(impactFX)impactFX.reset();state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){statusEl.textContent=sinTildes(m.message||'Error');}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason||'Sala cerrada'));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(){stopMusic();if(isMobile)calibrateMobileMotion();lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
+  function beginGame(){stopMusic();if(isMobile)calibrateMobileMotion();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
   function showVictory(i){if(!inGame)return;inGame=false;leaderAnnouncement=null;topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?`GANA ${sinTildes(p.n)}`:`GANA J${i+1}`;const restartBtn=document.getElementById('restartMatch');if(restartBtn){restartBtn.disabled=false;restartBtn.textContent='REPETIR PARTIDA';}victory.classList.remove('hidden');}
 
   menu.addEventListener('pointerdown',startMusic,{passive:true});
@@ -770,7 +784,7 @@
     if(notifyServer&&roomCode)send({t:'leave'});
     if(voice)voice.clearSession();
     stopResumeWindow();clearResumeSession();playerToken='';
-    inGame=false;state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
+    inGame=false;state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
     killScoreHeldValue=null;killScorePendingValue=null;killScoreFxStart=0;killScoreFxUntil=0;
     roomCode='';myIndex=null;isHost=false;lastVoicePlayersSig=0;rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
@@ -907,10 +921,14 @@
   }
   function interpolationAlpha(now){
     if(!previousState||previousState===state||!lastStateTime)return 1;
-    const measured=lastStateTime-previousStateTime;
-    const frameMs=clamp(Number.isFinite(measured)&&measured>0?measured:NET_FRAME_MS,24,60);
-    return clamp((now-lastStateTime)/frameMs,0,1);
+    return clamp((now-lastStateTime)/smoothedStateInterval,0,1);
   }
+  function wrappedDelta(from,to,size){
+    let d=to-from;
+    if(d>size/2)d-=size;else if(d<-size/2)d+=size;
+    return d;
+  }
+  function angleDelta(from,to){return ((to-from+540)%360)-180;}
   function ghostRevealAlpha(p,now){
     const camo=Number(p&&p.camo)||0;
     if(camo<=0)return 0;
@@ -930,11 +948,71 @@
     const local=p.i===myIndex;
     let x=p.x,y=p.y,r=p.r;
     if(local){
-      // La nave local no espera un snapshot extra: extrapolamos solo unas
-      // decenas de ms con la velocidad autoritativa para suavizar el refresco.
+      // V16.4.41: pose visual continua para la nave local. Antes la posicion se
+      // extrapolaba desde cero en cada snapshot. Si un paquete llegaba unos ms
+      // tarde, la nave se reenganchaba a una posicion distinta y el microajuste
+      // aumentaba con la velocidad. Ahora avanzamos una pose visual continua y
+      // reconciliamos suavemente contra la posicion autoritativa del servidor.
       const age=Math.min(.05,Math.max(0,(now-lastStateTime)/1000));
-      x=(p.x+p.vx*age+W)%W;y=(p.y+p.vy*age+H)%H;
-      r=(p.r+lastControlTurn*240*age+360)%360;
+      const targetX=(p.x+p.vx*age+W)%W;
+      const targetY=(p.y+p.vy*age+H)%H;
+      const targetR=(p.r+lastControlTurn*240*age+360)%360;
+      const needsReset=!localVisual.ready||localVisual.index!==p.i||(previous&&previous.dead)||now-localVisual.lastAt>250;
+      if(needsReset){
+        localVisual.ready=true;localVisual.index=p.i;
+        localVisual.x=targetX;localVisual.y=targetY;localVisual.r=targetR;
+        localVisual.vx=p.vx;localVisual.vy=p.vy;localVisual.lastAt=now;localVisual.lastError=0;
+      }else{
+        const dt=Math.min(.05,Math.max(0,(now-localVisual.lastAt)/1000));
+        localVisual.lastAt=now;
+        // Prediccion visual con la misma aceleracion/drag que el servidor.
+        // Es solo dibujo: la fisica autoritativa sigue estando en server.js.
+        // Esto evita que la aceleracion avance en escalones de 30 Hz.
+        localVisual.r=(localVisual.r+lastControlTurn*240*dt+360)%360;
+        if(lastControlThrust){
+          const rr=localVisual.r*Math.PI/180;
+          const accel=240*(Number(p.spd)||1);
+          localVisual.vx+=(-Math.sin(rr))*accel*dt;
+          localVisual.vy+=(-Math.cos(rr))*accel*dt;
+        }
+        const drag=Math.pow(0.35,dt);
+        localVisual.vx*=drag;localVisual.vy*=drag;
+        const vmax=330*(Number(p.spd)||1);
+        const visualSpeed=Math.hypot(localVisual.vx,localVisual.vy);
+        if(visualSpeed>vmax){
+          localVisual.vx=localVisual.vx/visualSpeed*vmax;
+          localVisual.vy=localVisual.vy/visualSpeed*vmax;
+        }
+        localVisual.x=(localVisual.x+localVisual.vx*dt+W)%W;
+        localVisual.y=(localVisual.y+localVisual.vy*dt+H)%H;
+
+        // Reconciliacion suave de velocidad y posicion contra el servidor.
+        // Las colisiones/respawns siguen mandando porque, si el error es grande,
+        // hacemos snap inmediato.
+        const velError=Math.hypot(p.vx-localVisual.vx,p.vy-localVisual.vy);
+        const velocityFollow=1-Math.exp(-(velError>160?26:9)*dt);
+        localVisual.vx+=(p.vx-localVisual.vx)*velocityFollow;
+        localVisual.vy+=(p.vy-localVisual.vy)*velocityFollow;
+
+        const dx=wrappedDelta(localVisual.x,targetX,W);
+        const dy=wrappedDelta(localVisual.y,targetY,H);
+        const error=Math.hypot(dx,dy);
+        localVisual.lastError=error;
+        if(perfStats&&error>perfStats.localErrMax)perfStats.localErrMax=error;
+        if(error>90){
+          // Teletransporte/respawn/impacto fuerte: no arrastrar una correccion.
+          localVisual.x=targetX;localVisual.y=targetY;
+          localVisual.vx=p.vx;localVisual.vy=p.vy;
+        }else{
+          const positionFollow=1-Math.exp(-16*dt);
+          localVisual.x=(localVisual.x+dx*positionFollow+W)%W;
+          localVisual.y=(localVisual.y+dy*positionFollow+H)%H;
+        }
+        const dr=angleDelta(localVisual.r,targetR);
+        const rotationFollow=1-Math.exp(-20*dt);
+        localVisual.r=(localVisual.r+dr*rotationFollow+360)%360;
+      }
+      x=localVisual.x;y=localVisual.y;r=localVisual.r;
     }else if(previous&&!previous.dead){
       x=lerpWrapped(previous.x,p.x,W,blend);
       y=lerpWrapped(previous.y,p.y,H,blend);
@@ -1378,8 +1456,8 @@
       perfStats.lastPaint=now;
       if(now-perfStats.windowStart>=5000){
         const seconds=(now-perfStats.windowStart)/1000;
-        perfStats.report={fps:seconds>0?perfStats.frames/seconds:0,long:perfStats.longFrames,max:perfStats.maxFrame,frame:perfStats.lastFrame,parse:perfStats.parseCount?perfStats.parseMs/perfStats.parseCount:0};
-        perfStats.windowStart=now;perfStats.frames=0;perfStats.longFrames=0;perfStats.maxFrame=0;perfStats.parseMs=0;perfStats.parseCount=0;
+        perfStats.report={fps:seconds>0?perfStats.frames/seconds:0,long:perfStats.longFrames,max:perfStats.maxFrame,frame:perfStats.lastFrame,parse:perfStats.parseCount?perfStats.parseMs/perfStats.parseCount:0,localErr:perfStats.localErrMax};
+        perfStats.windowStart=now;perfStats.frames=0;perfStats.longFrames=0;perfStats.maxFrame=0;perfStats.parseMs=0;perfStats.parseCount=0;perfStats.localErrMax=0;
       }
     }
     // El fondo cacheado es opaco y cubre todo el backing canvas. Con la
@@ -1477,7 +1555,7 @@
       ctx.fillStyle='rgba(0,0,0,.68)';ctx.fillRect(8,8,278,58);
       ctx.globalAlpha=1;ctx.fillStyle='#8dffb0';ctx.font='12px Arial,Helvetica,sans-serif';ctx.textAlign='left';ctx.textBaseline='top';
       ctx.fillText(`FPS ${r.fps.toFixed(0)}  FRAME ${r.frame.toFixed(1)}ms  MAX ${r.max.toFixed(1)}ms`,16,16);
-      ctx.fillText(`>25ms ${r.long}/5s  JSON ${r.parse.toFixed(2)}ms  ${canvas.width}x${canvas.height}`,16,36);
+      ctx.fillText(`>25ms ${r.long}/5s  JSON ${r.parse.toFixed(2)}ms  ERR ${r.localErr.toFixed(1)}px`,16,36);
       ctx.restore();
     }
   }
