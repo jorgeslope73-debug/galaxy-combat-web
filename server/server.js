@@ -141,6 +141,10 @@ async function resolvePlayerIdentity(msg) {
     if(token)return {error:'SERVICIO DE CUENTAS NO DISPONIBLE.'};
   }
   if(user) return {name:user.username,userId:Number(user.id),registered:true};
+  // Si el cliente dice estar autenticado pero el token ya no existe (por
+  // ejemplo, se cerro la sesion desde otra pestana), no lo degradamos a
+  // invitado. Asi evitamos el falso mensaje de "nombre registrado".
+  if(token) return {error:'SESION CADUCADA. INICIA SESION DE NUEVO.'};
   const name=safeName(normalizeUsername(msg&&msg.name));
   try{if(await registeredNameExists(name)) return {error:'NOMBRE REGISTRADO. INICIA SESION.'};}
   catch(err){console.error('[Galaxy Combat] Error comprobando nombre registrado:',err&&err.message||err);}
@@ -1156,6 +1160,37 @@ async function authApi(req,res,url){
     const user=await userFromSessionToken(bearerToken(req));
     if(!user){sendJson(res,401,{ok:false,code:'UNAUTHORIZED'});return true;}
     sendJson(res,200,{ok:true,user:{id:Number(user.id),username:user.username,email:user.email}});return true;
+  }
+  if(url==='/api/ranking'&&req.method==='GET'){
+    const {rows}=await db.query(`
+      WITH stats AS (
+        SELECT u.id,u.username,
+               COUNT(DISTINCT mp.match_id)::int AS played,
+               COUNT(DISTINCT CASE WHEN m.winner_user_id=u.id THEN m.match_id END)::int AS wins
+          FROM galaxy_users u
+          LEFT JOIN galaxy_ranked_match_players mp ON mp.user_id=u.id
+          LEFT JOIN galaxy_ranked_matches m ON m.match_id=mp.match_id
+         GROUP BY u.id,u.username
+      ), strength AS (
+        SELECT m.winner_user_id AS id,
+               COALESCE(SUM(opponent_stats.wins),0)::bigint AS opponent_strength
+          FROM galaxy_ranked_matches m
+          JOIN galaxy_ranked_match_players opp ON opp.match_id=m.match_id AND opp.user_id<>m.winner_user_id
+          JOIN stats opponent_stats ON opponent_stats.id=opp.user_id
+         GROUP BY m.winner_user_id
+      ), ranked AS (
+        SELECT s.id,s.username,s.played,s.wins,(s.played-s.wins) AS losses,
+               COALESCE(st.opponent_strength,0) AS opponent_strength,
+               ROW_NUMBER() OVER (
+                 ORDER BY s.wins DESC,COALESCE(st.opponent_strength,0) DESC,(s.played-s.wins) ASC,s.id ASC
+               )::int AS position
+          FROM stats s LEFT JOIN strength st ON st.id=s.id
+      )
+      SELECT position,username,played,wins,losses
+        FROM ranked
+       ORDER BY position ASC
+       LIMIT 100`);
+    sendJson(res,200,{ok:true,ranking:rows});return true;
   }
   if(url==='/api/ranking/me'&&req.method==='GET'){
     const user=await userFromSessionToken(bearerToken(req));
