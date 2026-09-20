@@ -386,3 +386,11 @@ V16.4.59
 - Persistencia PostgreSQL mediante DATABASE_URL. render.yaml incluye la base galaxy-combat-db y enlaza DATABASE_URL.
 - El servidor crea automaticamente las tablas al arrancar.
 - Esta version requiere redeploy de Render y una base PostgreSQL activa.
+
+
+V16.4.61
+- Nuevo boton RANKING situado en la parte superior izquierda de la portada.
+- Al pulsarlo se abre una pantalla de clasificacion con puesto, jugador, victorias, derrotas y partidas.
+- Nuevo endpoint publico GET /api/ranking con los primeros 100 jugadores, sin exponer correos ni credenciales.
+- El orden usa el mismo criterio que /api/ranking/me: victorias, fuerza de rivales derrotados, menos derrotas e id como desempate final.
+- Si hay una sesion iniciada, la fila del jugador actual queda resaltada.
