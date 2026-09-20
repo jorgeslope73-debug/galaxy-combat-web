@@ -1459,34 +1459,35 @@
   }
   function drawMobileVoiceControl(){
     if(!isMobile||!inGame||!voice||!voice.enabled||voice.cpuMode)return;
-    const x=W/2,y=H-72;
+    // V16.4.57: micro movil mas grande y ligeramente mas alto.
+    const x=W/2,y=H-96;
     const talking=!!voice.talking;
     ctx.save();
     try{
       // El control visual se pinta en el canvas, justo encima del fondo.
       // Las naves, meteoritos, balas y mejoras se dibujan despues y por tanto
       // siempre pasan por encima del icono.
-      ctx.globalAlpha=talking?.52:.24;
-      ctx.fillStyle=talking?'rgba(95,255,150,.72)':'rgba(255,255,255,.42)';
-      ctx.strokeStyle=talking?'rgba(150,255,188,.92)':'rgba(255,255,255,.52)';
-      ctx.lineWidth=3;
-      ctx.beginPath();ctx.arc(x,y,31,0,Math.PI*2);ctx.fill();ctx.stroke();
+      ctx.globalAlpha=talking?.56:.28;
+      ctx.fillStyle=talking?'rgba(95,255,150,.76)':'rgba(255,255,255,.46)';
+      ctx.strokeStyle=talking?'rgba(150,255,188,.94)':'rgba(255,255,255,.58)';
+      ctx.lineWidth=3.5;
+      ctx.beginPath();ctx.arc(x,y,38,0,Math.PI*2);ctx.fill();ctx.stroke();
 
-      ctx.globalAlpha=talking?.78:.48;
+      ctx.globalAlpha=talking?.82:.56;
       ctx.strokeStyle='#ffffff';
       ctx.fillStyle='#ffffff';
-      ctx.lineWidth=4;
+      ctx.lineWidth=4.5;
       ctx.lineCap='round';ctx.lineJoin='round';
       // Capsula del microfono.
       ctx.beginPath();
-      ctx.roundRect(x-8,y-16,16,25,8);
+      ctx.roundRect(x-10,y-20,20,31,10);
       ctx.fill();
       // Arco inferior, pie y base.
       ctx.beginPath();
-      ctx.arc(x,y-2,14,0,Math.PI,false);
+      ctx.arc(x,y-3,17,0,Math.PI,false);
       ctx.stroke();
-      ctx.beginPath();ctx.moveTo(x,y+12);ctx.lineTo(x,y+20);ctx.stroke();
-      ctx.beginPath();ctx.moveTo(x-8,y+20);ctx.lineTo(x+8,y+20);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x,y+15);ctx.lineTo(x,y+25);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(x-10,y+25);ctx.lineTo(x+10,y+25);ctx.stroke();
     }finally{
       ctx.restore();
     }

@@ -32,8 +32,8 @@
   /* Zona tactil invisible. El icono visible se dibuja en el canvas para que
      naves, meteoritos, balas y mejoras puedan pasar visualmente por encima. */
   position:fixed;left:50%;transform:translateX(-50%);
-  bottom:max(8px,calc(env(safe-area-inset-bottom) + 4px));z-index:120;
-  width:70px;height:70px;min-width:70px;min-height:70px;padding:0;border-radius:999px;
+  bottom:max(24px,calc(env(safe-area-inset-bottom) + 20px));z-index:120;
+  width:88px;height:88px;min-width:88px;min-height:88px;padding:0;border-radius:999px;
   border:0!important;background:transparent!important;color:transparent!important;
   box-shadow:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;
   opacity:0!important;touch-action:none;user-select:none;-webkit-user-select:none;
