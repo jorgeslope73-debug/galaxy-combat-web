@@ -34,8 +34,10 @@
       nameEl.dataset.defaultPlayer=nextDefault;
     }
     document.documentElement.lang=language;
-    const select=document.getElementById('languageSelect');
-    if(select&&select.value!==language)select.value=language;
+    const currentFlag=document.getElementById('languageCurrentFlag');
+    const currentCode=document.getElementById('languageCurrentCode');
+    if(currentFlag)currentFlag.className=`language-flag flag-${language}`;
+    if(currentCode)currentCode.textContent=language.toUpperCase();
   }
   function setLanguage(next,{notify=true}={}){
     language=normalizeLanguage(next);
@@ -44,7 +46,12 @@
     if(notify)window.dispatchEvent(new CustomEvent('galaxy-languagechange',{detail:{language}}));
   }
   window.GalaxyI18n={t,apply,setLanguage,getLanguage:()=>language,translateServerText};
-  const select=document.getElementById('languageSelect');
-  if(select)select.addEventListener('change',()=>setLanguage(select.value));
+  document.querySelectorAll('[data-language]').forEach(button=>{
+    button.addEventListener('click',()=>{
+      setLanguage(button.dataset.language);
+      const dropdown=document.getElementById('languageDropdown');
+      if(dropdown)dropdown.open=false;
+    });
+  });
   apply(document);
 })();

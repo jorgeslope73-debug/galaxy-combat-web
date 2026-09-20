@@ -546,41 +546,66 @@
   }
 }
 
-/* V16.4.44: selector desplegable compacto de idioma. */
+/* V16.4.45: selector de idioma con banderas CSS, debajo del testigo de version. */
 #menu .language-switcher{
   position:fixed;
   z-index:2147483647;
-  top:calc(env(safe-area-inset-top,0px) + 7px);
+  top:calc(env(safe-area-inset-top,0px) + 42px);
   right:max(8px,env(safe-area-inset-right,0px));
   display:block;
 }
-#menu .language-switcher select{
-  width:auto;
-  min-width:76px;
-  height:30px;
-  margin:0;
-  padding:4px 24px 4px 9px;
-  border:1px solid rgba(213,185,236,.42);
-  border-radius:999px;
-  background:rgba(5,3,12,.78);
-  color:#fff;
-  box-shadow:0 3px 14px rgba(0,0,0,.28);
-  font:800 11px/1 Arial,Helvetica,sans-serif;
-  letter-spacing:.055em;
-  cursor:pointer;
-  backdrop-filter:blur(6px);
-  -webkit-backdrop-filter:blur(6px);
+#menu .language-dropdown{position:relative;margin:0;padding:0}
+#menu .language-dropdown>summary{list-style:none}
+#menu .language-dropdown>summary::-webkit-details-marker{display:none}
+#menu .language-current{
+  min-width:68px;height:29px;box-sizing:border-box;margin:0;padding:4px 8px;
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  border:1px solid rgba(213,185,236,.42);border-radius:999px;
+  background:rgba(5,3,12,.78);color:#fff;box-shadow:0 3px 14px rgba(0,0,0,.28);
+  font:800 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.055em;
+  cursor:pointer;user-select:none;-webkit-user-select:none;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)
 }
-#menu .language-switcher select:focus{
-  outline:1px solid rgba(171,111,225,.9);
-  outline-offset:2px;
+#menu .language-current:focus-visible{outline:1px solid rgba(171,111,225,.95);outline-offset:2px}
+#menu .language-chevron{font-size:9px;opacity:.72;transition:transform .15s ease}
+#menu .language-dropdown[open] .language-chevron{transform:rotate(180deg)}
+#menu .language-menu{
+  position:absolute;top:34px;right:0;min-width:78px;padding:5px;
+  display:grid;gap:3px;border:1px solid rgba(213,185,236,.38);border-radius:10px;
+  background:rgba(9,5,19,.96);box-shadow:0 8px 22px rgba(0,0,0,.46);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)
 }
-#menu .language-switcher option{
-  background:#10051e;
-  color:#fff;
-  font:700 14px Arial,Helvetica,sans-serif;
+#menu .language-menu button{
+  width:100%;height:29px;margin:0;padding:4px 8px;display:flex;align-items:center;gap:7px;
+  border:0;border-radius:7px;background:transparent;color:#fff;
+  font:800 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.055em;text-align:left;cursor:pointer
+}
+#menu .language-menu button:hover,#menu .language-menu button:focus-visible{background:rgba(171,111,225,.2);outline:none}
+#menu .language-flag{
+  display:inline-block;flex:0 0 auto;width:21px;height:14px;box-sizing:border-box;
+  border:1px solid rgba(255,255,255,.48);border-radius:2px;overflow:hidden;
+  box-shadow:0 1px 2px rgba(0,0,0,.35);background-color:#fff
+}
+#menu .flag-es{background:linear-gradient(to bottom,#aa151b 0 25%,#f1bf00 25% 75%,#aa151b 75% 100%)}
+#menu .flag-it{background:linear-gradient(to right,#009246 0 33.333%,#fff 33.333% 66.666%,#ce2b37 66.666% 100%)}
+#menu .flag-fr{background:linear-gradient(to right,#0055a4 0 33.333%,#fff 33.333% 66.666%,#ef4135 66.666% 100%)}
+#menu .flag-de{background:linear-gradient(to bottom,#000 0 33.333%,#dd0000 33.333% 66.666%,#ffce00 66.666% 100%)}
+#menu .flag-en{
+  background:
+    linear-gradient(27deg,transparent 44%,#fff 44% 56%,transparent 56%),
+    linear-gradient(-27deg,transparent 44%,#fff 44% 56%,transparent 56%),
+    linear-gradient(27deg,transparent 48%,#c8102e 48% 52%,transparent 52%),
+    linear-gradient(-27deg,transparent 48%,#c8102e 48% 52%,transparent 52%),
+    linear-gradient(90deg,transparent 39%,#fff 39% 61%,transparent 61%),
+    linear-gradient(transparent 35%,#fff 35% 65%,transparent 65%),
+    linear-gradient(90deg,transparent 46%,#c8102e 46% 54%,transparent 54%),
+    linear-gradient(transparent 44%,#c8102e 44% 56%,transparent 56%),
+    #012169
 }
 @media (orientation:landscape) and (max-height:560px){
-  #menu .language-switcher{top:calc(env(safe-area-inset-top,0px) + 5px);right:max(6px,env(safe-area-inset-right,0px));}
-  #menu .language-switcher select{min-width:72px;height:28px;padding:3px 22px 3px 8px;font-size:10px;}
+  #menu .language-switcher{top:calc(env(safe-area-inset-top,0px) + 40px);right:max(6px,env(safe-area-inset-right,0px))}
+  #menu .language-current{min-width:64px;height:27px;padding:3px 7px;font-size:10px}
+  #menu .language-menu{top:31px;min-width:74px;padding:4px}
+  #menu .language-menu button{height:27px;padding:3px 7px;font-size:10px}
+  #menu .language-flag{width:19px;height:13px}
 }
