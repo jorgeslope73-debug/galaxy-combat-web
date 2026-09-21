@@ -353,12 +353,12 @@
 /* Navegador de salas: mitad superior fija + mitad inferior fija */
 #menu .room-browser-card{
   width:min(720px,94vw);
-  height:min(680px,88vh);
-  max-height:none;
+  height:min(560px,calc(100dvh - 40px));
+  max-height:calc(100dvh - 40px);
   overflow:hidden;
   padding:0;
   display:grid;
-  grid-template-rows:1fr 1fr;
+  grid-template-rows:minmax(0,1fr) auto;
 }
 #menu .room-browser-top,
 #menu .room-browser-bottom{
@@ -396,7 +396,7 @@
   margin-top:22px!important;
 }
 @media (max-width:560px){
-  #menu .room-browser-card{width:min(96vw,620px);height:min(720px,92vh)}
+  #menu .room-browser-card{width:min(96vw,620px);height:min(600px,calc(100dvh - 24px));max-height:calc(100dvh - 24px)}
   #menu .room-browser-top,#menu .room-browser-bottom{padding:14px 15px}
 }
 @media (max-height:520px) and (orientation:landscape){
