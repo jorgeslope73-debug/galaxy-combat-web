@@ -1254,3 +1254,27 @@
   #menu .rank-player-btn{font-size:11px!important}#menu .ranking-back{margin-bottom:14px!important}
   #menu .ranking-detail h3{font-size:20px;margin-bottom:14px}#menu .ranking-detail-grid strong{font-size:19px}
 }
+
+/* V16.4.62: la ventana UNIRSE se ajusta al contenido inferior.
+   El marco termina justo despues del boton CERRAR en lugar de reservar
+   media tarjeta vacia debajo de las partidas publicas. */
+@media (min-width:561px){
+  #menu #publicRoomsDialog .room-browser-card{
+    height:auto;
+    max-height:min(620px,82vh);
+    grid-template-rows:minmax(180px,1fr) auto;
+  }
+  #menu #publicRoomsDialog .room-browser-top{
+    min-height:180px;
+    max-height:390px;
+  }
+  #menu #publicRoomsDialog .room-browser-bottom{
+    flex:0 0 auto;
+    padding-top:14px;
+    padding-bottom:14px;
+  }
+  #menu #publicRoomsDialog .room-browser-bottom .room-dialog-close{
+    margin-top:12px!important;
+    margin-bottom:0!important;
+  }
+}
