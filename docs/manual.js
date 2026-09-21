@@ -2,69 +2,69 @@
 (() => {
   const DATA = {
     es: {
-      button:'MANUAL', title:'MANUAL DE JUEGO', subtitle:'Todo lo necesario para pilotar, sobrevivir y ganar en Galaxy Combat.', close:'CERRAR', contents:'CONTENIDO',
+      button:'MANUAL', title:'MANUAL DE JUEGO', subtitle:'Guía rápida para aprender a jugar y conocer las mejoras.', close:'CERRAR', contents:'CONTENIDO',
       sections:[
         {id:'objective',title:'1. Objetivo y partida',body:[
-          'Galaxy Combat es un combate espacial arcade para 1 a 4 jugadores. En partidas online pueden jugar de 2 a 4 personas; también puedes jugar contra la CPU en tres niveles de dificultad.',
-          'Gana el primer jugador que alcance 5 bajas. El marcador de cada nave muestra sus bajas respecto al objetivo de la partida. Si varios jugadores empatan en cabeza no hay un líder único hasta que uno se adelante.',
-          'Al morir reapareces rápidamente, pero pierdes la munición y las mejoras acumuladas. Al reaparecer dispones de unos segundos de protección para volver a entrar en combate.'
+          'Galaxy Combat es un juego de combate espacial para 1 a 4 jugadores. Puedes jugar online con otras personas o contra la CPU.',
+          'Gana el primer jugador que consiga 5 bajas. El marcador te indica cuántas llevas.',
+          'Si te destruyen, reapareces al poco tiempo. Pierdes tus mejoras y tienes unos segundos de protección al volver.'
         ],tips:['Muévete siempre: una nave parada es un objetivo fácil.','Las mejoras flotantes pueden cambiar una partida; vigila el centro del escenario además de a tus rivales.']},
         {id:'controls',title:'2. Controles',body:[
           'PC: A / D o flechas izquierda / derecha para girar; W o flecha arriba para acelerar; CTRL o ESPACIO para disparar. ESC sale de la partida.',
           'Móvil: juega en horizontal. La inclinación del teléfono controla el giro y se calibra automáticamente al empezar. Mantén pulsada la zona izquierda para disparar y la derecha para acelerar.',
           'Voz: actívala desde el menú. En PC mantén V para hablar. En móvil aparece un control de voz durante la partida; mantenlo pulsado para transmitir.'
-        ],tips:['En móvil, coloca el teléfono en la postura cómoda de juego antes de empezar: esa posición se toma como referencia.','Los controles caducan en el servidor si dejan de llegar, evitando aceleración o giro bloqueados tras una pérdida de conexión.']},
+        ],tips:['En móvil, coloca el teléfono como te resulte cómodo antes de empezar.','Si se corta la conexión, el juego intenta evitar que la nave se quede girando o acelerando sola.']},
         {id:'hud',title:'3. HUD, bajas y líder',body:[
-          'Cada jugador tiene un HUD del mismo color que su nave. Ahí puedes consultar munición, velocidad y bajas. Los jugadores de la izquierda usan el HUD izquierdo y los de la derecha el HUD derecho.',
-          'Cuando consigues una baja, el nuevo valor aparece sincronizado con una animación de escala del marcador. Si una muerte ambiental te resta una baja, primero aparece PENALIZACIÓN -1 y después se actualiza el HUD con su efecto.',
-          'Cuando existe un líder único aparece un aviso con su nombre. El nombre del líder también pulsa suavemente en su HUD.'
+          'Cada jugador tiene un panel del mismo color que su nave. Ahí ves tus balas, velocidad y bajas.',
+          'Cuando consigues una baja, el marcador aumenta. Si mueres por un peligro del escenario puedes recibir una PENALIZACIÓN -1.',
+          'Si hay un líder claro, su nombre aparece destacado.'
         ]},
         {id:'weapons',title:'4. Munición, disparos y BRUTAL',body:[
           'Empiezas la partida con 1 bala. Cada disparo consume una unidad de munición; recoge cápsulas para seguir atacando.',
-          'La mejora de cadencia reduce el tiempo entre disparos. En los niveles avanzados también aumenta la velocidad del proyectil, por lo que un jugador mejorado puede ejercer mucha más presión.',
-          'Un impacto de muy larga distancia activa BRUTAL. El juego mide la distancia recorrida por la bala y la muestra en metros, tomando una nave de 8 m como referencia. El umbral actual equivale aproximadamente a 142 m.'
+          'La mejora de CADENCIA te permite disparar más rápido.',
+          'Si aciertas un disparo desde muy lejos, aparece el aviso BRUTAL con la distancia del impacto.'
         ],tips:['No malgastes la última bala: sin munición pierdes capacidad ofensiva hasta encontrar otra cápsula.','Las balas desaparecen al salir del escenario y también pueden destruir meteoritos pequeños o eliminar mejoras flotantes.']},
         {id:'pickups',title:'5. Mejoras flotantes',body:[
-          'Las mejoras aparecen por el escenario de forma periódica. Puede haber hasta 5 simultáneamente. Cuando la más antigua está a punto de ser sustituida, parpadea durante sus últimos 2 segundos entre 50 % y 100 % de opacidad.',
-          'Los asteroides y meteoritos pueden eliminar mejoras al atravesarlas, así que una oportunidad puede desaparecer antes de que llegues.'
+          'Las mejoras aparecen por el escenario durante la partida. Recógelas antes de que desaparezcan.',
+          'Los asteroides y meteoritos también pueden hacer desaparecer una mejora.'
         ],pickups:[
           ['ammo1','MUNICIÓN +1','Añade 1 bala a tu reserva.'],['ammo3','MUNICIÓN +3','Añade 3 balas a tu reserva.'],['cadence','CADENCIA','Dispara con mayor frecuencia; los niveles altos también aceleran el proyectil.'],['speed','VELOCIDAD','Aumenta la velocidad de la nave en pasos de +0,5 hasta un máximo de x2.'],['shield','ESCUDO','Protección durante 10 s contra disparos y muchos choques. Una nave protegida puede ser peligrosa en una embestida.'],['camo','INVISIBILIDAD','Solo online. Activa el modo fantasma durante 10 s. Se representa con un ojo tachado.']
         ]},
         {id:'ghost',title:'6. Modo fantasma',body:[
-          'La invisibilidad dura 10 segundos y está disponible únicamente en partidas online. Los rivales no ven tu nave de forma continua.',
-          'Mientras un jugador está en fantasma aparece junto a su HUD una pastilla semitransparente del color del jugador con el texto FANTASMA. La nave invisible se revela brevemente de forma periódica, aproximadamente cada 4 segundos, para que los rivales puedan volver a localizarla.',
-          'Tu propia nave sigue siendo parcialmente visible para ti, para que puedas pilotarla con precisión.'
+          'El modo fantasma dura 10 segundos y solo aparece en partidas online.',
+          'Mientras estás en fantasma, los rivales apenas ven tu nave. Cada pocos segundos reaparece brevemente para que puedan localizarte.',
+          'Tú seguirás viendo ligeramente tu propia nave para poder controlarla.'
         ],tips:['Cambia de dirección después de cada revelación para que los rivales no puedan anticipar tu trayectoria.']},
         {id:'hazards',title:'7. Asteroides y meteoritos',body:[
-          'Los asteroides grandes forman parte permanente del escenario. Chocar sin protección puede destruir tu nave; con escudo el impacto produce un rebote y efectos de colisión.',
-          'La lluvia de meteoritos aparece por primera vez entre 2 y 3 minutos después del inicio. Dura unos 7 segundos. Después, cada nueva lluvia vuelve a esperar un intervalo aleatorio de 2 a 3 minutos.',
-          'Los meteoritos pequeños atraviesan el campo, rebotan contra asteroides y contra el meteorito gigante, pueden destruir mejoras flotantes y pueden ser destruidos por disparos.',
-          'Además aparece periódicamente un meteorito gigante que cruza el escenario, desplaza asteroides y elimina mejoras que encuentra en su camino.'
+          'Los asteroides son peligrosos: si chocas sin protección pueden destruirte. Con escudo puedes rebotar.',
+          'De vez en cuando aparece una lluvia de meteoritos. Muévete y busca huecos para esquivarla.',
+          'Los meteoritos pequeños rebotan por el escenario y puedes destruirlos disparando.',
+          'También puede cruzar un meteorito gigante que mueve asteroides y arrasa las mejoras que encuentra.'
         ]},
         {id:'death',title:'8. Muertes, penalizaciones y reaparición',body:[
-          'Si otro jugador te destruye, el atacante gana una baja. Si mueres por un peligro del escenario, por choque sin atacante o por una situación equivalente, pierdes 1 baja si tenías alguna; el marcador nunca baja de 0.',
-          'Al morir pierdes munición, velocidad mejorada, cadencia mejorada, escudo e invisibilidad. Reapareces con las mejoras reiniciadas y sin munición, por lo que volver a buscar recursos es importante.',
-          'Después de reaparecer tienes unos 3 segundos de protección. La protección evita que una mala posición de aparición te elimine inmediatamente.'
+          'Si otro jugador te destruye, consigue una baja. Si mueres por un peligro del escenario puedes perder 1 baja, pero nunca bajarás de 0.',
+          'Al morir pierdes las balas y las mejoras que habías conseguido.',
+          'Al reaparecer tienes unos segundos de protección para volver al combate.'
         ]},
         {id:'cpu',title:'9. Jugar contra la CPU',body:[
-          'Puedes elegir FACIL, MEDIO o DIFICIL. La CPU evita obstáculos y adapta sus prioridades según sus recursos.',
-          'Si la CPU no tiene balas ni escudo, no debe perseguirte: busca munición. Si no existe munición disponible, huye e intenta mantener distancia hasta que aparezca.',
-          'Si tiene escudo pero no munición, puede intentar embestirte cuando tú no tienes escudo ni protección. Si estás protegido, seguirá buscando recursos o evitando el enfrentamiento. Con balas recupera su comportamiento ofensivo normal.'
+          'Puedes jugar contra la CPU en nivel FÁCIL, MEDIO o DIFÍCIL.',
+          'La CPU busca munición cuando se queda sin balas y trata de evitar peligros.',
+          'Con escudo puede intentar embestirte; con munición volverá a atacarte normalmente.'
         ]},
         {id:'online',title:'10. Online, salas, chat y voz',body:[
-          'Para crear una partida online, escribe primero tu nombre y espera a que aparezca SERVIDOR CONECTADO. Después pulsa CREAR PARTIDA. Podrás elegir entre PUBLICA, que aparecerá en la lista de partidas, y PRIVADA, que solo se abre con su código de 4 caracteres.',
-          'Para unirte a una partida, pulsa UNIRSE. Verás las partidas públicas disponibles con la bandera del idioma en el que se crearon. Pulsa UNIRSE en la sala que quieras, o escribe abajo un código de 4 caracteres si la sala es privada.',
-          'Al entrar en una sala pasarás al lobby. Ahí verás a los jugadores conectados, podrás usar el chat y activar la voz. El anfitrión es quien pulsa EMPEZAR cuando hay suficientes jugadores.',
-          'La voz usa WebRTC. STUN permite conectar directamente en muchas redes y el juego admite TURN como ruta de respaldo cuando está configurado. Con un máximo de cuatro jugadores se usa una malla P2P.',
-          'Si se corta el WebSocket durante una partida, el servidor conserva tu plaza durante unos 30 segundos e intenta recuperar automáticamente la misma nave, puntuación, munición y mejoras.'
+          'Para jugar online, escribe tu nombre y espera a que aparezca SERVIDOR CONECTADO. Pulsa CREAR PARTIDA y elige PÚBLICA o PRIVADA.',
+          'Para entrar en una partida, pulsa UNIRSE. Elige una sala pública o escribe el código de una sala privada.',
+          'En la sala podrás ver a los jugadores, usar el chat y activar la voz. El anfitrión pulsa EMPEZAR cuando todos estén listos.',
+          'La voz funciona directamente dentro de la partida. Actívala desde el menú y mantén pulsado el control para hablar.',
+          'Si pierdes la conexión durante unos segundos, el juego intenta devolverte a la misma partida automáticamente.'
         ],stepsTitle:'CREAR O UNIRSE PASO A PASO',steps:[
-          ['1. Escribe tu nombre','En la portada introduce el nombre con el que quieres aparecer en la partida y espera a que el estado del servidor indique que está listo.'],
-          ['2. Crear una partida','Pulsa CREAR PARTIDA. Elige PUBLICA para que cualquiera pueda verla en la lista o PRIVADA si quieres compartir únicamente el código de sala.'],
-          ['3. Compartir una sala privada','Una sala privada no aparece en la lista pública. Comparte con tus amigos el código de 4 caracteres que aparece en el lobby.'],
-          ['4. Unirse a una pública','Pulsa UNIRSE. Se abrirá el navegador de partidas. Elige una sala disponible y pulsa su botón UNIRSE. La bandera indica el idioma con el que se creó la sala.'],
-          ['5. Unirse con código','Desde la misma ventana de UNIRSE, escribe el código de 4 caracteres en O ENTRA POR CODIGO y confirma. Sirve para entrar directamente en una sala privada.'],
-          ['6. Esperar en el lobby','Comprueba que aparecen todos los jugadores. Puedes escribir en el chat y activar la voz. Solo el anfitrión verá el control para iniciar la partida.'],
-          ['7. Empezar','Cuando estén todos preparados, el anfitrión pulsa EMPEZAR. En móvil la pantalla debe estar en horizontal y el movimiento se calibra automáticamente al comenzar.']
+          ['1. Escribe tu nombre','Pon tu nombre y espera a que el servidor esté conectado.'],
+          ['2. Crear una partida','Pulsa CREAR PARTIDA y elige PÚBLICA o PRIVADA.'],
+          ['3. Sala privada','Comparte con tus amigos el código de 4 caracteres.'],
+          ['4. Unirse a una pública','Pulsa UNIRSE y elige una partida de la lista.'],
+          ['5. Unirse con código','Escribe el código de 4 caracteres para entrar en una sala privada.'],
+          ['6. Esperar en la sala','Comprueba que están todos. Puedes usar chat y voz.'],
+          ['7. Empezar','Cuando estén todos listos, el anfitrión pulsa EMPEZAR.']
         ],media:[
           ['assets/manual/portada.webp','Portada principal de Galaxy Combat.','Desde aquí puedes jugar contra la CPU, crear una partida online o unirte a una sala.'],
           ['assets/manual/crear-partida.webp','Botón Crear partida.','CREAR PARTIDA abre la elección entre sala pública y privada.'],
@@ -72,19 +72,19 @@
           ['assets/manual/partida.webp','Ejemplo de una partida.','Una vez iniciada la sala, cada jugador conserva su HUD, color de nave y controles.']
         ],tips:['Si cambias de Wi-Fi a datos móviles, espera unos segundos antes de abandonar: la reconexión automática puede recuperar la partida.','En PC, V funciona como pulsar para hablar; en móvil usa el control de voz de pantalla.']},
         {id:'end',title:'11. Final de partida y revancha',body:[
-          'Cuando alguien alcanza 5 bajas aparece la pantalla de victoria. Puedes elegir REPETIR PARTIDA para reiniciar la misma sala con los mismos jugadores, o MENÚ PRINCIPAL para salir.',
-          'Al repetir se reinician puntuación, munición, mejoras, meteoritos, asteroides y posiciones. La nueva partida empieza limpia sin necesidad de crear otra sala.'
+          'Cuando alguien llega a 5 bajas termina la partida. Puedes repetir con los mismos jugadores o volver al menú.',
+          'Al repetir, todos empiezan de nuevo desde cero.'
         ]},
         {id:'pwa',title:'12. Instalar como app',body:[
-          'Galaxy Combat es una PWA. En iPhone/iPad abre el juego en Safari, pulsa Compartir y elige Añadir a pantalla de inicio. En Android/Chrome usa Instalar aplicación o Añadir a pantalla de inicio.',
-          'Al abrir desde el icono se comporta más como una app, con menos interfaz del navegador. El juego está pensado para pantalla horizontal.',
-          'El código principal usa prioridad de red para evitar versiones antiguas, mientras imágenes, sonidos y fuentes se almacenan en caché para acelerar el arranque.'
+          'Puedes instalar Galaxy Combat como una app. En iPhone/iPad usa Safari > Compartir > Añadir a pantalla de inicio. En Android/Chrome usa Instalar aplicación.',
+          'Desde el icono se abre con una pantalla más limpia. Juega siempre en horizontal.',
+          'El juego guarda algunos archivos para abrir más rápido y comprueba las actualizaciones cuando vuelves a entrar.'
         ]},
         {id:'tips',title:'13. Consejos de combate',body:[
-          'No persigas siempre en línea recta: utiliza asteroides como cobertura y cambia de trayectoria para hacer fallar disparos.',
-          'Controla tu munición antes de iniciar una persecución. Un rival desarmado puede ser más vulnerable, pero acercarte sin recursos también te expone a choques y meteoritos.',
-          'El escudo no solo sirve para defenderse: puede darte una oportunidad de embestida contra una nave desprotegida.',
-          'Las mejoras de velocidad y cadencia hacen que sobrevivir sea más fácil, pero morir las reinicia. A veces es mejor evitar una pelea y conservar la ventaja.'
+          'No persigas siempre en línea recta: usa los asteroides y cambia de dirección.',
+          'Mira tus balas antes de perseguir a un rival.',
+          'El escudo también puede servir para embestir a una nave sin protección.',
+          'Si llevas buenas mejoras, a veces conviene esquivar y conservarlas.'
         ]}
       ]
     },
