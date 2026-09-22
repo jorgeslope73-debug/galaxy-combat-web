@@ -1323,7 +1323,15 @@ html:not(.handheld-device) #menu .menu-credit{
 /* V16.4.76: sube un poco mas la zona inferior del menu principal solo en PC. */
 html:not(.handheld-device) #menu .menu-control-tools{
   position:relative;
-  top:-4px;
+  top:6px;
+}
+html:not(.handheld-device) #menu #enableVoice{
+  width:160px;
+  min-width:160px;
+  max-width:160px;
+  font-size:20px;
+  padding-left:10px;
+  padding-right:10px;
 }
 html:not(.handheld-device) #menu .menu-keys{
   position:relative;
