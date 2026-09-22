@@ -1335,7 +1335,7 @@ html:not(.handheld-device) #menu #enableVoice{
 }
 html:not(.handheld-device) #menu .menu-keys{
   position:relative;
-  top:-12px;
+  top:-2px;
 }
 html:not(.handheld-device) #menu .menu-credit{
   top:-30px;
