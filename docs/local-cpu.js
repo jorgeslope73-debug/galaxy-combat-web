@@ -140,7 +140,7 @@
         this.update(DT);
         this.accumulator-=STEP_MS;
         this.tickCount++;
-        if((this.tickCount&1)===0)this.onState(this.publicState());
+        if((this.tickCount&1)===0||this.finished)this.onState(this.publicState());
         steps++;
         if(this.finished)break;
       }

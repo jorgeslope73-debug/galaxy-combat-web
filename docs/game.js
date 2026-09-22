@@ -57,6 +57,7 @@
   let crashScoreHeldValue=null,crashScorePendingValue=null;
   let penaltyMessageUntil=0;
   let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0,brutalDistanceText='';
+  let pendingVictoryIndex=null,victoryShowTimer=null;
   let publicRooms=[];
   let localCpu=null,localCpuActive=false;
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
@@ -767,18 +768,60 @@
       state=m;lastStateTime=now;
       if(!previousState){previousState=m;previousStateTime=now-NET_FRAME_MS;rebuildPreviousLookup(m);}
       syncVoicePlayers(m.players);
+      maybeScheduleVictory();
       if(!inGame&&m.started&&!m.finished)beginGame();
     }
     else if(m.t==='brutal'){brutalFxStart=performance.now();brutalFxUntil=brutalFxStart+1650;brutalDistance=Number(m.distance)||0;brutalDistanceText=brutalDistance>0?(Math.round(brutalDistance*(8/48))+' m'):'';}
     else if(m.t==='sound'){playSound(m.kind);}
-    else if(m.t==='victory'){if(state)state.winner=m.winner;showVictory(m.winner);}
-    else if(m.t==='restarted'){if(impactFX)impactFX.reset();state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';victory.classList.add('hidden');beginGame();}
+    else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
+    else if(m.t==='restarted'){if(impactFX)impactFX.reset();clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
-  function beginGame(){stopMusic();if(isMobile)calibrateMobileMotion();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
-  function showVictory(i){if(!inGame)return;inGame=false;leaderAnnouncement=null;topbar.classList.add('hidden');mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();const p=state&&state.players.find(x=>x.i===i);document.getElementById('victoryText').textContent=p?tr('winnerName',{name:sinTildes(p.n)}):tr('winnerIndex',{index:i+1});const restartBtn=document.getElementById('restartMatch');if(restartBtn){restartBtn.disabled=false;restartBtn.textContent=tr('rematch');}victory.classList.remove('hidden');}
+  function beginGame(){stopMusic();if(isMobile)calibrateMobileMotion();resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;inGame=true;menu.classList.add('hidden');lobby.classList.add('hidden');victory.classList.remove('winner-celebration');victory.classList.add('hidden');topbar.classList.remove('hidden');if(isMobile){mobileControls.classList.remove('hidden');if(mobileExit)mobileExit.classList.remove('hidden');}scheduleCanvasResolution();}
+  function queueVictory(i){
+    pendingVictoryIndex=Number(i);
+    clearTimeout(victoryShowTimer);victoryShowTimer=null;
+    maybeScheduleVictory();
+  }
+  function maybeScheduleVictory(){
+    if(pendingVictoryIndex===null||!inGame||victoryShowTimer||!state||!Array.isArray(state.players))return;
+    const winner=state.players.find(p=>Number(p.i)===Number(pendingVictoryIndex));
+    const target=Math.max(1,Number(state.scoreToWin)||5);
+    if(!winner||Number(winner.k)<target)return;
+    const now=performance.now();
+    // Si la baja ganadora es nuestra, el HUD mantiene 4/5 durante dos segundos.
+    // Esperamos a que el contador cambie realmente a 5/5 y dejamos ver el pop
+    // antes de cubrir la partida con la celebracion final.
+    let delay=700;
+    if(Number(pendingVictoryIndex)===Number(myIndex)&&killScorePendingValue!==null){
+      delay=Math.max(0,killScoreFxStart-now)+650;
+    }
+    const winnerIndex=pendingVictoryIndex;
+    victoryShowTimer=setTimeout(()=>{
+      victoryShowTimer=null;
+      if(pendingVictoryIndex!==winnerIndex||!inGame)return;
+      pendingVictoryIndex=null;
+      showVictory(winnerIndex);
+    },delay);
+  }
+  function showVictory(i){
+    if(!inGame)return;
+    inGame=false;leaderAnnouncement=null;
+    topbar.classList.add('hidden');mobileControls.classList.add('hidden');
+    if(mobileExit)mobileExit.classList.add('hidden');
+    touchSides.clear();refreshTouchControls();
+    const p=state&&state.players.find(x=>x.i===i);
+    const victoryText=document.getElementById('victoryText');
+    victoryText.textContent=p?tr('winnerName',{name:sinTildes(p.n)}):tr('winnerIndex',{index:i+1});
+    victory.style.setProperty('--winner-color',playerColors[Number(i)]||'#d8a7ff');
+    const restartBtn=document.getElementById('restartMatch');
+    if(restartBtn){restartBtn.disabled=false;restartBtn.textContent=tr('rematch');}
+    victory.classList.remove('hidden','winner-celebration');
+    void victory.offsetWidth;
+    victory.classList.add('winner-celebration');
+  }
 
   menu.addEventListener('pointerdown',startMusic,{passive:true});
   menu.addEventListener('keydown',startMusic);
@@ -818,6 +861,8 @@
   scheduleCanvasResolution();
   startBtn.addEventListener('click',async()=>{await prepareMobileControls();calibrateMobileMotion();send({t:'start'});});
   function returnToMainMenu(notifyServer=true){
+    clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;
+    victory.classList.remove('winner-celebration');
     const wasLocal=localCpuActive;
     if(wasLocal)stopLocalCpu();
     if(notifyServer&&!wasLocal&&roomCode)send({t:'leave'});

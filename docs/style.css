@@ -27,3 +27,51 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
 /* V16.4.3: las zonas tactiles son invisibles; sus rotulos se dibujan solo en canvas. */
 #mobileControls .mobile-zone{color:transparent!important;text-shadow:none!important;font-size:0!important;}
 #mobileControls .mobile-zone::before,#mobileControls .mobile-zone::after{content:none!important;display:none!important;}
+
+
+/* V16.4.82: celebracion final del ganador despues de mostrar el 5/5. */
+#victory.winner-celebration{
+  position:relative;
+  overflow:visible;
+  border-color:var(--winner-color,#d8a7ff);
+  box-shadow:0 0 28px rgba(255,255,255,.16),0 0 52px var(--winner-color,#d8a7ff);
+  animation:galaxyVictoryCard .9s cubic-bezier(.18,.9,.24,1.18) both;
+}
+#victory.winner-celebration::before{
+  content:"";
+  position:absolute;
+  left:50%;
+  top:42%;
+  width:18px;
+  height:18px;
+  border:3px solid #fff;
+  border-radius:50%;
+  pointer-events:none;
+  transform:translate(-50%,-50%) scale(.2);
+  opacity:0;
+  box-shadow:0 0 24px #fff,0 0 48px var(--winner-color,#d8a7ff);
+  animation:galaxyVictoryFlash 1.15s ease-out both;
+}
+#victory.winner-celebration #victoryText{
+  color:var(--winner-color,#d8a7ff);
+  text-shadow:0 0 8px #fff,0 0 18px var(--winner-color,#d8a7ff),0 0 38px var(--winner-color,#d8a7ff);
+  animation:galaxyWinnerEgo 1.65s cubic-bezier(.18,.9,.22,1.08) both;
+}
+@keyframes galaxyVictoryCard{
+  0%{transform:scale(.86);filter:brightness(2.1)}
+  42%{transform:scale(1.08);filter:brightness(1.35)}
+  100%{transform:scale(1);filter:brightness(1)}
+}
+@keyframes galaxyVictoryFlash{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.15)}
+  12%{opacity:1}
+  55%{opacity:.72;transform:translate(-50%,-50%) scale(13)}
+  100%{opacity:0;transform:translate(-50%,-50%) scale(20)}
+}
+@keyframes galaxyWinnerEgo{
+  0%{transform:scale(.45);opacity:0;letter-spacing:.02em}
+  28%{transform:scale(1.55);opacity:1;letter-spacing:.13em}
+  48%{transform:scale(.92);letter-spacing:.07em}
+  68%{transform:scale(1.18)}
+  100%{transform:scale(1);opacity:1;letter-spacing:.08em}
+}
