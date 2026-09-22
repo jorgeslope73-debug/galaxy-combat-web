@@ -1329,9 +1329,11 @@ html:not(.handheld-device) #menu #enableVoice{
   width:160px;
   min-width:160px;
   max-width:160px;
-  font-size:20px;
-  padding-left:10px;
-  padding-right:10px;
+  height:36px;
+  min-height:36px;
+  padding:2px 10px;
+  font-size:22px;
+  line-height:1;
 }
 html:not(.handheld-device) #menu .menu-keys{
   position:relative;
