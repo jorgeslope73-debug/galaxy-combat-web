@@ -1318,3 +1318,14 @@ html:not(.handheld-device) #menu .menu-credit{
   font-size:12px;
   top:-6px;
 }
+
+
+/* V16.4.76: sube un poco mas la zona inferior del menu principal solo en PC. */
+html:not(.handheld-device) #menu .menu-control-tools,
+html:not(.handheld-device) #menu .menu-keys{
+  position:relative;
+  top:-12px;
+}
+html:not(.handheld-device) #menu .menu-credit{
+  top:-30px;
+}
