@@ -495,7 +495,7 @@
 }
 @media (max-height:520px) and (orientation:landscape){
   #menu:not(.join-browser-open) .launch-console{
-    top:-6px;
+    top:-18px;
   }
 }
 
@@ -1306,7 +1306,7 @@
    Sube ligeramente todo el bloque interactivo del menu principal y
    reduce TU NOMBRE a la mitad sin tocar la version movil. */
 html:not(.handheld-device) #menu:not(.join-browser-open) .launch-console{
-  top:-22px;
+  top:-34px;
 }
 html:not(.handheld-device) #menu .field-title{
   font-size:9px;
