@@ -190,7 +190,7 @@
     if(fireLabel)fireLabel.style.visibility='hidden';
     if(thrustLabel)thrustLabel.style.visibility='hidden';
   }
-  let motionEnabled=false,motionTurn=0,motionAngle=0,motionHasSample=false;
+  let motionEnabled=false,motionTurn=0,motionNeutral=null,motionLastRaw=0,motionHasSample=false;
   let lastMotionSampleAt=0;
   let mobileFire=false,mobileThrust=false;
   const touchSides=new Map();
@@ -304,60 +304,47 @@
     if(screen.orientation&&Number.isFinite(screen.orientation.angle))return screen.orientation.angle;
     return Number.isFinite(window.orientation)?window.orientation:0;
   }
-  function lateralRotationRate(ev){
-    const rr=ev&&ev.rotationRate;
-    if(!rr)return null;
-    const beta=Number(rr.beta),gamma=Number(rr.gamma);
-    if(!Number.isFinite(beta)||!Number.isFinite(gamma))return null;
-    const a=((screenAngle()%360)+360)%360;
-    // Un unico eje, siempre relativo a la pantalla:
-    // en horizontal usamos beta y en vertical gamma.
-    // Los otros giros del telefono se ignoran por completo.
+  function lateralTilt(ev){
+    const beta=Number(ev.beta)||0,gamma=Number(ev.gamma)||0;
+    let a=((screenAngle()%360)+360)%360;
     if(a===90)return beta;
     if(a===270)return -beta;
     if(a===180)return -gamma;
     return gamma;
   }
-  function onDeviceMotion(ev){
+  function onDeviceOrientation(ev){
+    // Safari puede entregar mas muestras de sensor de las que necesita el juego.
+    // Limitar el trabajo a ~60 Hz evita competir con RAF + WebSocket en el
+    // mismo hilo principal sin cambiar la respuesta percibida del control.
     const stamp=Number.isFinite(ev.timeStamp)?ev.timeStamp:performance.now();
-    const rate=lateralRotationRate(ev);
-    if(rate===null)return;
-
-    if(!motionHasSample){
-      motionHasSample=true;
-      lastMotionSampleAt=stamp;
-      return;
-    }
-
-    const elapsed=stamp-lastMotionSampleAt;
-    if(elapsed<8)return;
+    if(lastMotionSampleAt&&stamp-lastMotionSampleAt<15)return;
     lastMotionSampleAt=stamp;
-    if(elapsed<=0||elapsed>250)return;
-
-    // Integramos solo la rotacion lateral elegida. Esto evita que tumbarse,
-    // levantar el telefono o inclinarlo hacia delante/atras altere el giro.
-    const cleanRate=Math.abs(rate)<0.35?0:rate;
-    motionAngle=clamp(motionAngle+cleanRate*(elapsed/1000),-32,32);
-
+    const raw=lateralTilt(ev);
+    motionLastRaw=raw;motionHasSample=true;
+    if(motionNeutral===null)motionNeutral=raw;
+    let delta=raw-motionNeutral;
+    // Compensa el salto de -180/180 en sensores que lo necesiten.
+    if(delta>180)delta-=360;
+    if(delta<-180)delta+=360;
     const dead=3.0;
-    if(Math.abs(motionAngle)<=dead){motionTurn=0;return;}
-    const signed=motionAngle>0?motionAngle-dead:motionAngle+dead;
+    if(Math.abs(delta)<=dead){motionTurn=0;return;}
+    const signed=delta>0?delta-dead:delta+dead;
     motionTurn=-clamp(signed/22,-1,1);
   }
   async function enableMobileMotion(){
     if(!isMobile)return true;
     try{
-      if(typeof DeviceMotionEvent==='undefined'){
+      if(typeof DeviceOrientationEvent==='undefined'){
         motionStatus.textContent=tr('sensorUnsupported');
         return false;
       }
-      if(typeof DeviceMotionEvent.requestPermission==='function'){
-        const result=await DeviceMotionEvent.requestPermission();
+      if(typeof DeviceOrientationEvent.requestPermission==='function'){
+        const result=await DeviceOrientationEvent.requestPermission();
         if(result!=='granted')throw new Error(tr('motionPermissionDenied'));
       }
-      window.removeEventListener('devicemotion',onDeviceMotion);
-      window.addEventListener('devicemotion',onDeviceMotion,{passive:true});
-      motionAngle=0;motionTurn=0;motionEnabled=true;motionHasSample=false;lastMotionSampleAt=0;
+      window.removeEventListener('deviceorientation',onDeviceOrientation);
+      window.addEventListener('deviceorientation',onDeviceOrientation,{passive:true});
+      motionNeutral=null;motionTurn=0;motionEnabled=true;motionHasSample=false;lastMotionSampleAt=0;
       motionStatus.textContent='';
       return true;
     }catch(err){
@@ -367,10 +354,8 @@
   }
   function calibrateMobileMotion(){
     if(!isMobile||!motionEnabled)return;
-    motionAngle=0;
+    motionNeutral=motionHasSample?motionLastRaw:null;
     motionTurn=0;
-    motionHasSample=false;
-    lastMotionSampleAt=0;
   }
   function refreshTouchControls(){
     mobileFire=false;mobileThrust=false;
@@ -798,11 +783,11 @@
     document.getElementById('app').addEventListener('pointercancel',mobilePointerEnd,{passive:false});
     document.getElementById('app').addEventListener('pointerleave',e=>{if(e.pointerType==='touch')mobilePointerEnd(e);},{passive:false});
     window.addEventListener('orientationchange',()=>{
-      motionAngle=0;motionTurn=0;motionHasSample=false;lastMotionSampleAt=0;
+      motionNeutral=null;motionTurn=0;
       touchSides.clear();refreshTouchControls();
       keys.clear();
     });
-    if(screen.orientation)screen.orientation.addEventListener?.('change',()=>{motionAngle=0;motionTurn=0;motionHasSample=false;lastMotionSampleAt=0;});
+    if(screen.orientation)screen.orientation.addEventListener?.('change',()=>{motionNeutral=null;motionTurn=0;});
   }
   window.addEventListener('resize',scheduleCanvasResolution,{passive:true});
   window.addEventListener('orientationchange',scheduleCanvasResolution,{passive:true});
