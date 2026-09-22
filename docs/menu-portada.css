@@ -75,7 +75,7 @@
   display: block;
   flex: none;
   font-size: 20px;
-  width: min(100%, calc(126px + 16ch));
+  width: min(100%, calc(126px + 18ch));
   margin: 0 auto;
   text-align: center;
 }
@@ -263,7 +263,7 @@
   #menu .mode-card { padding: 9px; border-radius: 8px; }
   #menu .mode-title { font-size: 14px; letter-spacing: .02em; margin-bottom: 6px; gap: 5px; }
   #menu .mode-number { font-size: 12px; padding-right: 5px; }
-  #menu .pilot-field { flex: none; font-size: 19px; width: min(100%, calc(116px + 16ch)); }
+  #menu .pilot-field { flex: none; font-size: 19px; width: min(100%, calc(116px + 18ch)); }
   #menu .field-title { font-size: 16px; letter-spacing: .06em; }
   #menu .connection-info { flex: none; min-height: 18px; }
   #menu .server-wait, #menu #status { font-size: 11px; }
@@ -288,7 +288,7 @@
   #menu .menu-body { padding-top: 36%; padding-bottom: max(24px, env(safe-area-inset-bottom, 0px)); }
   #menu .launch-console { width: calc(100vw - var(--menu-edge) * 2); }
   #menu .pilot-row { flex-direction: column; align-items: center; gap: 8px; margin-bottom: 13px; }
-  #menu .pilot-field { flex: none; font-size: 20px; width: min(100%, calc(126px + 16ch)); }
+  #menu .pilot-field { flex: none; font-size: 20px; width: min(100%, calc(126px + 18ch)); }
   #menu .field-title { font-size: 17px; }
   #menu .connection-info { flex: none; }
   #menu .server-wait { justify-content: center; }
