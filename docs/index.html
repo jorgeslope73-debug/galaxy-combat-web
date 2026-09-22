@@ -151,7 +151,6 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
 .orientation-gate-card{width:min(430px,88vw);padding:28px 24px;border:1px solid rgba(126,225,255,.58);border-radius:16px;background:rgba(3,8,22,.86);box-shadow:0 0 36px rgba(59,186,255,.2)}
 .orientation-gate-icon{display:block;width:70px;height:70px;margin:0 auto 14px;color:#7fe5ff;filter:drop-shadow(0 0 10px rgba(90,225,255,.45))}
 .orientation-gate-icon svg{display:block;width:100%;height:100%;overflow:visible}
-.orientation-gate-icon .rotate-phone{fill:none;stroke:currentColor;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
 .orientation-gate-icon .rotate-arrows{fill:none;stroke:currentColor;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
 .orientation-gate-title{margin:0 0 10px;font:900 clamp(24px,7vw,36px)/1 Arial,Helvetica,sans-serif;letter-spacing:.035em}
 .orientation-gate-copy{margin:0;color:rgba(239,245,255,.82);font:700 15px/1.35 Arial,Helvetica,sans-serif}
@@ -200,12 +199,10 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
     <div class="orientation-gate-card">
       <span class="orientation-gate-icon" aria-hidden="true">
         <svg viewBox="0 0 72 72" focusable="false">
-          <rect class="rotate-phone" x="26" y="18" width="20" height="36" rx="4"></rect>
-          <path class="rotate-phone" d="M33 49h6"></path>
-          <path class="rotate-arrows" d="M18 30a20 20 0 0 1 31-12"></path>
-          <path class="rotate-arrows" d="M47 13l4 7-8 1"></path>
-          <path class="rotate-arrows" d="M54 42a20 20 0 0 1-31 12"></path>
-          <path class="rotate-arrows" d="M25 59l-4-7 8-1"></path>
+          <path class="rotate-arrows" d="M16 31a22 22 0 0 1 35-14"></path>
+          <path class="rotate-arrows" d="M48 11l5 8-9 1"></path>
+          <path class="rotate-arrows" d="M56 41a22 22 0 0 1-35 14"></path>
+          <path class="rotate-arrows" d="M24 61l-5-8 9-1"></path>
         </svg>
       </span>
       <p class="orientation-gate-title" data-i18n="orientationTitle">GIRA EL MÓVIL</p>
@@ -217,7 +214,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
-      <div id="buildVersion" aria-label="Version del juego">V16.4.96</div>
+      <div id="buildVersion" aria-label="Version del juego">V16.4.97</div>
       <div class="menu-left-tools" aria-label="Clasificacion, compartir e instalar">
         <button id="rankingOpen" class="ranking-launch" type="button" aria-haspopup="dialog">RANKING</button>
         <button id="shareGame" class="ranking-launch share-game-launch" type="button">COMPARTIR JUEGO</button>
