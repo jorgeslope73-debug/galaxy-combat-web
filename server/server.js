@@ -436,7 +436,7 @@ class GameRoom {
     return {
       index, name:safeName(name, cpu?'CPU':`JUGADOR ${index+1}`), cpu,
       ws:null, isHost:false, x:0,y:0,rot:0,vx:0,vy:0,
-      bullets:3, cadence:30, speed:1, kills:0, deaths:0,
+      bullets:5, cadence:30, speed:1, kills:0, deaths:0,
       reload:0, shield:0, camo:0, protection:SPAWN_PROTECTION_SECONDS,
       dead:false, respawn:0, fireLatch:false, voiceReady:false, lastChatAt:0, lastControlAt:Date.now(),
       playerToken:'', disconnectedAt:0, userId:null, registered:false
@@ -492,7 +492,7 @@ class GameRoom {
     // no considere las posiciones antiguas de los demas jugadores.
     for (const p of this.players) p.dead = true;
     for (const p of this.players) {
-      p.bullets = 1;
+      p.bullets = 5;
       p.cadence = 30;
       p.speed = 1;
       p.kills = 0;
