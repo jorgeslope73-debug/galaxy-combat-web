@@ -110,3 +110,27 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
 @media(max-width:700px){
   .share-toast{bottom:max(12px,env(safe-area-inset-bottom,0px));padding:10px 12px;font-size:11px}
 }
+
+
+/* V16.4.85: estado visual de sala lista y espera de jugadores. */
+#lobby #start.ready-to-start:not(:disabled){
+  background:linear-gradient(135deg,#1d8d48,#0c5b2c);
+  border-color:#69e99a;
+  color:#effff4;
+  box-shadow:0 0 18px rgba(65,226,125,.35),inset 0 1px 0 rgba(255,255,255,.12);
+}
+#lobby #start.ready-to-start:not(:disabled):hover,
+#lobby #start.ready-to-start:not(:disabled):focus-visible{
+  background:linear-gradient(135deg,#28a859,#11743a);
+  border-color:#9bffbd;
+  box-shadow:0 0 24px rgba(72,245,140,.46),inset 0 1px 0 rgba(255,255,255,.15);
+}
+#lobby .waiting-players{
+  margin:5px 0 0;
+  color:#ff5c66;
+  font:900 12px/1.2 Arial,Helvetica,sans-serif;
+  letter-spacing:.08em;
+  text-align:center;
+  text-shadow:0 0 8px rgba(255,40,55,.38);
+}
+#lobby .waiting-players.hidden{display:none!important}

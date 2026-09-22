@@ -12,7 +12,7 @@
   // pacing irregular/tearing en Canvas cuando la nave se mueve deprisa.
   const ctx=canvas.getContext('2d',{alpha:false})||canvas.getContext('2d');
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
-  const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
+  const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),waitingPlayersEl=document.getElementById('waitingPlayers'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
   const lobbyChatLog=document.getElementById('lobbyChatLog'),lobbyChatEmpty=document.getElementById('lobbyChatEmpty'),lobbyChatInput=document.getElementById('lobbyChatInput'),lobbyChatSend=document.getElementById('lobbyChatSend');
   const shareGameBtn=document.getElementById('shareGame'),shareRoomBtn=document.getElementById('shareRoom'),shareToast=document.getElementById('shareToast');
   const sharedRoomCode=String(new URLSearchParams(location.search).get('room')||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);
@@ -727,6 +727,12 @@
     startBtn.textContent=tr('start');
     startBtn.classList.toggle('hidden',!isHost);
     startBtn.disabled=isHost?!canStart:true;
+    startBtn.classList.toggle('ready-to-start',!!(isHost&&canStart));
+  }
+  function updateWaitingPlayers(players){
+    if(!waitingPlayersEl)return;
+    const count=Array.isArray(players)?players.filter(p=>p&&!p.cpu).length:Number(players)||0;
+    waitingPlayersEl.classList.toggle('hidden',count>1);
   }
   function clearLobbyChat(){
     if(!lobbyChatLog)return;
@@ -771,7 +777,7 @@
       closeRoomDialogs();
       if(impactFX)impactFX.reset();resetLeaderAnnouncement();
       state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastVoicePlayersSig=0;rebuildPreviousLookup(null);
-      roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
+      roomCode=m.code;myIndex=m.index;playerToken=String(m.playerToken||'');isHost=m.t==='created';saveResumeSession();stopResumeWindow();clearLobbyChat();updateLobbyStartButton(false);updateWaitingPlayers(m.cpu?2:1);if(voice)voice.setSession(roomCode,myIndex,!!m.cpu);roomCodeEl.textContent=roomCode;roomMini.textContent='';stopMusic();menu.classList.add('hidden');if(!m.cpu)lobby.classList.remove('hidden');
     }
     else if(m.t==='resumed'){
       roomCode=String(m.code||roomCode);myIndex=Number(m.index);playerToken=String(m.playerToken||playerToken);isHost=!!m.host;saveResumeSession();stopResumeWindow();
@@ -785,7 +791,7 @@
       if(inGame||roomCode){alert(sinTildes(trServer(m.message||tr('resumeFailed'))));returnToMainMenu(false);}
       else send({t:'public-rooms'});
     }
-    else if(m.t==='lobby'){roomCode=m.code;syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);}
+    else if(m.t==='lobby'){roomCode=m.code;syncVoicePlayers(m.players,true);roomCodeEl.textContent=m.code;playersEl.innerHTML=m.players.map(p=>`<div style="color:${playerColors[p.i]||'#fff'}">J${p.i+1} · ${escapeHtml(sinTildes(p.n))}${p.registered?' · ✓':''}${p.cpu?' · CPU':''}</div>`).join('');updateLobbyStartButton(!!m.canStart);updateWaitingPlayers(m.players);}
     else if(m.t==='start'){beginGame();playSound('start');}
     else if(m.t==='state'){
       const now=performance.now();
@@ -939,7 +945,7 @@
     roomCode='';myIndex=null;isHost=false;lastVoicePlayersSig=0;rebuildPreviousLookup(null);
     lobby.classList.add('hidden');victory.classList.add('hidden');topbar.classList.add('hidden');
     mobileControls.classList.add('hidden');if(mobileExit)mobileExit.classList.add('hidden');touchSides.clear();refreshTouchControls();
-    roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';clearLobbyChat();updateLobbyStartButton(false);
+    roomCodeEl.textContent='';roomMini.textContent='';playersEl.innerHTML='';clearLobbyChat();updateLobbyStartButton(false);updateWaitingPlayers(1);
     menu.classList.remove('hidden');startMusic();scheduleCanvasResolution();
   }
   document.getElementById('leaveRoom').addEventListener('click',returnToMainMenu);
