@@ -489,7 +489,7 @@
 /* Ajuste V16: subir solo la ventana UNIRSE A UNA SALA en PC */
 @media (min-width:561px) and (min-height:600px){
   #menu #publicRoomsDialog .room-browser-card{
-    transform:translateY(-46px);
+    transform:translateY(-64px);
   }
 }
 
