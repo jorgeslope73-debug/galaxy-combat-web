@@ -1540,12 +1540,12 @@
     try{
       ctx.textAlign='center';
       ctx.textBaseline='middle';
-      ctx.font=isMobile?'38px Flashback,Arial':'30px Flashback,Arial';
+      ctx.font=isMobile?'44px Flashback,Arial':'36px Flashback,Arial';
       ctx.fillStyle=color;
       ctx.globalAlpha=alpha;
       ctx.shadowColor=color;
       ctx.shadowBlur=isMobile?14:10;
-      ctx.fillText('MODO FANTASMA',W/2,245);
+      ctx.fillText('MODO FANTASMA',W/2,275);
     }finally{
       ctx.restore();
     }
