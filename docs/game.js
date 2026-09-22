@@ -16,6 +16,7 @@
   const lobbyChatLog=document.getElementById('lobbyChatLog'),lobbyChatEmpty=document.getElementById('lobbyChatEmpty'),lobbyChatInput=document.getElementById('lobbyChatInput'),lobbyChatSend=document.getElementById('lobbyChatSend');
   const shareGameBtn=document.getElementById('shareGame'),shareRoomBtn=document.getElementById('shareRoom'),shareToast=document.getElementById('shareToast');
   const sharedRoomCode=String(new URLSearchParams(location.search).get('room')||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);
+  let sharedRoomJoinStarted=false;
   let shareToastTimer=null;
   const serverWait=document.getElementById('serverWait'),serverWaitText=document.getElementById('serverWaitText');
   const roomTypeDialog=document.getElementById('roomTypeDialog'),publicRoomsDialog=document.getElementById('publicRoomsDialog'),publicRoomsList=document.getElementById('publicRoomsList'),joinCodeDialog=document.getElementById('joinCodeDialog');
@@ -436,14 +437,16 @@
     const url=cleanGameUrl(roomCode);
     const ok=await copyTextToClipboard(url);
     showShareToast(ok
-      ? 'PARTIDA COPIADA. MANDA EL LINK A TU AMIGO Y AL ABRIRLO TENDRA LA SALA '+roomCode+' PREPARADA.'
+      ? 'PARTIDA COPIADA. MANDA EL LINK A TU AMIGO: AL ABRIRLO ENTRARA DIRECTAMENTE EN LA SALA '+roomCode+'.'
       : 'NO SE PUDO COPIAR EL LINK DE LA PARTIDA.');
   }
-  function openSharedRoomInvitation(){
-    if(!sharedRoomCode||roomCode||inGame)return false;
-    showPublicRoomsDialog();
-    if(joinCodeDialog)joinCodeDialog.value=sharedRoomCode;
-    showShareToast('INVITACION A LA SALA '+sharedRoomCode+'. PULSA UNIRSE PARA ENTRAR.');
+  function joinSharedRoomDirect(){
+    if(!sharedRoomCode||sharedRoomJoinStarted||roomCode||inGame)return false;
+    if(!ws||ws.readyState!==WebSocket.OPEN)return false;
+    sharedRoomJoinStarted=true;
+    closeRoomDialogs();
+    statusEl.textContent='ENTRANDO EN LA SALA '+sharedRoomCode+'...';
+    send({t:'join',name:sinTildes(campoNombre.value),code:sharedRoomCode,authToken:authToken()});
     return true;
   }
 
@@ -505,9 +508,10 @@
       if(saved){
         if(roomMini)roomMini.textContent=tr('reconnecting');
         send({t:'resume',code:saved.code,token:saved.token});
+      }else if(sharedRoomCode){
+        setTimeout(joinSharedRoomDirect,0);
       }else{
         send({t:'public-rooms'});
-        if(sharedRoomCode)setTimeout(openSharedRoomInvitation,0);
       }
     };
     ws.onclose=()=>{
@@ -856,7 +860,7 @@
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
     else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
-    else if(m.t==='error'){statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
+    else if(m.t==='error'){if(sharedRoomCode&&!roomCode)sharedRoomJoinStarted=false;statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
   function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
@@ -944,6 +948,7 @@
   scheduleCanvasResolution();
   startBtn.addEventListener('click',async()=>{await prepareMobileControls();calibrateMobileMotion();send({t:'start'});});
   function returnToMainMenu(notifyServer=true){
+    if(!sharedRoomCode)sharedRoomJoinStarted=false;
     invisibleHudUntil.fill(0);
     clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;
     victory.classList.remove('winner-celebration');
