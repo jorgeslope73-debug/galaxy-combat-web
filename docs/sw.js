@@ -1,4 +1,4 @@
-const VERSION = 'V16.4.72';
+const VERSION = 'V16.4.73';
 const SHELL_CACHE = `galaxy-combat-shell-${VERSION}`;
 const ASSET_CACHE = `galaxy-combat-assets-${VERSION}`;
 const ACTIVE_CACHES = new Set([SHELL_CACHE, ASSET_CACHE]);
@@ -15,6 +15,7 @@ const SHELL_FILES = [
   './auth.js',
   './impactos.js',
   './voz.js',
+  './local-cpu.js',
   './game.js',
   './pwa.js',
   './manifest.webmanifest',

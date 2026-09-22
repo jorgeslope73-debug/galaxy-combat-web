@@ -58,6 +58,7 @@
   let penaltyMessageUntil=0;
   let brutalFxStart=0,brutalFxUntil=0,brutalDistance=0,brutalDistanceText='';
   let publicRooms=[];
+  let localCpu=null,localCpuActive=false;
   const keys=new Set(); let ws=null,reconnectTimer=null,musicStarted=false;
   // V16.4.36: sincronizamos estados/controles y reducimos GC en movil para evitar picos de trabajo
   // asincronos en Safari/iOS. Solo conservamos el snapshot de estado mas reciente.
@@ -87,7 +88,9 @@
   const HIGH_REFRESH_SKIP_MS=10.5;
   const impactFX=typeof window.GalaxyImpactFX==='function'?new window.GalaxyImpactFX():null;
   let connectAttempt=0,wakeStartedAt=0,manualClose=false;
-  const serverButtons=['cpu','create','join'].map(id=>document.getElementById(id));
+  const cpuButton=document.getElementById('cpu');
+  const serverButtons=['create','join'].map(id=>document.getElementById(id));
+  if(cpuButton)cpuButton.disabled=false;
   // Tamano visual de las naves. Solo cambia el dibujo: fisica, colisiones y red quedan iguales.
   const SHIP_DRAW_SIZE=isMobile?86:72;
   const SHIELD_DRAW_RADIUS=isMobile?48:43;
@@ -489,11 +492,13 @@
     };
   }
   function send(o){
+    if(localCpuActive&&localCpu&&typeof localCpu.handleMessage==='function')return localCpu.handleMessage(o);
     if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify(o));return true;}
     if(!inGame){setServerReady(false);if(!wakeStartedAt)wakeStartedAt=Date.now();wakeStatus();connect();}
     return false;
   }
   function sendControl(turn,thrust,fire){
+    if(localCpuActive&&localCpu){localCpu.setControl(turn,thrust,fire);return true;}
     if(!ws||ws.readyState!==WebSocket.OPEN)return false;
     // Los controles caducan enseguida. Si la salida esta congestionada, es
     // mejor omitir uno y mandar el mas reciente 33 ms despues que acumular lag.
@@ -622,6 +627,25 @@
     if(isMobile&&!motionEnabled)await enableMobileMotion();
   }
   function authToken(){return window.GalaxyAuth&&typeof window.GalaxyAuth.getToken==='function'?window.GalaxyAuth.getToken():'';}
+  function stopLocalCpu(){
+    if(localCpu&&typeof localCpu.stop==='function')localCpu.stop();
+    localCpu=null;localCpuActive=false;
+  }
+  async function startLocalCpu(){
+    startMusic();await prepareMobileControls();closeRoomDialogs();
+    if(typeof window.GalaxyLocalCpu!=='function'){
+      statusEl.textContent='MODO CPU LOCAL NO DISPONIBLE';
+      return;
+    }
+    stopLocalCpu();
+    stopResumeWindow();clearResumeSession();playerToken='';
+    localCpu=new window.GalaxyLocalCpu({onState:m=>handle(m),onEvent:m=>handle(m)});
+    localCpu.start(sinTildes(campoNombre.value),document.getElementById('difficulty').value);
+    localCpuActive=true;
+    handle({t:'created',code:'LOCAL',index:0,cpu:true,playerToken:''});
+    handle({t:'start'});
+    handle(localCpu.publicState());
+  }
   async function createOnlineRoom(isPublic){
     startMusic();await prepareMobileControls();closeRoomDialogs();
     send({t:'create',name:sinTildes(campoNombre.value),public:!!isPublic,lang:(i18n&&typeof i18n.getLanguage==='function'?i18n.getLanguage():'es'),authToken:authToken()});
@@ -760,7 +784,7 @@
   menu.addEventListener('keydown',startMusic);
 
   document.getElementById('create').addEventListener('click',()=>{startMusic();showRoomTypeDialog();});
-  document.getElementById('cpu').addEventListener('click',async()=>{startMusic();await prepareMobileControls();send({t:'cpu',name:sinTildes(campoNombre.value),difficulty:document.getElementById('difficulty').value,authToken:authToken()});});
+  document.getElementById('cpu').addEventListener('click',startLocalCpu);
   document.getElementById('join').addEventListener('click',()=>{startMusic();showPublicRoomsDialog();});
   document.getElementById('createPublic').addEventListener('click',()=>createOnlineRoom(true));
   document.getElementById('createPrivate').addEventListener('click',()=>createOnlineRoom(false));
@@ -794,7 +818,9 @@
   scheduleCanvasResolution();
   startBtn.addEventListener('click',async()=>{await prepareMobileControls();calibrateMobileMotion();send({t:'start'});});
   function returnToMainMenu(notifyServer=true){
-    if(notifyServer&&roomCode)send({t:'leave'});
+    const wasLocal=localCpuActive;
+    if(wasLocal)stopLocalCpu();
+    if(notifyServer&&!wasLocal&&roomCode)send({t:'leave'});
     if(voice)voice.clearSession();
     stopResumeWindow();clearResumeSession();playerToken='';
     inGame=false;state=null;previousState=null;pendingStateRaw=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();lastControlThrust=false;lastControlSentAt=0;lastSentControlTurn=NaN;lastSentControlThrust=false;lastSentControlFire=false;
@@ -842,7 +868,7 @@
   }
   window.addEventListener('blur',clearHeldKeys);
   document.addEventListener('visibilitychange',()=>{if(document.hidden)clearHeldKeys();});
-  window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);if(voice)voice.shutdown(true);try{if(ws)ws.close();}catch(_){}});
+  window.addEventListener('beforeunload',()=>{manualClose=true;clearTimeout(reconnectTimer);stopLocalCpu();if(voice)voice.shutdown(true);try{if(ws)ws.close();}catch(_){}});
 
   function imageReady(im){
     // complete is ALSO true after a failed download. Check decoded dimensions.
@@ -1498,6 +1524,7 @@
     const now=Number.isFinite(rafNow)?rafNow:performance.now();
     flushPendingState(false,now);
     pumpControls(now);
+    if(localCpuActive&&localCpu)localCpu.advance(now);
     // En pantallas ProMotion/120 Hz no tiene sentido dibujar el juego a 120: la
     // simulacion va a 60 Hz y la red a 30 Hz. Limitamos solo el pintado a 60 Hz.
     if(lastPaintAt&&now-lastPaintAt<HIGH_REFRESH_SKIP_MS)return;
