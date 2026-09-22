@@ -1540,12 +1540,12 @@
     try{
       ctx.textAlign='center';
       ctx.textBaseline='middle';
-      ctx.font=`900 ${isMobile?38:30}px Arial,Helvetica,sans-serif`;
+      ctx.font=isMobile?'38px Flashback,Arial':'30px Flashback,Arial';
       ctx.fillStyle=color;
       ctx.globalAlpha=alpha;
       ctx.shadowColor=color;
       ctx.shadowBlur=isMobile?14:10;
-      ctx.fillText('MODO INVISIBLE',W/2,245);
+      ctx.fillText('MODO FANTASMA',W/2,245);
     }finally{
       ctx.restore();
     }
