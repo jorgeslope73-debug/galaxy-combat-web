@@ -436,7 +436,7 @@ class GameRoom {
     return {
       index, name:safeName(name, cpu?'CPU':`JUGADOR ${index+1}`), cpu,
       ws:null, isHost:false, x:0,y:0,rot:0,vx:0,vy:0,
-      bullets:1, cadence:30, speed:1, kills:0, deaths:0,
+      bullets:100, cadence:1, speed:2, kills:0, deaths:0,
       reload:0, shield:0, camo:0, protection:SPAWN_PROTECTION_SECONDS,
       dead:false, respawn:0, fireLatch:false, voiceReady:false, lastChatAt:0, lastControlAt:Date.now(),
       playerToken:'', disconnectedAt:0, userId:null, registered:false
