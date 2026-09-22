@@ -803,7 +803,7 @@ class GameRoom {
       p.x=(p.x+p.vx*dt+W)%W; p.y=(p.y+p.vy*dt+H)%H;
       if(c.fire && p.bullets>0 && p.reload<=0){
         this.bullets.push({id:uid(),owner:p.index,x:p.x+d.x*35,y:p.y+d.y*35,vx:d.x*this.bulletSpeed(p),vy:d.y*this.bulletSpeed(p),age:0,travel:0});
-        p.bullets--; p.reload=Math.max(0.125,p.cadence/8); emitSound(this,'laser');
+        p.bullets--; p.reload=Math.max(0.5,p.cadence/8); emitSound(this,'laser');
       }
     }
 
@@ -816,7 +816,7 @@ class GameRoom {
     this.shipCollisions();
   }
 
-  bulletSpeed(p){ return p.cadence>=30?500:p.cadence>=20?960:p.cadence>=10?1150:1250; }
+  bulletSpeed(p){ return p.cadence>=30?500:p.cadence>=20?750:p.cadence>=10?900:1000; }
 
   updateAsteroids(dt){
     for(const a of this.asteroids){
