@@ -1305,3 +1305,10 @@ html:not(.handheld-device) #menu:not(.join-browser-open) .launch-console{
 html:not(.handheld-device) #menu .field-title{
   font-size:9px;
 }
+
+
+/* V16.4.72: credito mas discreto y un poco mas alto solo en PC. */
+html:not(.handheld-device) #menu .menu-credit{
+  font-size:12px;
+  top:-6px;
+}
