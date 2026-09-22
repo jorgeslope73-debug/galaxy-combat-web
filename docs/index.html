@@ -154,24 +154,25 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
 .orientation-gate-icon .rotate-arrows{fill:none;stroke:currentColor;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
 .orientation-gate-title{margin:0 0 10px;font:900 clamp(24px,7vw,36px)/1 Arial,Helvetica,sans-serif;letter-spacing:.035em}
 .orientation-gate-copy{margin:0;color:rgba(239,245,255,.82);font:700 15px/1.35 Arial,Helvetica,sans-serif}
-.orientation-language-switcher{position:absolute;z-index:2;top:max(12px,env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%)}
+.orientation-language-switcher{position:absolute;z-index:2;top:max(34px,calc(env(safe-area-inset-top,0px) + 18px));left:50%;transform:translateX(-50%)}
 .orientation-language-dropdown{position:relative;margin:0;padding:0}
 .orientation-language-dropdown>summary{list-style:none}
 .orientation-language-dropdown>summary::-webkit-details-marker{display:none}
-.orientation-language-current{min-width:72px;height:31px;box-sizing:border-box;margin:0;padding:4px 9px;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid rgba(213,185,236,.52);border-radius:999px;background:rgba(5,3,12,.84);color:#fff;box-shadow:0 3px 14px rgba(0,0,0,.34);font:800 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.055em;cursor:pointer;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.orientation-language-current{min-width:94px;height:40px;box-sizing:border-box;margin:0;padding:6px 12px;display:flex;align-items:center;justify-content:center;gap:8px;border:1px solid rgba(213,185,236,.52);border-radius:999px;background:rgba(5,3,12,.84);color:#fff;box-shadow:0 3px 14px rgba(0,0,0,.34);font:800 14px/1 Arial,Helvetica,sans-serif;letter-spacing:.055em;cursor:pointer;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
 .orientation-language-current:focus-visible{outline:1px solid rgba(171,111,225,.95);outline-offset:2px}
 .orientation-language-chevron{font-size:9px;opacity:.72;transition:transform .15s ease}
 .orientation-language-dropdown[open] .orientation-language-chevron{transform:rotate(180deg)}
-.orientation-language-menu{position:absolute;top:36px;left:50%;transform:translateX(-50%);min-width:86px;padding:5px;display:grid;gap:3px;border:1px solid rgba(213,185,236,.42);border-radius:10px;background:rgba(9,5,19,.97);box-shadow:0 8px 22px rgba(0,0,0,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-.orientation-language-menu button{width:100%;height:30px;margin:0;padding:4px 8px;display:flex;align-items:center;gap:7px;border:0;border-radius:7px;background:transparent;color:#fff;font:800 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.055em;text-align:left;cursor:pointer}
+.orientation-language-menu{position:absolute;top:46px;left:50%;transform:translateX(-50%);min-width:104px;padding:6px;display:grid;gap:4px;border:1px solid rgba(213,185,236,.42);border-radius:11px;background:rgba(9,5,19,.97);box-shadow:0 8px 22px rgba(0,0,0,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.orientation-language-menu button{width:100%;height:36px;margin:0;padding:5px 10px;display:flex;align-items:center;gap:8px;border:0;border-radius:8px;background:transparent;color:#fff;font:800 13px/1 Arial,Helvetica,sans-serif;letter-spacing:.055em;text-align:left;cursor:pointer}
 .orientation-language-menu button:focus-visible{background:rgba(171,111,225,.2);outline:none}
-.orientation-language-flag{display:inline-block;flex:0 0 auto;width:21px;height:14px;box-sizing:border-box;border:1px solid rgba(255,255,255,.48);border-radius:2px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.35);background-color:#fff}
+.orientation-language-flag{display:inline-block;flex:0 0 auto;width:24px;height:16px;box-sizing:border-box;border:1px solid rgba(255,255,255,.48);border-radius:2px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.35);background-color:#fff}
 .orientation-language-flag.flag-es{background:linear-gradient(to bottom,#aa151b 0 25%,#f1bf00 25% 75%,#aa151b 75% 100%)}
 .orientation-language-flag.flag-it{background:linear-gradient(to right,#009246 0 33.333%,#fff 33.333% 66.666%,#ce2b37 66.666% 100%)}
 .orientation-language-flag.flag-fr{background:linear-gradient(to right,#0055a4 0 33.333%,#fff 33.333% 66.666%,#ef4135 66.666% 100%)}
 .orientation-language-flag.flag-de{background:linear-gradient(to bottom,#000 0 33.333%,#dd0000 33.333% 66.666%,#ffce00 66.666% 100%)}
 .orientation-language-flag.flag-en{background:linear-gradient(27deg,transparent 44%,#fff 44% 56%,transparent 56%),linear-gradient(-27deg,transparent 44%,#fff 44% 56%,transparent 56%),linear-gradient(27deg,transparent 48%,#c8102e 48% 52%,transparent 52%),linear-gradient(-27deg,transparent 48%,#c8102e 48% 52%,transparent 52%),linear-gradient(90deg,transparent 39%,#fff 39% 61%,transparent 61%),linear-gradient(transparent 35%,#fff 35% 65%,transparent 65%),linear-gradient(90deg,transparent 46%,#c8102e 46% 54%,transparent 54%),linear-gradient(transparent 44%,#c8102e 44% 56%,transparent 56%),#012169}
 .orientation-gate-install-copy{margin:18px 0 9px;color:#d9c5ef;font:800 12px/1.35 Arial,Helvetica,sans-serif;letter-spacing:.025em}
+.orientation-gate-install-copy.pwa-hidden{display:none!important}
 .orientation-install-button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:7px 14px;border:1px solid rgba(111,239,178,.58);border-radius:999px;background:rgba(24,72,48,.72);color:#d9ffe7;font:900 11px/1.15 Arial,Helvetica,sans-serif;letter-spacing:.035em;box-shadow:0 0 18px rgba(67,221,134,.16)}
 .orientation-install-button.pwa-hidden{display:none!important}
 @media (orientation:portrait){html.handheld-device .orientation-gate{display:flex}}
@@ -207,14 +208,14 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
       </span>
       <p class="orientation-gate-title" data-i18n="orientationTitle">GIRA EL MÓVIL</p>
       <p class="orientation-gate-copy" data-i18n="orientationCopy">Galaxy Combat se juega en horizontal.</p>
-      <p class="orientation-gate-install-copy" data-i18n="orientationInstallCopy">PARA JUGAR MEJOR, AÑADE EL JUEGO A TU PANTALLA DE INICIO.</p>
+      <p id="orientationInstallCopy" class="orientation-gate-install-copy" data-i18n="orientationInstallCopy">PARA JUGAR MEJOR, AÑADE EL JUEGO A TU PANTALLA DE INICIO.</p>
       <button id="orientationInstallGame" class="orientation-install-button pwa-hidden" type="button" data-i18n="addHomeScreen">NECESARIO AÑADIR A PANTALLA DE INICIO</button>
     </div>
   </div>
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
-      <div id="buildVersion" aria-label="Version del juego">V16.4.98</div>
+      <div id="buildVersion" aria-label="Version del juego">V16.4.99</div>
       <div class="menu-left-tools" aria-label="Clasificacion, compartir e instalar">
         <button id="rankingOpen" class="ranking-launch" type="button" aria-haspopup="dialog">RANKING</button>
         <button id="shareGame" class="ranking-launch share-game-launch" type="button">COMPARTIR JUEGO</button>
@@ -448,6 +449,6 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
 <script src="ranking.js?v=V16.4.61-ranking-20260920"></script>
 <script src="local-cpu.js?v=V16.4.82-victory-celebration"></script>
 <script src="game.js?v=V16.4.90-ghost-bigger-lower"></script>
-<script src="pwa.js?v=V16.4.94-orientation-language"></script>
+<script src="pwa.js?v=V16.4.99-installed-hide"></script>
 </body>
 </html>

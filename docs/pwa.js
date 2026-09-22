@@ -1,5 +1,6 @@
 (() => {
   const installBtn=document.getElementById('orientationInstallGame');
+  const installCopy=document.getElementById('orientationInstallCopy');
   const isHandheld=document.documentElement.classList.contains('handheld-device')
     || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent||'');
   const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent||'')
@@ -31,8 +32,9 @@
   }
 
   function refreshInstallButton(){
-    if(!installBtn)return;
-    installBtn.classList.toggle('pwa-hidden',!isHandheld||isInstalled());
+    const hideInstall=!isHandheld||isInstalled();
+    if(installBtn)installBtn.classList.toggle('pwa-hidden',hideInstall);
+    if(installCopy)installCopy.classList.toggle('pwa-hidden',hideInstall);
   }
 
   window.addEventListener('beforeinstallprompt',e=>{
