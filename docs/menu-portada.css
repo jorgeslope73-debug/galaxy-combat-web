@@ -1140,7 +1140,13 @@
   outline:none;
 }
 #menu .account-user{border-color:rgba(123,239,182,.52)!important;color:#cbffe1!important}
-#menu #name.registered-name{border-color:rgba(118,235,176,.58);box-shadow:0 0 0 1px rgba(118,235,176,.09),0 0 18px rgba(71,212,141,.08)}
+#menu #name{color:#fff}
+#menu #name.registered-name{
+  color:#d8a7ff;
+  border-color:rgba(190,120,255,.72);
+  text-shadow:0 0 7px rgba(188,104,255,.55);
+  box-shadow:0 0 0 1px rgba(188,104,255,.12),0 0 18px rgba(150,65,220,.16);
+}
 #menu .auth-dialog{
   position:fixed;
   inset:0;
