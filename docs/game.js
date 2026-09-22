@@ -51,6 +51,7 @@
   let lastControlTurn=0,lastControlTurnChangedAt=0,lastControlThrust=false,lastVoicePlayersSig=0,renderScale=1;
   let lastUniqueLeader=null,leaderAnnouncement=null;
   let killHudFlashStart=0,killHudFlashUntil=0,killScoreFxStart=0,killScoreFxUntil=0;
+  const invisibleHudUntil=[0,0,0,0];
   // Mantiene visualmente el contador anterior hasta que empieza el pop de escala.
   // La puntuacion real del servidor sigue actualizandose al instante.
   let killScoreHeldValue=null,killScorePendingValue=null;
@@ -799,6 +800,16 @@
       updateLeaderAnnouncement(m,now);
       const oldLocal=state&&Array.isArray(state.players)?state.players.find(p=>p.i===myIndex):null;
       const newLocal=Array.isArray(m.players)?m.players.find(p=>p.i===myIndex):null;
+      if(Array.isArray(m.players)){
+        for(const np of m.players){
+          const idx=Number(np&&np.i);
+          if(!Number.isInteger(idx)||idx<0||idx>=invisibleHudUntil.length)continue;
+          const op=state&&Array.isArray(state.players)?state.players.find(p=>Number(p.i)===idx):null;
+          const oldCamo=Number(op&&op.camo)||0;
+          const newCamo=Number(np&&np.camo)||0;
+          if(newCamo>0&&oldCamo<=0)invisibleHudUntil[idx]=now+2000;
+        }
+      }
       if(oldLocal&&newLocal&&Number(newLocal.k)>Number(oldLocal.k)){
         // Confirmacion visual local de baja: no se envia por red y solo la ve
         // el jugador que acaba de sumar una muerte.
@@ -844,7 +855,7 @@
     else if(m.t==='brutal'){brutalFxStart=performance.now();brutalFxUntil=brutalFxStart+1650;brutalDistance=Number(m.distance)||0;brutalDistanceText=brutalDistance>0?(Math.round(brutalDistance*(8/48))+' m'):'';}
     else if(m.t==='sound'){playSound(m.kind);}
     else if(m.t==='victory'){if(state)state.winner=m.winner;queueVictory(m.winner);}
-    else if(m.t==='restarted'){if(impactFX)impactFX.reset();clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
+    else if(m.t==='restarted'){if(impactFX)impactFX.reset();invisibleHudUntil.fill(0);clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;state=null;previousState=null;lastStateTime=0;previousStateTime=0;smoothedStateInterval=NET_FRAME_MS;resetLocalVisual();rebuildPreviousLookup(null);killHudFlashStart=0;killHudFlashUntil=0;killScoreFxStart=0;killScoreFxUntil=0;killScoreHeldValue=null;killScorePendingValue=null;crashScoreFxStart=0;crashScoreFxUntil=0;crashScoreHeldValue=null;crashScorePendingValue=null;penaltyMessageUntil=0;brutalFxStart=0;brutalFxUntil=0;brutalDistance=0;brutalDistanceText='';victory.classList.remove('winner-celebration');victory.classList.add('hidden');beginGame();}
     else if(m.t==='error'){statusEl.textContent=sinTildes(m.message?trServer(m.message):tr('error'));}
     else if(m.t==='closed'){stopResumeWindow();clearResumeSession();playerToken='';alert(sinTildes(m.reason?trServer(m.reason):tr('close')));location.reload();}
   }
@@ -933,6 +944,7 @@
   scheduleCanvasResolution();
   startBtn.addEventListener('click',async()=>{await prepareMobileControls();calibrateMobileMotion();send({t:'start'});});
   function returnToMainMenu(notifyServer=true){
+    invisibleHudUntil.fill(0);
     clearTimeout(victoryShowTimer);victoryShowTimer=null;pendingVictoryIndex=null;
     victory.classList.remove('winner-celebration');
     const wasLocal=localCpuActive;
@@ -1317,6 +1329,20 @@
         }
       }
       const killText=hudKillText(p,state.scoreToWin,displayedKills);
+      if(now<(invisibleHudUntil[p.i]||0)){
+        const remaining=(invisibleHudUntil[p.i]-now)/2000;
+        const fade=Math.min(1,Math.max(0,remaining*4));
+        ctx.save();
+        ctx.textAlign='center';
+        ctx.textBaseline='middle';
+        ctx.font=`900 ${isMobile?18:13}px Arial,Helvetica,sans-serif`;
+        ctx.fillStyle=color;
+        ctx.globalAlpha=.38*fade;
+        ctx.shadowColor=color;
+        ctx.shadowBlur=(isMobile?8:6)*hudScale;
+        ctx.fillText('MODO INVISIBLE',px+panelW/2,py+panelH/2);
+        ctx.restore();
+      }
       if(localCrashScoreFx){
         // Explosion local del contador cuando una colision propia resta una baja.
         // El nuevo valor ya viene del servidor; aqui solo reforzamos visualmente
