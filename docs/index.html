@@ -18,8 +18,8 @@
 })();
 </script>
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
-<link rel="stylesheet" href="style.css?v=V16.4.82-victory-celebration">
-<link rel="stylesheet" href="menu-portada.css?v=V16.4.81-voice-thinner">
+<link rel="stylesheet" href="style.css?v=V16.4.83-share">
+<link rel="stylesheet" href="menu-portada.css?v=V16.4.83-share">
 <link rel="stylesheet" href="voz.css?v=V16.4.61-ranking-20260920">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
@@ -167,9 +167,10 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
-      <div id="buildVersion" aria-label="Version del juego">V16.4.82</div>
-      <div class="menu-left-tools" aria-label="Clasificacion">
+      <div id="buildVersion" aria-label="Version del juego">V16.4.83</div>
+      <div class="menu-left-tools" aria-label="Clasificacion y compartir">
         <button id="rankingOpen" class="ranking-launch" type="button" aria-haspopup="dialog">RANKING</button>
+        <button id="shareGame" class="ranking-launch share-game-launch" type="button">COMPARTIR JUEGO</button>
       </div>
       <div class="menu-top-tools" aria-label="Menu de idioma y ayuda">
         <button id="manualOpen" class="manual-launch" type="button" aria-haspopup="dialog">MANUAL</button>
@@ -368,10 +369,12 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
       </div>
       <div class="lobby-actions">
         <button id="start" class="hidden" disabled data-i18n="start">EMPEZAR</button>
+        <button id="shareRoom" class="share-room-btn" type="button">COMPARTIR PARTIDA</button>
         <button id="leaveRoom" type="button" data-i18n="leaveRoom">SALIR DE SALA</button>
       </div>
       <p class="help" data-i18n="lobbyHelp">Los demas abren esta misma direccion y escriben el codigo.</p>
     </section>
+    <div id="shareToast" class="share-toast hidden" role="status" aria-live="polite"></div>
     <section id="victory" class="card hidden">
       <h2 id="victoryText" data-i18n="victory">VICTORIA</h2>
       <button id="restartMatch" data-i18n="rematch">REPETIR PARTIDA</button>
@@ -395,7 +398,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
 <script src="auth.js?v=V16.4.61-ranking-20260920"></script>
 <script src="ranking.js?v=V16.4.61-ranking-20260920"></script>
 <script src="local-cpu.js?v=V16.4.82-victory-celebration"></script>
-<script src="game.js?v=V16.4.82-victory-celebration"></script>
+<script src="game.js?v=V16.4.83-share"></script>
 <script src="pwa.js?v=V16.4.61-ranking-20260920"></script>
 </body>
 </html>

@@ -1342,3 +1342,15 @@ html:not(.handheld-device) #menu .menu-keys{
 html:not(.handheld-device) #menu .menu-credit{
   top:-30px;
 }
+
+
+/* V16.4.83: compartir juego junto al ranking. */
+#menu .share-game-launch{
+  min-width:124px!important;
+}
+@media (max-width:900px),(max-height:620px){
+  #menu .share-game-launch{
+    min-width:104px!important;
+    font-size:9px!important;
+  }
+}

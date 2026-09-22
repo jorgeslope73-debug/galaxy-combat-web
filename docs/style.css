@@ -75,3 +75,38 @@ label{display:block;text-align:left;margin:10px 0 6px}input,select,button{font:i
   68%{transform:scale(1.18)}
   100%{transform:scale(1);opacity:1;letter-spacing:.08em}
 }
+
+
+/* V16.4.83: compartir juego y sala. */
+#lobby .share-room-btn{
+  border-color:rgba(205,145,255,.62);
+  background:linear-gradient(135deg,rgba(112,46,151,.95),rgba(62,26,91,.96));
+  color:#f5e7ff;
+}
+#lobby .share-room-btn:hover,#lobby .share-room-btn:focus-visible{
+  border-color:#efd1ff;
+  box-shadow:0 0 18px rgba(184,91,255,.28);
+}
+.share-toast{
+  position:fixed;
+  z-index:2147483647;
+  left:50%;
+  bottom:max(22px,env(safe-area-inset-bottom,0px));
+  transform:translateX(-50%);
+  width:min(680px,calc(100vw - 28px));
+  box-sizing:border-box;
+  padding:12px 16px;
+  border:1px solid rgba(210,155,255,.7);
+  border-radius:10px;
+  background:rgba(20,7,34,.96);
+  color:#f8ecff;
+  box-shadow:0 12px 42px rgba(0,0,0,.55),0 0 24px rgba(165,78,235,.22);
+  font:800 12px/1.35 Arial,Helvetica,sans-serif;
+  letter-spacing:.035em;
+  text-align:center;
+  pointer-events:none;
+}
+.share-toast.hidden{display:none!important}
+@media(max-width:700px){
+  .share-toast{bottom:max(12px,env(safe-area-inset-bottom,0px));padding:10px 12px;font-size:11px}
+}

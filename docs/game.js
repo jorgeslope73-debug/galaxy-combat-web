@@ -14,6 +14,9 @@
   const menu=document.getElementById('menu'),lobby=document.getElementById('lobby'),victory=document.getElementById('victory');
   const statusEl=document.getElementById('status'),roomCodeEl=document.getElementById('roomCode'),playersEl=document.getElementById('players'),startBtn=document.getElementById('start'),topbar=document.getElementById('topbar'),roomMini=document.getElementById('roomMini');
   const lobbyChatLog=document.getElementById('lobbyChatLog'),lobbyChatEmpty=document.getElementById('lobbyChatEmpty'),lobbyChatInput=document.getElementById('lobbyChatInput'),lobbyChatSend=document.getElementById('lobbyChatSend');
+  const shareGameBtn=document.getElementById('shareGame'),shareRoomBtn=document.getElementById('shareRoom'),shareToast=document.getElementById('shareToast');
+  const sharedRoomCode=String(new URLSearchParams(location.search).get('room')||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4);
+  let shareToastTimer=null;
   const serverWait=document.getElementById('serverWait'),serverWaitText=document.getElementById('serverWaitText');
   const roomTypeDialog=document.getElementById('roomTypeDialog'),publicRoomsDialog=document.getElementById('publicRoomsDialog'),publicRoomsList=document.getElementById('publicRoomsList'),joinCodeDialog=document.getElementById('joinCodeDialog');
   const W=1920,H=1080;
@@ -383,6 +386,66 @@
     if(inGame)e.preventDefault();
   }
 
+  function cleanGameUrl(room=''){
+    const u=new URL(location.href);
+    u.search='';
+    u.hash='';
+    if(room)u.searchParams.set('room',String(room).trim().toUpperCase());
+    return u.toString();
+  }
+  function showShareToast(text){
+    if(!shareToast)return;
+    clearTimeout(shareToastTimer);
+    shareToast.textContent=String(text||'');
+    shareToast.classList.remove('hidden');
+    shareToastTimer=setTimeout(()=>shareToast.classList.add('hidden'),5200);
+  }
+  async function copyTextToClipboard(text){
+    const value=String(text||'');
+    try{
+      if(navigator.clipboard&&window.isSecureContext){
+        await navigator.clipboard.writeText(value);
+        return true;
+      }
+    }catch(_){}
+    try{
+      const ta=document.createElement('textarea');
+      ta.value=value;
+      ta.setAttribute('readonly','');
+      ta.style.position='fixed';ta.style.left='-9999px';ta.style.top='0';
+      document.body.appendChild(ta);
+      ta.select();ta.setSelectionRange(0,ta.value.length);
+      const ok=document.execCommand('copy');
+      ta.remove();
+      return !!ok;
+    }catch(_){return false;}
+  }
+  async function shareGameLink(){
+    const url=cleanGameUrl();
+    const ok=await copyTextToClipboard(url);
+    showShareToast(ok
+      ? 'LINK COPIADO. MANDALO A UN AMIGO: SOLO PEGA CON CTRL+V EN WHATSAPP, MAIL O DONDE QUIERAS.'
+      : 'NO SE PUDO COPIAR. COPIA LA DIRECCION DEL NAVEGADOR Y MANDALA A TU AMIGO.');
+  }
+  async function shareCurrentRoom(){
+    if(!roomCode||roomCode==='LOCAL'){
+      showShareToast('PRIMERO CREA UNA PARTIDA ONLINE.');
+      return;
+    }
+    const url=cleanGameUrl(roomCode);
+    const ok=await copyTextToClipboard(url);
+    showShareToast(ok
+      ? 'PARTIDA COPIADA. MANDA EL LINK A TU AMIGO Y AL ABRIRLO TENDRA LA SALA '+roomCode+' PREPARADA.'
+      : 'NO SE PUDO COPIAR EL LINK DE LA PARTIDA.');
+  }
+  function openSharedRoomInvitation(){
+    if(!sharedRoomCode||roomCode||inGame)return false;
+    showPublicRoomsDialog();
+    if(joinCodeDialog)joinCodeDialog.value=sharedRoomCode;
+    showShareToast('INVITACION A LA SALA '+sharedRoomCode+'. PULSA UNIRSE PARA ENTRAR.');
+    return true;
+  }
+
   function websocketUrl(){
     const configured=String((window.GALAXY_CONFIG&&window.GALAXY_CONFIG.serverUrl)||'').trim();
     if(configured){
@@ -443,6 +506,7 @@
         send({t:'resume',code:saved.code,token:saved.token});
       }else{
         send({t:'public-rooms'});
+        if(sharedRoomCode)setTimeout(openSharedRoomInvitation,0);
       }
     };
     ws.onclose=()=>{
@@ -619,7 +683,7 @@
     if(roomTypeDialog)roomTypeDialog.classList.remove('hidden');
   }
   function showPublicRoomsDialog(){
-    if(joinCodeDialog)joinCodeDialog.value='';
+    if(joinCodeDialog&&!sharedRoomCode)joinCodeDialog.value='';
     if(menu)menu.classList.add('submenu-open');
     if(publicRoomsDialog)publicRoomsDialog.classList.remove('hidden');
     renderPublicRooms();send({t:'public-rooms'});
@@ -826,6 +890,8 @@
   menu.addEventListener('pointerdown',startMusic,{passive:true});
   menu.addEventListener('keydown',startMusic);
 
+  if(shareGameBtn)shareGameBtn.addEventListener('click',shareGameLink);
+  if(shareRoomBtn)shareRoomBtn.addEventListener('click',shareCurrentRoom);
   document.getElementById('create').addEventListener('click',()=>{startMusic();showRoomTypeDialog();});
   document.getElementById('cpu').addEventListener('click',startLocalCpu);
   document.getElementById('join').addEventListener('click',()=>{startMusic();showPublicRoomsDialog();});
