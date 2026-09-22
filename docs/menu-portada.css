@@ -72,11 +72,12 @@
 }
 #menu .pilot-field {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
-  gap: 7px;
+  justify-content: center;
+  gap: 9px;
   flex: none;
-  width: min(340px, 100%);
+  width: min(420px, 100%);
   margin: 0 auto;
   text-align: center;
 }
@@ -108,7 +109,7 @@
   -webkit-user-select: text;
 }
 #menu input::placeholder { color: #c0a9d1; opacity: .8; }
-#menu #name { width: 100%; font-size: 20px; font-weight: 400; letter-spacing: .06em; text-align: center; }
+#menu #name { flex: 1 1 auto; width: auto; min-width: 0; font-size: 20px; font-weight: 400; letter-spacing: .06em; text-align: center; }
 #menu .connection-info { min-width: 0; flex: none; width: 100%; min-height: 22px; }
 #menu .server-wait, #menu #status {
   margin: 0;
@@ -258,7 +259,7 @@
   #menu .mode-card { padding: 9px; border-radius: 8px; }
   #menu .mode-title { font-size: 14px; letter-spacing: .02em; margin-bottom: 6px; gap: 5px; }
   #menu .mode-number { font-size: 12px; padding-right: 5px; }
-  #menu .pilot-field { flex: none; width: min(280px, 100%); gap: 4px; }
+  #menu .pilot-field { flex: none; width: min(360px, 100%); gap: 7px; }
   #menu .field-title { font-size: 16px; letter-spacing: .06em; }
   #menu .connection-info { flex: none; min-height: 18px; }
   #menu .server-wait, #menu #status { font-size: 11px; }
@@ -283,7 +284,7 @@
   #menu .menu-body { padding-top: 36%; padding-bottom: max(24px, env(safe-area-inset-bottom, 0px)); }
   #menu .launch-console { width: calc(100vw - var(--menu-edge) * 2); }
   #menu .pilot-row { flex-direction: column; align-items: center; gap: 8px; margin-bottom: 13px; }
-  #menu .pilot-field { flex: none; width: min(320px, 100%); gap: 6px; }
+  #menu .pilot-field { flex: none; width: min(380px, 100%); gap: 8px; }
   #menu .field-title { font-size: 17px; }
   #menu .connection-info { flex: none; }
   #menu .server-wait { justify-content: center; }
