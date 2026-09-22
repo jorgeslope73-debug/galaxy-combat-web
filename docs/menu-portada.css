@@ -1279,3 +1279,18 @@
     margin-bottom:0!important;
   }
 }
+/* V16.4.69: fondo exclusivo de portada para movil en horizontal.
+   La imagen ocupa todo el viewport y sustituye visualmente al INTRO superior. */
+@media (orientation: landscape) and (pointer: coarse) {
+  html.handheld-device #menu.menu-cover {
+    background-image: url("assets/sprites/INTRO_MOBILE.png");
+    background-size: cover;
+    background-position: center center;
+    background-repeat: no-repeat;
+    background-color: #05010b;
+  }
+  html.handheld-device #menu .menu-art {
+    display: none;
+  }
+}
+
