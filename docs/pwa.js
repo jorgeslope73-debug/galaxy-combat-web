@@ -5,6 +5,12 @@
   const isIOS=/iPhone|iPad|iPod/i.test(navigator.userAgent||'')
     || (navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
   let deferredPrompt=null;
+  const tr=(key,fallback)=>{
+    try{
+      if(window.GalaxyI18n&&typeof window.GalaxyI18n.t==='function')return window.GalaxyI18n.t(key);
+    }catch(_){}
+    return fallback;
+  };
 
   function isInstalled(){
     return window.matchMedia?.('(display-mode: standalone)').matches
@@ -38,7 +44,7 @@
   window.addEventListener('appinstalled',()=>{
     deferredPrompt=null;
     refreshInstallButton();
-    showInstallMessage('GALAXY COMBAT INSTALADO. YA PUEDES ABRIRLO DESDE TU PANTALLA DE INICIO COMO UNA APP.');
+    showInstallMessage(tr('pwaInstalled','GALAXY COMBAT INSTALADO.'));
   });
 
   if(installBtn){
@@ -58,9 +64,9 @@
         return;
       }
       if(isIOS){
-        showInstallMessage('EN IPHONE/IPAD: PULSA COMPARTIR Y DESPUES "AÑADIR A PANTALLA DE INICIO". SE ABRIRA COMO UNA APP A PANTALLA COMPLETA.');
+        showInstallMessage(tr('pwaIosInstall','EN IPHONE/IPAD: PULSA COMPARTIR Y DESPUES AÑADIR A PANTALLA DE INICIO.'));
       }else{
-        showInstallMessage('ABRE EL MENU DEL NAVEGADOR Y ELIGE "INSTALAR APP" O "AÑADIR A PANTALLA DE INICIO". DESPUES SE ABRIRA COMO UNA APP.');
+        showInstallMessage(tr('pwaBrowserInstall','ABRE EL MENU DEL NAVEGADOR Y ELIGE AÑADIR A PANTALLA DE INICIO.'));
       }
     });
   }
