@@ -1329,20 +1329,6 @@
         }
       }
       const killText=hudKillText(p,state.scoreToWin,displayedKills);
-      if(now<(invisibleHudUntil[p.i]||0)){
-        const remaining=(invisibleHudUntil[p.i]-now)/2000;
-        const fade=Math.min(1,Math.max(0,remaining*4));
-        ctx.save();
-        ctx.textAlign='center';
-        ctx.textBaseline='middle';
-        ctx.font=`900 ${isMobile?18:13}px Arial,Helvetica,sans-serif`;
-        ctx.fillStyle=color;
-        ctx.globalAlpha=.38*fade;
-        ctx.shadowColor=color;
-        ctx.shadowBlur=(isMobile?8:6)*hudScale;
-        ctx.fillText('MODO INVISIBLE',px+panelW/2,py+panelH/2);
-        ctx.restore();
-      }
       if(localCrashScoreFx){
         // Explosion local del contador cuando una colision propia resta una baja.
         // El nuevo valor ya viene del servidor; aqui solo reforzamos visualmente
@@ -1536,6 +1522,30 @@
     const n=parseInt(m[1],16);
     return {r:(n>>16)&255,g:(n>>8)&255,b:n&255};
   }
+  function drawInvisibleModeNotice(now){
+    if(!state||myIndex===null)return;
+    const until=invisibleHudUntil[Number(myIndex)]||0;
+    if(now>=until)return;
+    const remaining=Math.max(0,until-now);
+    const fadeIn=Math.min(1,(2000-remaining)/180);
+    const fadeOut=Math.min(1,remaining/380);
+    const alpha=.48*Math.min(fadeIn,fadeOut);
+    const color=playerColors[Number(myIndex)]||'#d8a7ff';
+    ctx.save();
+    try{
+      ctx.textAlign='center';
+      ctx.textBaseline='middle';
+      ctx.font=`900 ${isMobile?38:30}px Arial,Helvetica,sans-serif`;
+      ctx.fillStyle=color;
+      ctx.globalAlpha=alpha;
+      ctx.shadowColor=color;
+      ctx.shadowBlur=isMobile?14:10;
+      ctx.fillText('MODO INVISIBLE',W/2,245);
+    }finally{
+      ctx.restore();
+    }
+  }
+
   function drawGhostStatus(now){
     if(!state||!Array.isArray(state.players))return;
     const fontSize=isMobile?27:21;
@@ -1759,6 +1769,7 @@
     drawPenaltyAnnouncement(now);
     drawLeaderAnnouncement(now);
     drawBrutalAnnouncement(now);
+    drawInvisibleModeNotice(now);
     if(state.shower>0){
       const pulse=.58+.42*(.5+.5*Math.sin(now*.005));
       ctx.save();
