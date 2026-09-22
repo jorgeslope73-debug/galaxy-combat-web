@@ -71,27 +71,22 @@
   padding: 0 2px;
 }
 #menu .pilot-field {
-  position: relative;
-  display: block;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
   flex: none;
-  font-size: 20px;
-  width: min(100%, calc(136px + 20ch));
+  width: min(420px, 100%);
   margin: 0 auto;
   text-align: center;
 }
 #menu .field-title {
-  position: absolute;
-  z-index: 2;
-  left: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #e1c9f5;
-  font-size: 18px;
+  color: rgba(225,201,245,.62);
+  font-size: 13px;
   font-weight: 400;
   line-height: 1;
-  letter-spacing: .06em;
+  letter-spacing: .10em;
   white-space: nowrap;
-  pointer-events: none;
 }
 #menu input, #menu select, #menu button {
   min-width: 0;
@@ -113,7 +108,7 @@
   -webkit-user-select: text;
 }
 #menu input::placeholder { color: #c0a9d1; opacity: .8; }
-#menu #name { width: 100%; min-width: 0; padding-left: 112px; padding-right: 14px; font-size: 20px; font-weight: 400; letter-spacing: .06em; text-align: left; }
+#menu #name { width: min(100%, 360px); min-width: 0; padding-left: 14px; padding-right: 14px; font-size: 20px; font-weight: 400; letter-spacing: .06em; text-align: center; }
 #menu .connection-info { min-width: 0; flex: none; width: 100%; min-height: 22px; }
 #menu .server-wait, #menu #status {
   margin: 0;
@@ -263,8 +258,8 @@
   #menu .mode-card { padding: 9px; border-radius: 8px; }
   #menu .mode-title { font-size: 14px; letter-spacing: .02em; margin-bottom: 6px; gap: 5px; }
   #menu .mode-number { font-size: 12px; padding-right: 5px; }
-  #menu .pilot-field { flex: none; font-size: 19px; width: min(100%, calc(126px + 20ch)); }
-  #menu .field-title { font-size: 16px; letter-spacing: .06em; }
+  #menu .pilot-field { flex: none; width: min(360px, 100%); gap: 5px; }
+  #menu .field-title { font-size: 12px; letter-spacing: .09em; }
   #menu .connection-info { flex: none; min-height: 18px; }
   #menu .server-wait, #menu #status { font-size: 11px; }
   #menu input, #menu select, #menu button { min-height: 44px; height: 44px; padding: 8px; font-size: 17px; }
@@ -288,8 +283,8 @@
   #menu .menu-body { padding-top: 36%; padding-bottom: max(24px, env(safe-area-inset-bottom, 0px)); }
   #menu .launch-console { width: calc(100vw - var(--menu-edge) * 2); }
   #menu .pilot-row { flex-direction: column; align-items: center; gap: 8px; margin-bottom: 13px; }
-  #menu .pilot-field { flex: none; font-size: 20px; width: min(100%, calc(136px + 20ch)); }
-  #menu .field-title { font-size: 17px; }
+  #menu .pilot-field { flex: none; width: min(380px, 100%); gap: 5px; }
+  #menu .field-title { font-size: 12px; }
   #menu .connection-info { flex: none; }
   #menu .server-wait { justify-content: center; }
   #menu .server-wait, #menu #status { font-size: 11px; text-align: center; }
