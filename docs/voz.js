@@ -39,6 +39,8 @@
 
       this.enableButton=document.getElementById('enableVoice');
       this.statusEl=document.getElementById('voiceStatus');
+      this.activationTipEl=document.getElementById('voiceActivationTip');
+      this.activationTipTimer=null;
       this.pttButton=document.getElementById('voicePtt');
       this.hintEl=document.getElementById('voiceHint');
       this.talkerEl=document.getElementById('voiceTalker');
@@ -123,6 +125,7 @@
         track.addEventListener('ended',()=>this.disable(false),{once:true});
         this.setStatus(tr('voiceEnabled'));
         this.refreshUI();
+        this.showActivationTip();
         if(this.localIndex!==null&&!this.cpuMode){
           this.send({t:'voice-ready'});
           for(const peer of this.readyPeers)this.maybeOffer(peer);
@@ -139,6 +142,7 @@
     }
 
     disable(notify=true){
+      this.hideActivationTip();
       this.setTalking(false);
       if(notify&&this.localIndex!==null)this.send({t:'voice-offline'});
       this.enabled=false;
@@ -152,6 +156,7 @@
     }
 
     shutdown(notify=true){
+      this.hideActivationTip();
       if(notify&&this.enabled&&this.localIndex!==null)this.send({t:'voice-offline'});
       this.setTalking(false);
       this.closeAllPeers();
@@ -338,6 +343,17 @@
     }
 
     setStatus(text){if(this.statusEl)this.statusEl.textContent=text;}
+    showActivationTip(){
+      if(this.isMobile||!this.activationTipEl)return;
+      clearTimeout(this.activationTipTimer);
+      this.activationTipEl.classList.remove('hidden');
+      this.activationTipTimer=setTimeout(()=>this.hideActivationTip(),5000);
+    }
+    hideActivationTip(){
+      clearTimeout(this.activationTipTimer);
+      this.activationTipTimer=null;
+      if(this.activationTipEl)this.activationTipEl.classList.add('hidden');
+    }
 
     refreshTalkers(){
       if(!this.talkerEl)return;

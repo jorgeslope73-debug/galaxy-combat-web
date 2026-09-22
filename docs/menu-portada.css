@@ -1331,9 +1331,9 @@ html:not(.handheld-device) #menu #enableVoice{
   max-width:160px;
   height:36px;
   min-height:36px;
-  padding:2px 10px;
-  font-size:22px;
-  line-height:1;
+  padding:2px 8px;
+  font-size:24px;
+  line-height:.95;
 }
 html:not(.handheld-device) #menu .menu-keys{
   position:relative;
@@ -1353,4 +1353,35 @@ html:not(.handheld-device) #menu .menu-credit{
     min-width:104px!important;
     font-size:9px!important;
   }
+}
+
+
+/* V16.4.84: ayuda temporal al activar la voz en PC. */
+#menu .voice-activation-tip{
+  display:none;
+}
+html:not(.handheld-device) #menu .voice-setup{
+  position:relative;
+}
+html:not(.handheld-device) #menu .voice-activation-tip{
+  position:absolute;
+  display:block;
+  left:calc(100% + 12px);
+  top:50%;
+  transform:translateY(-50%);
+  width:max-content;
+  max-width:360px;
+  padding:7px 10px;
+  border:1px solid rgba(205,145,255,.48);
+  border-radius:8px;
+  background:rgba(12,5,24,.92);
+  color:#ead3ff;
+  box-shadow:0 0 16px rgba(162,74,225,.18);
+  font:800 11px/1.25 Arial,Helvetica,sans-serif;
+  letter-spacing:.035em;
+  white-space:nowrap;
+  pointer-events:none;
+}
+html:not(.handheld-device) #menu .voice-activation-tip.hidden{
+  display:none!important;
 }
