@@ -1385,3 +1385,20 @@ html:not(.handheld-device) #menu .voice-activation-tip{
 html:not(.handheld-device) #menu .voice-activation-tip.hidden{
   display:none!important;
 }
+
+
+/* V16.4.91: boton de instalacion PWA solo en movil/tablet. */
+#menu .install-app-launch{
+  display:none!important;
+}
+html.handheld-device #menu .install-app-launch:not(.pwa-hidden){
+  display:inline-flex!important;
+  align-items:center;
+  justify-content:center;
+  min-width:86px!important;
+  border-color:rgba(104,225,154,.5)!important;
+  color:#caffdd!important;
+}
+#menu .install-app-launch.pwa-hidden{
+  display:none!important;
+}
