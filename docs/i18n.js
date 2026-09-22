@@ -34,10 +34,12 @@
       nameEl.dataset.defaultPlayer=nextDefault;
     }
     document.documentElement.lang=language;
-    const currentFlag=document.getElementById('languageCurrentFlag');
-    const currentCode=document.getElementById('languageCurrentCode');
-    if(currentFlag)currentFlag.className=`language-flag flag-${language}`;
-    if(currentCode)currentCode.textContent=language.toUpperCase();
+    document.querySelectorAll('[data-language-current-flag]').forEach(el=>{
+      const base=el.classList.contains('orientation-language-flag')?'orientation-language-flag':'language-flag';
+      el.className=`${base} flag-${language}`;
+      el.setAttribute('data-language-current-flag','');
+    });
+    document.querySelectorAll('[data-language-current-code]').forEach(el=>{el.textContent=language.toUpperCase();});
   }
   function setLanguage(next,{notify=true}={}){
     language=normalizeLanguage(next);
@@ -49,7 +51,7 @@
   document.querySelectorAll('[data-language]').forEach(button=>{
     button.addEventListener('click',()=>{
       setLanguage(button.dataset.language);
-      const dropdown=document.getElementById('languageDropdown');
+      const dropdown=button.closest('details');
       if(dropdown)dropdown.open=false;
     });
   });

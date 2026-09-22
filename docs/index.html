@@ -155,10 +155,23 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
 .orientation-gate-icon .rotate-arrows{fill:none;stroke:currentColor;stroke-width:3.4;stroke-linecap:round;stroke-linejoin:round}
 .orientation-gate-title{margin:0 0 10px;font:900 clamp(24px,7vw,36px)/1 Arial,Helvetica,sans-serif;letter-spacing:.035em}
 .orientation-gate-copy{margin:0;color:rgba(239,245,255,.82);font:700 15px/1.35 Arial,Helvetica,sans-serif}
-.orientation-language-label{margin:16px 0 8px;color:#cbb7df;font:800 10px/1 Arial,Helvetica,sans-serif;letter-spacing:.12em}
-.orientation-language-list{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin:0 auto 14px}
-.orientation-language-list button{min-width:52px;height:34px;padding:5px 8px;border:1px solid rgba(193,151,232,.44);border-radius:999px;background:rgba(12,6,25,.78);color:#f5eaff;font:900 10px/1 Arial,Helvetica,sans-serif;letter-spacing:.04em}
-.orientation-language-list button:focus-visible{outline:2px solid #c993ff;outline-offset:2px}
+.orientation-language-switcher{position:absolute;z-index:2;top:max(12px,env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%)}
+.orientation-language-dropdown{position:relative;margin:0;padding:0}
+.orientation-language-dropdown>summary{list-style:none}
+.orientation-language-dropdown>summary::-webkit-details-marker{display:none}
+.orientation-language-current{min-width:72px;height:31px;box-sizing:border-box;margin:0;padding:4px 9px;display:flex;align-items:center;justify-content:center;gap:6px;border:1px solid rgba(213,185,236,.52);border-radius:999px;background:rgba(5,3,12,.84);color:#fff;box-shadow:0 3px 14px rgba(0,0,0,.34);font:800 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.055em;cursor:pointer;backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+.orientation-language-current:focus-visible{outline:1px solid rgba(171,111,225,.95);outline-offset:2px}
+.orientation-language-chevron{font-size:9px;opacity:.72;transition:transform .15s ease}
+.orientation-language-dropdown[open] .orientation-language-chevron{transform:rotate(180deg)}
+.orientation-language-menu{position:absolute;top:36px;left:50%;transform:translateX(-50%);min-width:86px;padding:5px;display:grid;gap:3px;border:1px solid rgba(213,185,236,.42);border-radius:10px;background:rgba(9,5,19,.97);box-shadow:0 8px 22px rgba(0,0,0,.5);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+.orientation-language-menu button{width:100%;height:30px;margin:0;padding:4px 8px;display:flex;align-items:center;gap:7px;border:0;border-radius:7px;background:transparent;color:#fff;font:800 11px/1 Arial,Helvetica,sans-serif;letter-spacing:.055em;text-align:left;cursor:pointer}
+.orientation-language-menu button:focus-visible{background:rgba(171,111,225,.2);outline:none}
+.orientation-language-flag{display:inline-block;flex:0 0 auto;width:21px;height:14px;box-sizing:border-box;border:1px solid rgba(255,255,255,.48);border-radius:2px;overflow:hidden;box-shadow:0 1px 2px rgba(0,0,0,.35);background-color:#fff}
+.orientation-language-flag.flag-es{background:linear-gradient(to bottom,#aa151b 0 25%,#f1bf00 25% 75%,#aa151b 75% 100%)}
+.orientation-language-flag.flag-it{background:linear-gradient(to right,#009246 0 33.333%,#fff 33.333% 66.666%,#ce2b37 66.666% 100%)}
+.orientation-language-flag.flag-fr{background:linear-gradient(to right,#0055a4 0 33.333%,#fff 33.333% 66.666%,#ef4135 66.666% 100%)}
+.orientation-language-flag.flag-de{background:linear-gradient(to bottom,#000 0 33.333%,#dd0000 33.333% 66.666%,#ffce00 66.666% 100%)}
+.orientation-language-flag.flag-en{background:linear-gradient(27deg,transparent 44%,#fff 44% 56%,transparent 56%),linear-gradient(-27deg,transparent 44%,#fff 44% 56%,transparent 56%),linear-gradient(27deg,transparent 48%,#c8102e 48% 52%,transparent 52%),linear-gradient(-27deg,transparent 48%,#c8102e 48% 52%,transparent 52%),linear-gradient(90deg,transparent 39%,#fff 39% 61%,transparent 61%),linear-gradient(transparent 35%,#fff 35% 65%,transparent 65%),linear-gradient(90deg,transparent 46%,#c8102e 46% 54%,transparent 54%),linear-gradient(transparent 44%,#c8102e 44% 56%,transparent 56%),#012169}
 .orientation-gate-install-copy{margin:18px 0 9px;color:#d9c5ef;font:800 12px/1.35 Arial,Helvetica,sans-serif;letter-spacing:.025em}
 .orientation-install-button{display:inline-flex;align-items:center;justify-content:center;min-height:38px;padding:7px 14px;border:1px solid rgba(111,239,178,.58);border-radius:999px;background:rgba(24,72,48,.72);color:#d9ffe7;font:900 11px/1.15 Arial,Helvetica,sans-serif;letter-spacing:.035em;box-shadow:0 0 18px rgba(67,221,134,.16)}
 .orientation-install-button.pwa-hidden{display:none!important}
@@ -168,6 +181,22 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
 <body>
 <div id="app">
   <div id="orientationGate" class="orientation-gate" role="alert" aria-live="assertive">
+    <div class="orientation-language-switcher">
+      <details id="orientationLanguageDropdown" class="orientation-language-dropdown">
+        <summary class="orientation-language-current" aria-label="Idioma / Language">
+          <span class="orientation-language-flag flag-es" data-language-current-flag aria-hidden="true"></span>
+          <span data-language-current-code>ES</span>
+          <span class="orientation-language-chevron" aria-hidden="true">▾</span>
+        </summary>
+        <div class="orientation-language-menu" role="menu" aria-label="Idioma / Language">
+          <button type="button" role="menuitem" data-language="es"><span class="orientation-language-flag flag-es" aria-hidden="true"></span><span>ES</span></button>
+          <button type="button" role="menuitem" data-language="en"><span class="orientation-language-flag flag-en" aria-hidden="true"></span><span>EN</span></button>
+          <button type="button" role="menuitem" data-language="it"><span class="orientation-language-flag flag-it" aria-hidden="true"></span><span>IT</span></button>
+          <button type="button" role="menuitem" data-language="fr"><span class="orientation-language-flag flag-fr" aria-hidden="true"></span><span>FR</span></button>
+          <button type="button" role="menuitem" data-language="de"><span class="orientation-language-flag flag-de" aria-hidden="true"></span><span>DE</span></button>
+        </div>
+      </details>
+    </div>
     <div class="orientation-gate-card">
       <span class="orientation-gate-icon" aria-hidden="true">
         <svg viewBox="0 0 72 72" focusable="false">
@@ -181,14 +210,6 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
       </span>
       <p class="orientation-gate-title" data-i18n="orientationTitle">GIRA EL MÓVIL</p>
       <p class="orientation-gate-copy" data-i18n="orientationCopy">Galaxy Combat se juega en horizontal.</p>
-      <p class="orientation-language-label" data-i18n="languageLabel">IDIOMA / LANGUAGE</p>
-      <div class="orientation-language-list" aria-label="Idioma / Language">
-        <button type="button" data-language="es">ES · ESPAÑOL</button>
-        <button type="button" data-language="en">EN · ENGLISH</button>
-        <button type="button" data-language="it">IT · ITALIANO</button>
-        <button type="button" data-language="fr">FR · FRANÇAIS</button>
-        <button type="button" data-language="de">DE · DEUTSCH</button>
-      </div>
       <p class="orientation-gate-install-copy" data-i18n="orientationInstallCopy">PARA JUGAR MEJOR, AÑADE EL JUEGO A TU PANTALLA DE INICIO.</p>
       <button id="orientationInstallGame" class="orientation-install-button pwa-hidden" type="button" data-i18n="addHomeScreen">AÑADIR A PANTALLA DE INICIO</button>
     </div>
@@ -196,7 +217,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
-      <div id="buildVersion" aria-label="Version del juego">V16.4.95</div>
+      <div id="buildVersion" aria-label="Version del juego">V16.4.96</div>
       <div class="menu-left-tools" aria-label="Clasificacion, compartir e instalar">
         <button id="rankingOpen" class="ranking-launch" type="button" aria-haspopup="dialog">RANKING</button>
         <button id="shareGame" class="ranking-launch share-game-launch" type="button">COMPARTIR JUEGO</button>
@@ -209,8 +230,8 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
         <div id="languageSwitcher" class="language-switcher">
           <details id="languageDropdown" class="language-dropdown">
           <summary id="languageCurrent" class="language-current" aria-label="Idioma / Language">
-            <span id="languageCurrentFlag" class="language-flag flag-es" aria-hidden="true"></span>
-            <span id="languageCurrentCode">ES</span>
+            <span id="languageCurrentFlag" class="language-flag flag-es" data-language-current-flag aria-hidden="true"></span>
+            <span id="languageCurrentCode" data-language-current-code>ES</span>
             <span class="language-chevron" aria-hidden="true">▾</span>
           </summary>
           <div class="language-menu" role="menu" aria-label="Idioma / Language">
@@ -422,7 +443,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <button id="mobileExit" class="mobile-exit hidden" type="button" data-i18n-aria="exitAria" aria-label="Salir de la partida y volver al inicio"><span data-i18n="exit">SALIR</span></button>
 </div>
 <script src="config.js"></script>
-<script src="i18n.js?v=V16.4.94-orientation-language"></script>
+<script src="i18n.js?v=V16.4.96-orientation-dropdown"></script>
 <script src="manual.js?v=V16.4.61-ranking-20260920"></script>
 <script src="impactos.js?v=V16.4.61-ranking-20260920"></script>
 <script src="voz.js?v=V16.4.84-voice-tip"></script>
