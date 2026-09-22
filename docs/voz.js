@@ -140,7 +140,6 @@
       this.enabling=true;
       this.setStatus(tr('requestingMicrophone'));
       try{
-        await this.ensureIceServers();
         const stream=await navigator.mediaDevices.getUserMedia({
           audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},
           video:false
@@ -272,8 +271,9 @@
       return pc;
     }
 
-    maybeOffer(id){
+    async maybeOffer(id){
       if(!this.enabled||this.localIndex===null||!Number.isInteger(id)||id===this.localIndex)return;
+      await this.ensureIceServers();
       if(this.localIndex<id)this.makeOffer(id);
     }
 
