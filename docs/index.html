@@ -19,7 +19,7 @@
 </script>
 <title>Galaxy Combat | Jorge Lopez Diaz</title>
 <link rel="stylesheet" href="style.css?v=V16.4.61-ranking-20260920">
-<link rel="stylesheet" href="menu-portada.css?v=V16.4.74-voice-menu">
+<link rel="stylesheet" href="menu-portada.css?v=V16.4.76-voice-restore">
 <link rel="stylesheet" href="voz.css?v=V16.4.61-ranking-20260920">
 <style>
 /* Chat de texto de la sala de espera. Solo se muestra dentro del lobby. */
@@ -167,7 +167,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
   <canvas id="game" width="1920" height="1080" aria-label="Galaxy Combat"></canvas>
   <div id="ui" class="overlay">
     <section id="menu" class="menu-cover" aria-labelledby="menuTitle">
-      <div id="buildVersion" aria-label="Version del juego">V16.4.75</div>
+      <div id="buildVersion" aria-label="Version del juego">V16.4.76</div>
       <div class="menu-left-tools" aria-label="Clasificacion">
         <button id="rankingOpen" class="ranking-launch" type="button" aria-haspopup="dialog">RANKING</button>
       </div>
@@ -285,12 +285,6 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
                 <p id="status" class="status waking" aria-live="polite" data-i18n="connectingShort">Conectando con el servidor...</p>
               </div>
             </div>
-            <div class="menu-control-tools">
-              <div class="voice-setup" data-i18n-aria="voiceChatAria" aria-label="Chat de voz">
-                <button id="enableVoice" type="button" data-i18n="activateVoice">ACTIVAR VOZ</button>
-                <span id="voiceStatus" class="voice-status" aria-live="polite" data-i18n="voiceDisabled">VOZ DESACTIVADA</span>
-              </div>
-            </div>
             <div class="mode-grid" data-i18n-aria="modesAria" aria-label="Modos de juego">
               <div class="mode-card cpu-mode">
                 <h2 class="mode-title"><span class="mode-number" aria-hidden="true">01</span> <span data-i18n="modeCpu">CONTRA LA MAQUINA</span></h2>
@@ -345,6 +339,12 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
                 </div>
               </div>
             </div>
+            <div class="menu-control-tools">
+              <div class="voice-setup" data-i18n-aria="voiceChatAria" aria-label="Chat de voz">
+                <button id="enableVoice" type="button" data-i18n="activateVoice">ACTIVAR VOZ</button>
+                <span id="voiceStatus" class="voice-status" aria-live="polite" data-i18n="voiceDisabled">VOZ DESACTIVADA</span>
+              </div>
+            </div>
             <p class="help desktop-help menu-keys"><span><span data-i18n="rotateControl">GIRAR</span> <b>A / D</b> <span data-i18n="orArrows">o flechas</span></span><i aria-hidden="true"></i><span><span data-i18n="accelerate">ACELERAR</span> <b>W / ARRIBA</b></span><i aria-hidden="true"></i><span><span data-i18n="fire">DISPARAR</span> <b>CTRL / ESPACIO</b></span></p>
             <p class="help mobile-guide mobile-guide-main" data-i18n="mobileGuide">Inclina para girar &middot; izquierda: disparo &middot; derecha: acelerar.</p>
             <p id="motionStatus" class="motion-status mobile-motion-status" aria-live="polite"></p>
@@ -391,7 +391,7 @@ html:not(.handheld-device) #lobby .lobby-chat{width:min(500px,100%)}
 <script src="i18n.js?v=V16.4.73-name-label"></script>
 <script src="manual.js?v=V16.4.61-ranking-20260920"></script>
 <script src="impactos.js?v=V16.4.61-ranking-20260920"></script>
-<script src="voz.js?v=V16.4.75-voice-activate"></script>
+<script src="voz.js?v=V16.4.76-voice-restore"></script>
 <script src="auth.js?v=V16.4.61-ranking-20260920"></script>
 <script src="ranking.js?v=V16.4.61-ranking-20260920"></script>
 <script src="game.js?v=V16.4.72-calibracion"></script>
