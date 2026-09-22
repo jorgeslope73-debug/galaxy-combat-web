@@ -1395,7 +1395,13 @@ html.handheld-device #menu .install-app-launch:not(.pwa-hidden){
   display:inline-flex!important;
   align-items:center;
   justify-content:center;
-  min-width:86px!important;
+  min-width:132px!important;
+  max-width:148px!important;
+  padding:3px 8px!important;
+  font-size:8px!important;
+  line-height:1.05!important;
+  white-space:normal!important;
+  text-align:center!important;
   border-color:rgba(104,225,154,.5)!important;
   color:#caffdd!important;
 }
